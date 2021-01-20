@@ -41,6 +41,7 @@ from .stamps import StampsBase, AbstractStamp
 class BrightStarStamp(AbstractStamp):
     """Single stamp centered on a bright star, normalized by its
     annularFlux.
+
     Parameters
     ----------
     stamp_im : `lsst.afw.image.MaskedImage`
@@ -56,9 +57,11 @@ class BrightStarStamp(AbstractStamp):
     gaiaGMag: float
     gaiaId: int
     annularFlux: Optional[float] = None
+    XY0: Point2I
+    transform: Optional[afwGeom.TransformPoint2ToPoint2] = None
 
     @classmethod
-    def factory(cls, stamp_im, metadata, idx):
+    def factory(cls, stamp_im, metadata, idx, transform=None):
         """This method is needed to service the FITS reader.
         We need a standard interface to construct objects like this.
         Parameters needed to construct this object are passed in via
@@ -66,6 +69,7 @@ class BrightStarStamp(AbstractStamp):
         this class.  This particular factory method requires keys:
         G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They should each
         point to lists of values.
+
         Parameters
         ----------
         stamp_im : `lsst.afw.image.MaskedImage`
@@ -75,15 +79,20 @@ class BrightStarStamp(AbstractStamp):
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
+
         Returns
         -------
         brightstarstamp : `BrightStarStamp`
             An instance of this class
         """
+        x0 = metadata.getArray('X0S')[idx]
+        y0 = metadata.getArray('Y0S')[idx]
         return cls(stamp_im=stamp_im,
                    gaiaGMag=metadata.getArray('G_MAGS')[idx],
                    gaiaId=metadata.getArray('GAIA_IDS')[idx],
-                   annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx])
+                   annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx],
+                   XY0=[x0, y0],
+                   transform=transform)
 
     def measureAndNormalize(self, annulus, statsControl=afwMath.StatisticsControl(),
                             statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
@@ -309,18 +318,21 @@ class BrightStarStamps(StampsBase):
             height = options["height"]
             bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
             kwargs["bbox"] = bbox
-        stamp_parts = {}
+        stamp_parts, transforms = {}, {}
         # We need to be careful because nExtensions includes the primary
         # header data unit
         for idx in range(nExtensions-1):
             md = afwFits.readMetadata(filename, hdu=idx+1)
             if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
                 reader = afwImage.ImageFitsReader(filename, hdu=idx+1)
+                stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
             elif md['EXTNAME'] == 'MASK':
                 reader = afwImage.MaskFitsReader(filename, hdu=idx+1)
+                stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
+            elif md['EXTNAME'] == 'TRANSFORM':
+                transforms[md['EXTVER']] = afwGeom.TransformPoint2ToPoint2.readFits(filename, hdu=idx+1)
             else:
                 raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
-            stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
         if len(stamp_parts) != nStamps:
             raise ValueError(f'Number of stamps read ({len(stamp_parts)}) does not agree with the '
                              f'number of stamps recorded in the metadata ({nStamps}).')
@@ -329,7 +341,8 @@ class BrightStarStamps(StampsBase):
         for k in range(nStamps):
             # Need to increment by one since EXTVER starts at 1
             maskedImage = afwImage.MaskedImageF(**stamp_parts[k+1])
-            stamps.append(BrightStarStamp.factory(maskedImage, metadata, k))
+            transform = transforms[k+1]
+            stamps.append(BrightStarStamp.factory(maskedImage, metadata, k, transform=transform))
         if metadata["NORMALIZED"]:
             return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
@@ -411,6 +424,25 @@ class BrightStarStamps(StampsBase):
         annularFluxes : `list` [`float`]
         """
         return [stamp.annularFlux for stamp in self._stamps]
+
+    def getXY0s(self):
+        """Retrieve the coordinates of the bottom-left pixel for each star.
+        These correspond to that quantity before warping and rotations are
+        applied.
+        Returns
+        -------
+        XY0s : list[`tuple`]
+        """
+        return [stamp.XY0 for stamp in self._starStamps]
+
+    def getTransforms(self):
+        """Retrieve Transform from each star's initial stamp to the common
+        model grid.
+        Returns
+        -------
+        transforms : `list` [`TransformPoint2toPoint2`]
+        """
+        return [stamp.transform for stamp in self._starStamps]
 
     def selectByMag(self, magMin=None, magMax=None):
         """Return the subset of bright star stamps for objects with specified
