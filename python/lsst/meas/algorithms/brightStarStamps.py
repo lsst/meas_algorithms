@@ -34,7 +34,7 @@ from lsst.geom import Box2I, Point2I, Extent2I
 from lsst.afw import image as afwImage
 from lsst.afw import geom as afwGeom
 from lsst.afw import math as afwMath
-from lsst.fits import math as afwFits
+from lsst.afw import fits as afwFits
 from .stamps import StampsBase, AbstractStamp
 
 
@@ -288,9 +288,7 @@ class BrightStarStamps(StampsBase):
         self._metadata["OUTER_RADIUS"] = self._outerRadius
         self._metadata["X0S"] = [XY0[0] for XY0 in self.getXY0s()]
         self._metadata["Y0S"] = [XY0[1] for XY0 in self.getXY0s()]
-        # if class instance contains number of rotations, save it to header
-        if self.nb90Rots is not None:
-            self._metadata["NB_90_ROTS"] = self.nb90Rots
+        self._metadata["NB_90_ROTS"] = self.nb90Rots
         return None
 
     def writeFits(self, filename):
@@ -358,6 +356,7 @@ class BrightStarStamps(StampsBase):
         f = afwFits.Fits(filename, 'r')
         nExtensions = f.countHdus()
         nStamps = metadata["N_STAMPS"]
+        nb90Rots = visitMetadata["NB_90_ROTS"]
         # check if a bbox was provided
         kwargs = {}
         if options and options.exists("llcX"):
@@ -395,10 +394,10 @@ class BrightStarStamps(StampsBase):
         if metadata["NORMALIZED"]:
             return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
-                       metadata=metadata, use_mask=metadata['HAS_MASK'],
+                       nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'])
         else:
-            return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
+            return cls(stamps, nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'])
 
     def append(self, item, innerRadius=None, outerRadius=None):
