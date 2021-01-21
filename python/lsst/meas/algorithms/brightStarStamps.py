@@ -29,6 +29,7 @@ from operator import ior
 from functools import reduce
 from typing import Optional
 
+from lsst.daf.base import PropertyList
 from lsst.geom import Box2I, Point2I, Extent2I
 from lsst.afw import image as afwImage
 from lsst.afw import geom as afwGeom
@@ -272,14 +273,54 @@ class BrightStarStamps(StampsBase):
         """Refresh the metadata. Should be called before writing this object
         out.
         """
-        # add full list of Gaia magnitudes, IDs and annularFlxes to shared
-        # metadata
+        # add full list of Gaia magnitudes, IDs, annularFlxes stamp origins
+        # to shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
         self._metadata["NORMALIZED"] = self.normalized
         self._metadata["INNER_RADIUS"] = self._innerRadius
         self._metadata["OUTER_RADIUS"] = self._outerRadius
+        self._metadata["X0S"] = [XY0[0] for XY0 in self.getXY0s()]
+        self._metadata["Y0S"] = [XY0[1] for XY0 in self.getXY0s()]
+        return None
+
+    def writeFits(self, filename):
+        """Write this object to a file.
+
+        Parameters
+        ----------
+        filename : `str`
+            Name of file to write
+        """
+        self._refresh_metadata()
+        stamp_ims = self.getMaskedImages()
+        self._metadata['HAS_MASK'] = self.use_mask
+        self._metadata['HAS_VARIANCE'] = self.use_variance
+        self._metadata['N_STAMPS'] = len(stamp_ims)
+        # create primary HDU with global metadata
+        fitsPrimary = afwFits.Fits(filename, "w")
+        fitsPrimary.createEmpty()
+        fitsPrimary.writeMetadata(self._metadata)
+        fitsPrimary.closeFile()
+
+        # add all pixel data optionally writing mask and variance information
+        for i, (stamp, transform) in enumerate(zip(stamp_ims, self.getTransforms())):
+            metadata = PropertyList()
+            # EXTVER should be 1-based, the index from enumerate is 0-based
+            metadata.update({'EXTVER': i+1, 'EXTNAME': 'IMAGE'})
+            stamp.getImage().writeFits(filename, metadata=metadata, mode='a')
+            if self.use_mask:
+                metadata = PropertyList()
+                metadata.update({'EXTVER': i+1, 'EXTNAME': 'MASK'})
+                stamp.getMask().writeFits(filename, metadata=metadata, mode='a')
+            if self.use_variance:
+                metadata = PropertyList()
+                metadata.update({'EXTVER': i+1, 'EXTNAME': 'VARIANCE'})
+                stamp.getVariance().writeFits(filename, metadata=metadata, mode='a')
+            # Write transform
+            metadata.update({'EXTVER': i+1, 'EXTNAME': 'TRANSFORM'})
+            self.getTransform().writeFits(filename, metadata=metadata, mode='a')
         return None
 
     @classmethod
