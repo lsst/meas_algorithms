@@ -154,6 +154,9 @@ class BrightStarStamps(StampsBase):
         Outer radius value, in pixels. This and ``innerRadius`` define the
         annulus used to compute the ``"annularFlux"`` values within each
         ``starStamp``. Must be provided if ``normalize`` is True.
+    nb90Rots : `int`, optional
+        Number of 90 degree rotations required to compensate for detector
+        orientation.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
     use_mask : `bool`
@@ -181,7 +184,8 @@ class BrightStarStamps(StampsBase):
     """
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
-                 metadata=None, use_mask=True, use_variance=False):
+                 nb90Rots=None, metadata=None,
+                 use_mask=True, use_variance=False):
         super().__init__(starStamps, metadata, use_mask, use_variance)
         # Ensure stamps contain a flux measurement if and only if they are
         # already expected to be normalized
@@ -191,6 +195,7 @@ class BrightStarStamps(StampsBase):
             self.normalized = True
         else:
             self.normalized = False
+        self.nb90Rots = nb90Rots
 
     @classmethod
     def initAndNormalize(cls, starStamps, innerRadius, outerRadius,
@@ -283,6 +288,9 @@ class BrightStarStamps(StampsBase):
         self._metadata["OUTER_RADIUS"] = self._outerRadius
         self._metadata["X0S"] = [XY0[0] for XY0 in self.getXY0s()]
         self._metadata["Y0S"] = [XY0[1] for XY0 in self.getXY0s()]
+        # if class instance contains number of rotations, save it to header
+        if self.nb90Rots is not None:
+            self._metadata["NB_90_ROTS"] = self.nb90Rots
         return None
 
     def writeFits(self, filename):
