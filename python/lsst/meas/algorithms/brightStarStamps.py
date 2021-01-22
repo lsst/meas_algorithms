@@ -57,8 +57,8 @@ class BrightStarStamp(AbstractStamp):
     stamp_im: afwImage.MaskedImageF
     gaiaGMag: float
     gaiaId: int
-    annularFlux: Optional[float] = None
     XY0: Point2I
+    annularFlux: Optional[float] = None
     transform: Optional[afwGeom.TransformPoint2ToPoint2] = None
 
     @classmethod
@@ -326,7 +326,7 @@ class BrightStarStamps(StampsBase):
                 stamp.getVariance().writeFits(filename, metadata=metadata, mode='a')
             # Write transform
             metadata.update({'EXTVER': i+1, 'EXTNAME': 'TRANSFORM'})
-            self.getTransform().writeFits(filename, metadata=metadata, mode='a')
+            transform.writeFits(filename, metadata=metadata, mode='a')
         return None
 
     @classmethod
@@ -356,7 +356,7 @@ class BrightStarStamps(StampsBase):
         f = afwFits.Fits(filename, 'r')
         nExtensions = f.countHdus()
         nStamps = metadata["N_STAMPS"]
-        nb90Rots = visitMetadata["NB_90_ROTS"]
+        nb90Rots = metadata["NB_90_ROTS"]
         # check if a bbox was provided
         kwargs = {}
         if options and options.exists("llcX"):
@@ -481,7 +481,7 @@ class BrightStarStamps(StampsBase):
         -------
         XY0s : list[`tuple`]
         """
-        return [stamp.XY0 for stamp in self._starStamps]
+        return [stamp.XY0 for stamp in self._stamps]
 
     def getTransforms(self):
         """Retrieve Transform from each star's initial stamp to the common
@@ -490,7 +490,7 @@ class BrightStarStamps(StampsBase):
         -------
         transforms : `list` [`TransformPoint2toPoint2`]
         """
-        return [stamp.transform for stamp in self._starStamps]
+        return [stamp.transform for stamp in self._stamps]
 
     def selectByMag(self, magMin=None, magMax=None):
         """Return the subset of bright star stamps for objects with specified
