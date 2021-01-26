@@ -190,8 +190,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         # Express eigenValues in units of reduced chi^2 per star
         size = kernelSize + 2*self.config.borderWidth
         nu = size*size - 1                  # number of degrees of freedom/star for chi^2
-        eigenValues = [l/float(countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
-                       for l in eigenValues]
+        eigenValues = [val/float(countPsfCandidates(psfCellSet, self.config.nStarPerCell)*nu)
+                       for val in eigenValues]
 
         # Fit spatial model
         status, chi2 = fitSpatialKernelFromPsfCandidates(
