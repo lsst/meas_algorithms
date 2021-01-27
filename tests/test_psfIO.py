@@ -169,7 +169,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         kernel, eigenValues = pair[0], pair[1]
         del pair
 
-        print("lambda", " ".join(["%g" % l for l in eigenValues]))
+        print("lambda", " ".join(["%g" % val for val in eigenValues]))
 
         pair = algorithms.fitSpatialKernelFromPsfCandidates(kernel, self.cellSet, nStarPerCellSpatialFit,
                                                             tolerance)
