@@ -1,13 +1,7 @@
-"""Sphinx configuration file for an LSST stack package.
-
-This configuration only affects single-package Sphinx documenation builds.
-"""
-
-from documenteer.sphinxconfig.stackconf import build_package_configs
-import lsst.meas.algorithms
+from documenteer.conf.pipelinespkg import *
 
 
-_g = globals()
-_g.update(build_package_configs(
-    project_name='meas_algorithms',
-    version=lsst.meas.algorithms.version.__version__))
+project = "meas_algorithms"
+html_theme_options["logotext"] = project
+html_title = project
+html_short_title = project

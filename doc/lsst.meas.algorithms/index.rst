@@ -33,6 +33,13 @@ Tasks
    :root: lsst.meas.algorithms
    :toctree: tasks
 
+.. _lsst.meas.algorithms-command-line-tasks:
+
+Command-line tasks
+------------------
+
+.. lsst-cmdlinetasks::
+   :root: lsst.meas.algorithms
 
 Contributing
 ============
