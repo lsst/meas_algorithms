@@ -335,6 +335,51 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
         self.assertFloatsAlmostEqual(references["coord_raErr"], predictedRaErr)
         self.assertFloatsAlmostEqual(references["coord_decErr"], predictedDecErr)
 
+    def testRequireProperMotion(self):
+        """Tests of the requireProperMotion config field.
+
+        Requiring proper motion corrections for a catalog that does not
+        contain valid PM data should result in an exception.
+
+        `data/testHtmIndex-ps1-bad-pm.fits` is a random shard taken from the
+        ps1_pv3_3pi_20170110 refcat (that has the unitless PM fields),
+        stripped to only 2 rows: we patch it in here to simplify test setup.
+        """
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/testHtmIndex-ps1-bad-pm.fits')
+        refcatData = lsst.afw.table.SimpleCatalog.readFits(path)
+        center = make_coord(93.0, -90.0)
+        epoch = self.epoch + 1.0*astropy.units.yr
+
+        # malformatted catalogs should warn and raise if we require proper motion corrections
+        config = LoadIndexedReferenceObjectsConfig()
+        config.requireProperMotion = True
+        config.anyFilterMapsToThis = "g"  # to use a catalog not made for obs_test
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
+        with unittest.mock.patch.object(self.testButler, 'get', return_value=refcatData):
+            msg = "requireProperMotion=True but refcat pm_ra field is not an Angle"
+            with self.assertRaisesRegex(RuntimeError, msg):
+                loader.loadSkyCircle(center, self.searchRadius, epoch=epoch)
+
+        # not specifying `epoch` with requireProperMotion=True should raise for any catalog
+        config = LoadIndexedReferenceObjectsConfig()
+        config.requireProperMotion = True
+        config.anyFilterMapsToThis = "g"  # to use a catalog not made for obs_test
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
+        msg = "requireProperMotion=True but epoch not provided to loader"
+        with self.assertRaisesRegex(RuntimeError, msg):
+            loader.loadSkyCircle(center, self.searchRadius, epoch=None)
+
+        # malformatted catalogs should just warn if we do not require proper motion corrections
+        config = LoadIndexedReferenceObjectsConfig()
+        config.requireProperMotion = False
+        config.anyFilterMapsToThis = "g"  # to use a catalog not made for obs_test
+        loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
+        with unittest.mock.patch.object(self.testButler, 'get', return_value=refcatData):
+            with lsst.log.UsePythonLogging(), self.assertLogs(level="WARNING") as cm:
+                loader.loadSkyCircle(center, self.searchRadius, epoch=epoch)
+            warnLog1 = "Reference catalog pm_ra field is not an Angle; cannot apply proper motion."
+            self.assertEqual(cm.output, [f"WARNING:LoadIndexedReferenceObjectsTask:{warnLog1}"])
+
     def testLoadVersion0(self):
         """Test reading a pre-written format_version=0 (Jy flux) catalog.
         It should be converted to have nJy fluxes.

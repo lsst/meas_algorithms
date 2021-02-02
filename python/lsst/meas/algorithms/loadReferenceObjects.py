@@ -192,7 +192,70 @@ class _FilterCatalog:
         return filteredRefCat
 
 
-class ReferenceObjectLoader:
+class ReferenceObjectLoaderBase:
+    """Base class for reference object loaders, to facilitate gen2/gen3 code
+    sharing.
+    """
+    def applyProperMotions(self, catalog, epoch):
+        """Apply proper motion correction to a reference catalog.
+
+        Adjust position and position error in the ``catalog``
+        for proper motion to the specified ``epoch``,
+        modifying the catalog in place.
+
+        Parameters
+        ----------
+        catalog : `lsst.afw.table.SimpleCatalog`
+            Catalog of positions, containing at least these fields:
+
+            - Coordinates, retrieved by the table's coordinate key.
+            - ``coord_raErr`` : Error in Right Ascension (rad).
+            - ``coord_decErr`` : Error in Declination (rad).
+            - ``pm_ra`` : Proper motion in Right Ascension (rad/yr,
+                East positive)
+            - ``pm_raErr`` : Error in ``pm_ra`` (rad/yr), optional.
+            - ``pm_dec`` : Proper motion in Declination (rad/yr,
+                North positive)
+            - ``pm_decErr`` : Error in ``pm_dec`` (rad/yr), optional.
+            - ``epoch`` : Mean epoch of object (an astropy.time.Time)
+        epoch : `astropy.time.Time`
+            Epoch to which to correct proper motion.
+            If None, do not apply PM corrections or raise if
+            ``config.requireProperMotion`` is True.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if ``config.requireProperMotion`` is set but we cannot
+            apply the proper motion correction for some reason.
+        """
+        if epoch is None:
+            if self.config.requireProperMotion:
+                raise RuntimeError("requireProperMotion=True but epoch not provided to loader.")
+            else:
+                self.log.debug("No epoch provided: not applying proper motion corrections to refcat.")
+                return
+
+        # Warn/raise for a catalog in an incorrect format, if epoch was specified.
+        if ("pm_ra" in catalog.schema
+                and not isinstance(catalog.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle)):
+            if self.config.requireProperMotion:
+                raise RuntimeError("requireProperMotion=True but refcat pm_ra field is not an Angle.")
+            else:
+                self.log.warn("Reference catalog pm_ra field is not an Angle; cannot apply proper motion.")
+                return
+
+        if ("epoch" not in catalog.schema or "pm_ra" not in catalog.schema):
+            if self.config.requireProperMotion:
+                raise RuntimeError("requireProperMotion=True but PM data not available from catalog.")
+            else:
+                self.log.warn("Proper motion correction not available for this reference catalog.")
+            return
+
+        applyProperMotionsImpl(self.log, catalog, epoch)
+
+
+class ReferenceObjectLoader(ReferenceObjectLoaderBase):
     """ This class facilitates loading reference catalogs with gen 3 middleware
 
     The middleware preflight solver will create a list of datarefs that may
@@ -407,12 +470,7 @@ class ReferenceObjectLoader:
         if not refCat.isContiguous():
             refCat = refCat.copy(deep=True)
 
-        if epoch is not None and "pm_ra" in refCat.schema:
-            # check for a catalog in a non-standard format
-            if isinstance(refCat.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle):
-                applyProperMotionsImpl(self.log, refCat, epoch)
-            else:
-                self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
+        self.applyProperMotions(refCat, epoch)
 
         # Verify the schema is in the correct units and has the correct version; automatically convert
         # it with a warning if this is not the case.
@@ -815,8 +873,8 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
                                                  self, msg)
 
 
-class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    r"""Abstract base class to load objects from reference catalogs
+class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metaclass=abc.ABCMeta):
+    """Abstract base class to load objects from reference catalogs.
     """
     ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
@@ -1307,38 +1365,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, metaclass=abc.ABCMeta):
             Match list.
         """
         return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
-
-    def applyProperMotions(self, catalog, epoch):
-        """Apply proper motion correction to a reference catalog.
-
-        Adjust position and position error in the ``catalog``
-        for proper motion to the specified ``epoch``,
-        modifying the catalog in place.
-
-        Parameters
-        ----------
-        catalog : `lsst.afw.table.SimpleCatalog`
-            Catalog of positions, containing:
-
-            - Coordinates, retrieved by the table's coordinate key.
-            - ``coord_raErr`` : Error in Right Ascension (rad).
-            - ``coord_decErr`` : Error in Declination (rad).
-            - ``pm_ra`` : Proper motion in Right Ascension (rad/yr,
-                East positive)
-            - ``pm_raErr`` : Error in ``pm_ra`` (rad/yr), optional.
-            - ``pm_dec`` : Proper motion in Declination (rad/yr,
-                North positive)
-            - ``pm_decErr`` : Error in ``pm_dec`` (rad/yr), optional.
-            - ``epoch`` : Mean epoch of object (an astropy.time.Time)
-        epoch : `astropy.time.Time`
-            Epoch to which to correct proper motion,
-        """
-        if ("epoch" not in catalog.schema or "pm_ra" not in catalog.schema or "pm_dec" not in catalog.schema):
-            if self.config.requireProperMotion:
-                raise RuntimeError("Proper motion correction required but not available from catalog")
-            self.log.warn("Proper motion correction not available from catalog")
-            return
-        applyProperMotionsImpl(self.log, catalog, epoch)
 
 
 def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
