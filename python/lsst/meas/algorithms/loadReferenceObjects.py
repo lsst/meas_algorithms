@@ -780,6 +780,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
              " if blank then filter must be specified in exposure."),
         dtype=str,
         default="",
+        deprecated="defaultFilter is deprecated by RFC-716. Will be removed after v22."
     )
     anyFilterMapsToThis = pexConfig.Field(
         doc=("Always use this reference catalog filter, no matter whether or what filter name is "
