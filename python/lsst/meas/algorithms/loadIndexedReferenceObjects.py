@@ -26,7 +26,6 @@ __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask
 from .loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky, getFormatVersionFromRefCat
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
 import lsst.afw.table as afwTable
-import lsst.geom
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from .indexerRegistry import IndexerRegistry
@@ -83,12 +82,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
             refCat = refCat.copy(True)
 
         # apply proper motion corrections
-        if epoch is not None and "pm_ra" in refCat.schema:
-            # check for a catalog in a non-standard format
-            if isinstance(refCat.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle):
-                self.applyProperMotions(refCat, epoch)
-            else:
-                self.log.warn("Catalog pm_ra field is not an Angle; not applying proper motion")
+        self.applyProperMotions(refCat, epoch)
 
         # update version=0 style refcats to have nJy fluxes
         if self.dataset_config.format_version == 0 or not hasNanojanskyFluxUnits(refCat.schema):
