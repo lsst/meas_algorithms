@@ -177,7 +177,7 @@ class MeasureApCorrTask(Task):
         Task.__init__(self, **kwds)
         self.refFluxKeys = FluxKeys(self.config.refFluxName, schema)
         self.toCorrect = {}  # dict of flux field name prefix: FluxKeys instance
-        for name in getApCorrNameSet():
+        for name in sorted(getApCorrNameSet()):
             try:
                 self.toCorrect[name] = FluxKeys(name, schema)
             except KeyError:

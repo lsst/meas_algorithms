@@ -47,58 +47,67 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
 
     def makeCatalog(self, apCorrScale=1.0, numSources=5):
         sourceCat = afwTable.SourceCatalog(self.schema)
-        fluxName = self.name + "_instFlux"
-        flagName = self.name + "_flag"
-        fluxErrName = self.name + "_instFluxErr"
-        apFluxName = self.apname + "_instFlux"
-        apFlagName = self.apname + "_flag"
-        apFluxErrName = self.apname + "_instFluxErr"
-        fluxKey = self.schema.find(fluxName).key
-        flagKey = self.schema.find(flagName).key
-        fluxErrKey = self.schema.find(fluxErrName).key
-        apFluxKey = self.schema.find(apFluxName).key
-        apFlagKey = self.schema.find(apFlagName).key
-        apFluxErrKey = self.schema.find(apFluxErrName).key
-        centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
         inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.sourceSelector.active.field).key
+
+        centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
         x = np.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
         y = np.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
         for _i in range(numSources):
             source_test_instFlux = 5.1
             source_test_centroid = lsst.geom.Point2D(x[_i], y[_i])
             source = sourceCat.addNew()
-            source.set(fluxKey, source_test_instFlux)
-            source.set(apFluxKey, source_test_instFlux * apCorrScale)
             source.set(centroidKey, source_test_centroid)
-            source.set(fluxErrKey, 0.)
-            source.set(apFluxErrKey, 0.)
-            source.set(flagKey, False)
-            source.set(apFlagKey, False)
             source.set(inputFilterFlagKey, True)
+
+        for name in self.names:
+            fluxName = name + "_instFlux"
+            flagName = name + "_flag"
+            fluxErrName = name + "_instFluxErr"
+            apFluxName = name + self.apNameStr + "_instFlux"
+            apFlagName = name + self.apNameStr + "_flag"
+            apFluxErrName = name + self.apNameStr + "_instFluxErr"
+            fluxKey = self.schema.find(fluxName).key
+            flagKey = self.schema.find(flagName).key
+            fluxErrKey = self.schema.find(fluxErrName).key
+            apFluxKey = self.schema.find(apFluxName).key
+            apFlagKey = self.schema.find(apFlagName).key
+            apFluxErrKey = self.schema.find(apFluxErrName).key
+            for source in sourceCat:
+                source.set(fluxKey, source_test_instFlux)
+                source.set(apFluxKey, source_test_instFlux * apCorrScale)
+                source.set(fluxErrKey, 0.)
+                source.set(apFluxErrKey, 0.)
+                source.set(flagKey, False)
+                source.set(apFlagKey, False)
         return(sourceCat)
 
     def setUp(self):
         schema = afwTable.SourceTable.makeMinimalSchema()
-        name = "test"
-        apname = "testAp"
+        apNameStr = "Ap"
         calib_flag_name = "cal_source_use"
-        addApCorrName(apname)
-        schema.addField(name + "_instFlux", type=float)
-        schema.addField(name + "_instFluxErr", type=float)
-        schema.addField(name + "_flag", type="Flag")
-        schema.addField(apname + "_instFlux", type=float)
-        schema.addField(apname + "_instFluxErr", type=float)
-        schema.addField(apname + "_flag", type="Flag")
+        # Add fields in anti-sorted order to try to impose a need for sorting
+        # in the addition of the apCorr fields (may happen by fluke, but this
+        # is the best we can do to test this here.
+        names = ["test2", "test1"]
+        for name in names:
+            apName = name + apNameStr
+            addApCorrName(apName)
+            schema.addField(name + "_instFlux", type=float)
+            schema.addField(name + "_instFluxErr", type=float)
+            schema.addField(name + "_flag", type="Flag")
+            schema.addField(apName + "_instFlux", type=float)
+            schema.addField(apName + "_instFluxErr", type=float)
+            schema.addField(apName + "_flag", type="Flag")
+        schema.addField(names[0] + "_Centroid_x", type=float)
+        schema.addField(names[0] + "_Centroid_y", type=float)
+        schema.getAliasMap().set("slot_Centroid", names[0] + "_Centroid")
         schema.addField(calib_flag_name, type="Flag")
-        schema.addField(name + "_Centroid_x", type=float)
-        schema.addField(name + "_Centroid_y", type=float)
-        schema.getAliasMap().set('slot_Centroid', name + '_Centroid')
         config = measureApCorr.MeasureApCorrTask.ConfigClass()
-        config.refFluxName = name
+        config.refFluxName = names[0]
         config.sourceSelector.active.field = calib_flag_name
         self.meas_apCorr_task = measureApCorr.MeasureApCorrTask(schema=schema, config=config)
-        self.name = name
-        self.apname = apname
+        self.names = names
+        self.apNameStr = apNameStr
         self.schema = schema
         self.exposure = lsst.afw.image.ExposureF(10, 10)
 
@@ -109,7 +118,16 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
 
     def testAddFields(self):
         """Instantiating the task should add one field to the schema."""
-        self.assertIn("apcorr_" + self.name + "_used", self.schema.getNames())
+        for name in self.names:
+            self.assertIn("apcorr_" + name + self.apNameStr + "_used", self.schema.getNames())
+        sortedNames = sorted(self.names)
+        key0 = self.schema.find("apcorr_" + sortedNames[0] + self.apNameStr + "_used").key
+        key1 = self.schema.find("apcorr_" + sortedNames[1] + self.apNameStr + "_used").key
+        # Check that the apCorr fields were added in a sorted order (not
+        # foolproof as this could have happened by fluke, but it's the best
+        # we can do to test this here (having added the two fields in an anti-
+        # sorted order).
+        self.assertLess(key0.getOffset() + key0.getBit(), key1.getOffset() + key1.getBit())
 
     def testReturnApCorrMap(self):
         """The measureApCorr task should return a structure with a single key 'apCorrMap'."""
@@ -117,11 +135,14 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         self.assertEqual(list(struct.getDict().keys()), ['apCorrMap'])
 
     def testApCorrMapKeys(self):
-        """An apCorrMap structure should have two keys, based on the name supplied to addApCorrName()."""
-        apfluxName = self.apname + "_instFlux"
-        apfluxErrName = self.apname + "_instFluxErr"
-        struct = self.meas_apCorr_task.run(catalog=self.makeCatalog(), exposure=self.exposure)
-        key_names = [apfluxName, apfluxErrName]
+        """An apCorrMap structure should have two keys per name supplied to addApCorrName()."""
+        key_names = []
+        for name in self.names:
+            apFluxName = name + self.apNameStr + "_instFlux"
+            apFluxErrName = name + self.apNameStr + "_instFluxErr"
+            struct = self.meas_apCorr_task.run(catalog=self.makeCatalog(), exposure=self.exposure)
+            key_names.append(apFluxName)
+            key_names.append(apFluxErrName)
         self.assertEqual(set(struct.apCorrMap.keys()), set(key_names))
 
     def testTooFewSources(self):
@@ -130,13 +151,14 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         with self.assertRaises(RuntimeError):
             self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
         # With the measurement algorithm declared as something that might fail, should not get an exception
-        self.meas_apCorr_task.config.allowFailure.append(self.apname)
+        for name in self.names:
+            self.meas_apCorr_task.config.allowFailure.append(name + self.apNameStr)
         self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
     def testSourceNotUsed(self):
         """ Check that a source outside the bounding box is flagged as not used (False)."""
-        fluxName = self.name + "_instFlux"
-        apCorrFlagKey = self.schema.find("apcorr_" + self.name + "_used").key
+        fluxName = self.names[0] + "_instFlux"
+        apCorrFlagKey = self.schema.find("apcorr_" + self.names[0] + "_used").key
         sourceCat = self.makeCatalog()
         source = sourceCat.addNew()
         source_test_instFlux = 5.1
@@ -158,7 +180,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
     def testApertureMeasOnes(self):
         """ Check that sources with aperture fluxes exactly the same as their catalog fluxes
             returns an aperture correction map of 1s"""
-        apFluxName = self.apname + "_instFlux"
+        apFluxName = self.names[0] + self.apNameStr + "_instFlux"
         sourceCat = self.makeCatalog()
         struct = self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
         default_fill = apCorrDefaultMap(value=1.0, bbox=self.exposure.getBBox())
@@ -170,7 +192,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         """Check that aperture correction scales source fluxes in the correct direction."""
         apCorr_factor = 10.
         sourceCat = self.makeCatalog(apCorrScale=apCorr_factor)
-        apFluxName = self.apname + "_instFlux"
+        apFluxName = self.names[0] + self.apNameStr + "_instFlux"
         struct = self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
         default_fill = apCorrDefaultMap(value=apCorr_factor, bbox=self.exposure.getBBox())
         test_fill = afwImage.ImageF(self.exposure.getBBox())
