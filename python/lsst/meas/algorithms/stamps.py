@@ -89,11 +89,12 @@ def readFitsWithOptions(filename, stamp_factory, options):
     stamp_factory : classmethod
         A factory function defined on a dataclass for constructing
         stamp objects a la `lsst.meas.alrogithm.Stamp`
-    options : `PropertyList`
-        A collection of parameters.  If certain keys are available
-        (``llcX``, ``llcY``, ``width``, ``height``), a bounding box
-        is constructed and passed to the ``FitsReader`` in order
-        to return a sub-image.
+    options : `PropertyList` or `dict`
+        A collection of parameters. If it contains a bounding box
+        (``bbox`` key), or if certain other keys (``llcX``, ``llcY``,
+        ``width``, ``height``) are available for one to be  constructed,
+        the bounding box is passed to the ``FitsReader`` in order to
+        return a sub-image.
 
     Returns
     -------
@@ -109,13 +110,18 @@ def readFitsWithOptions(filename, stamp_factory, options):
     nStamps = metadata["N_STAMPS"]
     # check if a bbox was provided
     kwargs = {}
-    if options and options.exists("llcX"):
-        llcX = options["llcX"]
-        llcY = options["llcY"]
-        width = options["width"]
-        height = options["height"]
-        bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
-        kwargs["bbox"] = bbox
+    if options:
+        # gen3 API
+        if "bbox" in options.keys():
+            kwargs["bbox"] = options["bbox"]
+        # gen2 API
+        elif "llcX" in options.keys():
+            llcX = options["llcX"]
+            llcY = options["llcY"]
+            width = options["width"]
+            height = options["height"]
+            bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
+            kwargs["bbox"] = bbox
     stamp_parts = {}
     # We need to be careful because nExtensions includes the primary
     # header data unit
@@ -389,7 +395,7 @@ class Stamps(StampsBase):
         ----------
         filename : `str`
             Name of the file to read
-        options : `PropertyList`
+        options : `PropertyList` or `dict`
             Collection of metadata parameters
 
         Returns
