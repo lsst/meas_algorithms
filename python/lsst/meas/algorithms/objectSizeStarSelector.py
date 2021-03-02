@@ -122,7 +122,8 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
 
 
 class EventHandler:
-    """A class to handle key strokes with matplotlib displays"""
+    """A class to handle key strokes with matplotlib displays.
+    """
 
     def __init__(self, axes, xs, ys, x, y, frames=[0]):
         self.axes = axes
@@ -155,7 +156,8 @@ class EventHandler:
 
 
 def _assignClusters(yvec, centers):
-    """Return a vector of centerIds based on their distance to the centers"""
+    """Return a vector of centerIds based on their distance to the centers.
+    """
     assert len(centers) > 0
 
     minDist = numpy.nan*numpy.ones_like(yvec)
@@ -227,7 +229,8 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
 
 
 def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
-    """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median"""
+    """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median.
+    """
 
     nMember = sum(clusterId == clusterNum)
     if nMember < 5:  # can't compute meaningful interquartile range, so no chance of improvement
@@ -307,73 +310,10 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
     return fig
 
-## @addtogroup LSST_task_documentation
-## @{
-## @page ObjectSizeStarSelectorTask
-## @ref ObjectSizeStarSelectorTask_ "ObjectSizeStarSelectorTask"
-## @copybrief ObjectSizeStarSelectorTask
-## @}
-
 
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
-    r"""!A star selector that looks for a cluster of small objects in a size-magnitude plot
-
-    @anchor ObjectSizeStarSelectorTask_
-
-    @section meas_algorithms_objectSizeStarSelector_Contents  Contents
-
-     - @ref meas_algorithms_objectSizeStarSelector_Purpose
-     - @ref meas_algorithms_objectSizeStarSelector_Initialize
-     - @ref meas_algorithms_objectSizeStarSelector_IO
-     - @ref meas_algorithms_objectSizeStarSelector_Config
-     - @ref meas_algorithms_objectSizeStarSelector_Debug
-
-    @section meas_algorithms_objectSizeStarSelector_Purpose  Description
-
-    A star selector that looks for a cluster of small objects in a size-magnitude plot.
-
-    @section meas_algorithms_objectSizeStarSelector_Initialize  Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_objectSizeStarSelector_IO  Invoking the Task
-
-    Like all star selectors, the main method is `run`.
-
-    @section meas_algorithms_objectSizeStarSelector_Config  Configuration parameters
-
-    See @ref ObjectSizeStarSelectorConfig
-
-    @section meas_algorithms_objectSizeStarSelector_Debug  Debug variables
-
-    ObjectSizeStarSelectorTask has a debug dictionary with the following keys:
-    <dl>
-    <dt>display
-    <dd>bool; if True display debug information
-    <dt>displayExposure
-    <dd>bool; if True display the exposure and spatial cells
-    <dt>plotMagSize
-    <dd>bool: if True display the magnitude-size relation using matplotlib
-    <dt>dumpData
-    <dd>bool; if True dump data to a pickle file
-    </dl>
-
-    For example, put something like:
-    @code{.py}
-        import lsstDebug
-        def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name.endswith("objectSizeStarSelector"):
-                di.display = True
-                di.displayExposure = True
-                di.plotMagSize = True
-
-            return di
-
-        lsstDebug.Info = DebugInfo
-    @endcode
-    into your `debug.py` file and run your task with the `--debug` flag.
+    r"""A star selector that looks for a cluster of small objects in a size-magnitude plot.
     """
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument
