@@ -34,11 +34,8 @@ import numpy
 import lsst.geom as geom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
-import lsst.pex.exceptions as pexExceptions
 import lsst.pipe.base as pipeBase
-import lsst.pex.exceptions as pexExcept
 import lsst.log
-from lsst import geom
 from lsst import sphgeom
 from lsst.daf.base import PropertyList
 
@@ -256,7 +253,7 @@ class ReferenceObjectLoaderBase:
 
 
 class ReferenceObjectLoader(ReferenceObjectLoaderBase):
-    """ This class facilitates loading reference catalogs with gen 3 middleware
+    """This class facilitates loading reference catalogs with gen 3 middleware
 
     The middleware preflight solver will create a list of datarefs that may
     possibly overlap a given region. These datarefs are then used to construct
@@ -272,13 +269,14 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         ----------
         dataIds : iterable of `lsst.daf.butler.DataIds`
             An iterable object of DataSetRefs which point to reference catalogs
-            in a gen 3 repository
-        refCats : Iterable of `lsst.daf.butler.DeferedDatasetHandle`
+            in a gen 3 repository.
+        refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
             Handles to load refCats on demand
-        log : `lsst.log.Log`
-            Logger object used to write out messages. If `None` (default) the default
-            lsst logger will be used
-
+        config : `lsst.pex.config.configurableField`
+            Configuration for the loader.
+        log : `lsst.log.Log` or `None`, optional
+            Logger object used to write out messages. If `None` the default
+            lsst logger will be used.
         """
         self.dataIds = dataIds
         self.refCats = refCats
@@ -324,22 +322,24 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
     def loadPixelBox(self, bbox, wcs, filterName=None, epoch=None, photoCalib=None,
                      bboxToSpherePadding=100):
-        """Load reference objects that are within a pixel-based rectangular region
+        """Load reference objects that are within a pixel-based rectangular
+        region.
 
-        This algorithm works by creating a spherical box whose corners correspond
-        to the WCS converted corners of the input bounding box (possibly padded).
-        It then defines a filtering function which will look at a reference
-        objects pixel position and accept objects that lie within the specified
-        bounding box.
+        This algorithm works by creating a spherical box whose corners
+        correspond to the WCS converted corners of the input bounding box
+        (possibly padded).  It then defines a filtering function which looks at
+        the pixel position of the reference objects and accepts only those that
+        lie within the specified bounding box.
 
-        The spherical box region and filtering function are passed to the generic
-        loadRegion method which will load and filter the reference objects from
-        the datastore and return a single catalog containing all reference objects
+        The spherical box region and filtering function are passed to the
+        generic loadRegion method which loads and filters the reference objects
+        from the datastore and returns a single catalog containing the filtered
+        set of reference objects.
 
         Parameters
         ----------
-        bbox : `lsst.geom.box2I`
-            Box which bounds a region in pixel space
+        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
+            Box which bounds a region in pixel space.
         wcs : `lsst.afw.geom.SkyWcs`
             Wcs object defining the pixel to sky (and inverse) transform for
             the supplied ``bbox``.
@@ -358,15 +358,17 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         Returns
         -------
         referenceCatalog : `lsst.afw.table.SimpleCatalog`
-            Catalog containing reference objects inside the specified bounding box
+            Catalog containing reference objects inside the specified bounding
+            box (padded by self.config.pixelMargin).
 
         Raises
         ------
-        `lsst.pex.exception.RuntimeError`
-            Raised if no reference catalogs could be found for the specified region
-
-        `lsst.pex.exception.TypeError`
-            Raised if the loaded reference catalogs do not have matching schemas
+        RuntimeError
+            Raised if no reference catalogs could be found for the specified
+            region.
+        TypeError
+            Raised if the loaded reference catalogs do not have matching
+            schemas.
         """
         paddedBbox = geom.Box2D(bbox)
         paddedBbox.grow(self.config.pixelMargin)
@@ -394,45 +396,48 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         return self.loadRegion(outerSkyRegion, filtFunc=_filterFunction, epoch=epoch, filterName=filterName)
 
     def loadRegion(self, region, filtFunc=None, filterName=None, epoch=None):
-        """ Load reference objects within a specified region
+        """Load reference objects within a specified region.
 
-        This function loads the DataIds used to construct an instance of this class
-        which intersect or are contained within the specified region. The reference
-        catalogs which intersect but are not fully contained within the input region are
-        further filtered by the specified filter function. This function will return a
-        single source catalog containing all reference objects inside the specified region.
+        This function loads the DataIds used to construct an instance of this
+        class which intersect or are contained within the specified region. The
+        reference catalogs which intersect but are not fully contained within
+        the input region are further filtered by the specified filter function.
+        This function returns a single source catalog containing all reference
+        objects inside the specified region.
 
         Parameters
         ----------
         region : `lsst.sphgeom.Region`
-            This can be any type that is derived from `lsst.sphgeom.region` and should
-            define the spatial region for which reference objects are to be loaded.
-        filtFunc : callable
-            This optional parameter should be a callable object that takes a reference
-            catalog and its corresponding region as parameters, filters the catalog by
-            some criteria and returns the filtered reference catalog. If the value is
-            left as the default (None) than an internal filter function is used which
-            filters according to if a reference object falls within the input region.
-        filterName : `str`
-            Name of camera filter, or None or blank for the default filter
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
+            This can be any type that is derived from `lsst.sphgeom.Region` and
+            should define the spatial region for which reference objects are to
+            be loaded.
+        filtFunc : callable or `None`, optional
+            This optional parameter should be a callable object that takes a
+            reference catalog and its corresponding region as parameters,
+            filters the catalog by some criteria and returns the filtered
+            reference catalog. If `None`, an internal filter function is used
+            which filters according to if a reference object falls within the
+            input region.
+        filterName : `str` or `None`, optional
+            Name of camera filter, or `None` or blank for the default filter.
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
 
         Returns
         -------
         referenceCatalog : `lsst.afw.table.SourceCatalog`
             Catalog containing reference objects which intersect the input region,
-            filtered by the specified filter function
+            filtered by the specified filter function.
 
         Raises
         ------
-        `lsst.pex.exception.RuntimeError`
-            Raised if no reference catalogs could be found for the specified region
-
-        `lsst.pex.exception.TypeError`
-            Raised if the loaded reference catalogs do not have matching schemas
-
+        RuntimeError
+            Raised if no reference catalogs could be found for the specified
+            region.
+        TypeError
+            Raised if the loaded reference catalogs do not have matching
+            schemas.
         """
         regionLat = region.getBoundingBox().getLat()
         regionLon = region.getBoundingBox().getLon()
@@ -456,7 +461,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
                 overlapList.append((dataId, refCat))
 
         if len(overlapList) == 0:
-            raise pexExceptions.RuntimeError("No reference tables could be found for input region")
+            raise RuntimeError("No reference tables could be found for input region")
 
         firstCat = overlapList[0][1].get()
         refCat = filtFunc(firstCat, overlapList[0][0].region)
@@ -467,13 +472,14 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             tmpCat = inputRefCat.get()
 
             if tmpCat.schema != firstCat.schema:
-                raise pexExceptions.TypeError("Reference catalogs have mismatching schemas")
+                raise TypeError("Reference catalogs have mismatching schemas")
 
             filteredCat = filtFunc(tmpCat, dataId.region)
             refCat.extend(filteredCat)
             trimmedAmount += len(tmpCat) - len(filteredCat)
 
-        self.log.debug(f"Trimmed {trimmedAmount} out of region objects, leaving {len(refCat)}")
+        self.log.debug(f"Trimmed {trimmedAmount} refCat objects lying outside padded region, "
+                       "leaving {len(refCat)}")
         self.log.info(f"Loaded {len(refCat)} reference objects")
 
         # Ensure that the loaded reference catalog is continuous in memory
@@ -503,38 +509,30 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         return pipeBase.Struct(refCat=expandedCat, fluxField=fluxField)
 
     def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
-        """Load reference objects that lie within a circular region on the sky
+        """Load reference objects that lie within a circular region on the sky.
 
-        This method constructs a circular region from an input center and angular radius,
-        loads reference catalogs which are contained in or intersect the circle, and
-        filters reference catalogs which intersect down to objects which lie within
-        the defined circle.
+        This method constructs a circular region from an input center and
+        angular radius, loads reference catalogs which are contained in or
+        intersect the circle, and filters reference catalogs which intersect
+        down to objects which lie within the defined circle.
 
         Parameters
         ----------
         ctrCoord : `lsst.geom.SpherePoint`
-            Point defining the center of the circular region
+            Point defining the center of the circular region.
         radius : `lsst.geom.Angle`
-            Defines the angular radius of the circular region
-        filterName : `str`
-            Name of camera filter, or None or blank for the default filter
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
+            Defines the angular radius of the circular region.
+        filterName : `str` or `None`, optional
+            Name of camera filter, or `None` or blank for the default filter.
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
 
         Returns
         -------
         referenceCatalog : `lsst.afw.table.SourceCatalog`
-            Catalog containing reference objects inside the specified bounding box
-
-        Raises
-        ------
-        `lsst.pex.exception.RuntimeError`
-            Raised if no reference catalogs could be found for the specified region
-
-        `lsst.pex.exception.TypeError`
-            Raised if the loaded reference catalogs do not have matching schemas
-
+            Catalog containing reference objects inside the specified search
+            circle.
         """
         centerVector = ctrCoord.getVector()
         sphRadius = sphgeom.Angle(radius.asRadians())
@@ -542,8 +540,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         return self.loadRegion(circularRegion, filterName=filterName, epoch=epoch)
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):
-        """Relink an unpersisted match list to sources and reference
-        objects.
+        """Relink an unpersisted match list to sources and reference objects.
 
         A match list is persisted and unpersisted as a catalog of IDs
         produced by afw.table.packMatches(), with match metadata
@@ -577,7 +574,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Parameters
         ----------
-        bbox : `lsst.geom.Box2I`
+        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
             Bounding box for the pixels.
         wcs : `lsst.afw.geom.SkyWcs`
             The WCS object associated with ``bbox``.
@@ -597,6 +594,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         Returns
         -------
         md : `lsst.daf.base.PropertyList`
+            The metadata detailing the search parameters used for this
+            dataset.
         """
         paddedBbox = geom.Box2D(bbox)
         paddedBbox.grow(self.config.pixelMargin)
@@ -615,24 +614,25 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
     @staticmethod
     def getMetadataCircle(coord, radius, filterName, photoCalib=None, epoch=None):
-        """Return metadata about the load
+        """Return metadata about the load.
 
-        This metadata is used for reloading the catalog (e.g. for reconstituting
-        a normalized match list.)
+        This metadata is used for reloading the catalog (e.g. for
+        reconstituting a normalized match list.)
 
         Parameters
         ----------
         coord : `lsst.geom.SpherePoint`
-            ICRS center of a circle
-        radius : `lsst.geom.angle`
-            radius of a circle
-        filterName : `str` or None
-            filterName of the camera filter, or None or blank for the default filter
-        photoCalib : None
-            Deprecated, only included for api compatibility
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
+            ICRS center of the search region.
+        radius : `lsst.geom.Angle`
+            Radius of the search region.
+        filterName : `str` or `None`
+            Name of the camera filter, or `None` or blank for the default
+            filter.
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
 
         Returns
         -------
@@ -650,8 +650,11 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
     @staticmethod
     def addFluxAliases(refCat, defaultFilter, filterReferenceMap):
-        """This function creates a new catalog containing the information of the input refCat
-        as well as added flux columns and aliases between camera and reference flux.
+        """Add flux columns and aliases for camera to reference mapping.
+
+        Creates a new catalog containing the information of the input refCat
+        as well as added flux columns and aliases between camera and reference
+        fluxes.
 
         Parameters
         ----------
@@ -660,19 +663,19 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         defaultFilter : `str`
             Name of the default reference filter
         filterReferenceMap : `dict` of `str`
-            Dictionary with keys corresponding to a filter name, and values which
-            correspond to the name of the reference filter.
+            Dictionary with keys corresponding to a filter name and values
+            which correspond to the name of the reference filter.
 
         Returns
         -------
         refCat : `lsst.afw.table.SimpleCatalog`
-            Reference catalog with columns added to track reference filters
+            Reference catalog with columns added to track reference filters.
 
         Raises
         ------
         `RuntimeError`
-            If specified reference filter name is not a filter specifed as a key in the
-            reference filter map.
+            If the specified reference filter name is not specifed as a
+            key in the reference filter map.
         """
         refCat = ReferenceObjectLoader.remapReferenceCatalogSchema(refCat,
                                                                    filterNameList=filterReferenceMap.keys())
@@ -910,15 +913,15 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         wcs : `lsst.afw.geom.SkyWcs`
             WCS; used to convert pixel positions to sky coordinates
             and vice-versa.
-        filterName : `str`
+        filterName : `str` or `None`, optional
             Name of filter, or `None` or `""` for the default filter.
             This is used for flux values in case we have flux limits
             (which are not yet implemented).
-        photoCalib : `lsst.afw.image.PhotoCalib` (optional)
-            Calibration, or `None` if unknown.
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
 
         Returns
         -------
@@ -971,14 +974,14 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             ICRS center of search region.
         radius : `lsst.geom.Angle`
             Radius of search region.
-        filterName : `str` (optional)
+        filterName : `str` or `None`, optional
             Name of filter, or `None` or `""` for the default filter.
             This is used for flux values in case we have flux limits
             (which are not yet implemented).
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
-        centroids : `bool` (optional)
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
+        centroids : `bool`, optional
             Add centroid fields to the loaded Schema. ``loadPixelBox`` expects
             these fields to exist.
 
@@ -1276,7 +1279,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             - bbox : `lsst.geom.Box2D`
                 Bounding box used to compute the circle.
         """
-        bbox = lsst.geom.Box2D(bbox)  # make sure bbox is double and that we have a copy
+        bbox = geom.Box2D(bbox)  # make sure bbox is double and that we have a copy
         bbox.grow(self.config.pixelMargin)
         coord = wcs.pixelToSky(bbox.getCenter())
         radius = max(coord.separation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
@@ -1294,23 +1297,22 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             Pixel bounding box.
         wcs : `lsst.afw.geom.SkyWcs`
             WCS; used to convert pixel positions to sky coordinates.
-        filterName : `str`
+        filterName : `str` or `None`, optional
             Name of camera filter, or `None` or `""` for the default
             filter.
-        photoCalib : `lsst.afw.image.PhotoCalib` (optional)
-            Calibration, or `None` if unknown.
-        epoch : `astropy.time.Time` (optional)
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
+        epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax,
             or None to not apply such corrections.
 
         Returns
         -------
-        metadata : lsst.daf.base.PropertyList
+        metadata : `lsst.daf.base.PropertyList`
             Metadata about the load.
         """
         circle = self._calculateCircle(bbox, wcs)
-        return self.getMetadataCircle(circle.coord, circle.radius, filterName, photoCalib=photoCalib,
-                                      epoch=epoch)
+        return self.getMetadataCircle(circle.coord, circle.radius, filterName, epoch=epoch)
 
     def getMetadataCircle(self, coord, radius, filterName, photoCalib=None, epoch=None):
         """Return metadata about the load.
@@ -1327,11 +1329,11 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         filterName : `str`
             Name of camera filter, or `None` or `""` for the default
             filter.
-        photoCalib : `lsst.afw.image.PhotoCalib` (optional)
-            Calibration, or `None` if unknown.
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
 
         Returns
         -------
@@ -1410,13 +1412,13 @@ def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
     filterName = matchmeta.getString('FILTER').strip()
     try:
         epoch = matchmeta.getDouble('EPOCH')
-    except (pexExcept.NotFoundError, pexExcept.TypeError):
+    except (LookupError, TypeError):
         epoch = None  # Not present, or not correct type means it's not set
     if 'RADIUS' in matchmeta:
         # This is a circle style metadata, call loadSkyCircle
-        ctrCoord = lsst.geom.SpherePoint(matchmeta.getDouble('RA'),
-                                         matchmeta.getDouble('DEC'), lsst.geom.degrees)
-        rad = matchmeta.getDouble('RADIUS') * lsst.geom.degrees
+        ctrCoord = geom.SpherePoint(matchmeta.getDouble('RA'),
+                                    matchmeta.getDouble('DEC'), geom.degrees)
+        rad = matchmeta.getDouble('RADIUS')*geom.degrees
         refCat = refObjLoader.loadSkyCircle(ctrCoord, rad, filterName, epoch=epoch).refCat
     elif "INNER_UPPER_LEFT_RA" in matchmeta:
         # This is the sky box type (only triggers in the LoadReferenceObject class, not task)
@@ -1425,9 +1427,9 @@ def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
         # by the refObjLoader
         box = []
         for place in ("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"):
-            coord = lsst.geom.SpherePoint(matchmeta.getDouble(f"OUTER_{place}_RA"),
-                                          matchmeta.getDouble(f"OUTER_{place}_DEC"),
-                                          lsst.geom.degrees).getVector()
+            coord = geom.SpherePoint(matchmeta.getDouble(f"OUTER_{place}_RA"),
+                                     matchmeta.getDouble(f"OUTER_{place}_DEC"),
+                                     geom.degrees).getVector()
             box.append(coord)
         outerBox = sphgeom.ConvexPolygon(box)
         refCat = refObjLoader.loadRegion(outerBox, filterName=filterName, epoch=epoch).refCat
@@ -1491,8 +1493,8 @@ def applyProperMotionsImpl(log, catalog, epoch):
     offsetAmountsRad = numpy.hypot(offsetsRaRad, offsetsDecRad)
     for record, bearingRad, amountRad in zip(catalog, offsetBearingsRad, offsetAmountsRad):
         record.set(coordKey,
-                   record.get(coordKey).offset(bearing=bearingRad*lsst.geom.radians,
-                                               amount=amountRad*lsst.geom.radians))
+                   record.get(coordKey).offset(bearing=bearingRad*geom.radians,
+                                               amount=amountRad*geom.radians))
     # Increase error in RA and Dec based on error in proper motion
     if "coord_raErr" in catalog.schema:
         catalog["coord_raErr"] = numpy.hypot(catalog["coord_raErr"],
