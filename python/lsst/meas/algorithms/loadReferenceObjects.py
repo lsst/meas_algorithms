@@ -31,7 +31,7 @@ import astropy.time
 import astropy.units
 import numpy
 
-import lsst.geom
+import lsst.geom as geom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions as pexExceptions
@@ -290,32 +290,40 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         outerLocalBBox = geom.Box2D(BBox)
         innerLocalBBox = geom.Box2D(BBox)
 
-        # Grow the bounding box to make sure the spherical geometry bbox will contain
-        # the same region, as non-padded boxes may contain different regions because of optical distortion.
-        # Also create an inner region that is sure to be inside the bbox
+        # Grow the bounding box to allow for effects not fully captured by the
+        # wcs provided (which represents the current best-guess wcs solution
+        # associated with the dataset for which the calibration is to be
+        # computed using the loaded and trimmed reference catalog being defined
+        # here).  These effects could include pointing errors and/or an
+        # insufficient optical distorition model for the instrument.  The idea
+        # is to ensure the spherical geometric region created contains the
+        # entire region covered by the bbox.
+        # Also create an inner region that is sure to be inside the bbox.
         outerLocalBBox.grow(BBoxPadding)
         innerLocalBBox.grow(-1*BBoxPadding)
 
-        # Handle the fact that the inner bounding box shrunk to a zero sized region in at least one
-        # dimension, in which case all reference catalogs must be checked fully against the input
-        # bounding box
+        # Handle the case where the inner bounding box shrank to a zero sized
+        # region (which will be the case if the shrunken size of either
+        # dimension is less than or equal to zero).  In this case, the inner
+        # bounding box is set to the original input bounding box.  This is
+        # probably not the best way to handle an empty inner bounding box, but
+        # it is what the calling code currently expects.
         if innerLocalBBox.getDimensions() == geom.Extent2D(0, 0):
-            innerSkyRegion = sphgeom.Box()
-        else:
-            innerBoxCorners = innerLocalBBox.getCorners()
-            innerSphCorners = [wcs.pixelToSky(corner).getVector() for corner in innerBoxCorners]
+            innerLocalBBox = geom.Box2D(BBox)
 
-            innerSkyRegion = sphgeom.ConvexPolygon(innerSphCorners)
+        # Convert the corners of the bounding boxes to sky coordinates.
+        innerBoxCorners = innerLocalBBox.getCorners()
+        innerSphCorners = [wcs.pixelToSky(corner).getVector() for corner in innerBoxCorners]
+        innerSkyRegion = sphgeom.ConvexPolygon(innerSphCorners)
 
-        # Convert the corners of the box to sky coordinates
         outerBoxCorners = outerLocalBBox.getCorners()
         outerSphCorners = [wcs.pixelToSky(corner).getVector() for corner in outerBoxCorners]
-
         outerSkyRegion = sphgeom.ConvexPolygon(outerSphCorners)
 
         return innerSkyRegion, outerSkyRegion, innerSphCorners, outerSphCorners
 
-    def loadPixelBox(self, bbox, wcs, filterName=None, epoch=None, photoCalib=None, bboxPadding=100):
+    def loadPixelBox(self, bbox, wcs, filterName=None, epoch=None, photoCalib=None,
+                     bboxToSpherePadding=100):
         """Load reference objects that are within a pixel-based rectangular region
 
         This algorithm works by creating a spherical box whose corners correspond
@@ -333,24 +341,19 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         bbox : `lsst.geom.box2I`
             Box which bounds a region in pixel space
         wcs : `lsst.afw.geom.SkyWcs`
-            Wcs object defining the pixel to sky (and inverse) transform for the space
-            of pixels of the supplied bbox
-        filterName : `str`
-            Name of camera filter, or None or blank for the default filter
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
-        photoCalib : None
-            Deprecated and ignored, only included for api compatibility
-        bboxPadding : `int`
-            Number describing how much to pad the input bbox by (in pixels), defaults
-            to 100. This parameter is necessary because optical distortions in telescopes
-            can cause a rectangular pixel grid to map into a non "rectangular" spherical
-            region in sky coordinates. This padding is used to create a spherical
-            "rectangle", which will for sure enclose the input box.  This padding is only
-            used to determine if the reference catalog for a sky patch will be loaded from
-            the data store, this function will filter out objects which lie within the
-            padded region but fall outside the input bounding box region.
+            Wcs object defining the pixel to sky (and inverse) transform for
+            the supplied ``bbox``.
+        filterName : `str` or `None`, optional
+            Name of camera filter, or `None` or blank for the default filter.
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None`
+            to not apply such corrections.
+        photoCalib : `None`
+            Deprecated and ignored, only included for api compatibility.
+        bboxToSpherePadding : `int`, optional
+            Padding to account for translating a set of corners into a
+            spherical (convex) boundary that is certain to encompase the
+            enitre area covered by the box.
 
         Returns
         -------
@@ -365,23 +368,27 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         `lsst.pex.exception.TypeError`
             Raised if the loaded reference catalogs do not have matching schemas
         """
-        innerSkyRegion, outerSkyRegion, _, _ = self._makeBoxRegion(bbox, wcs, bboxPadding)
+        paddedBbox = geom.Box2D(bbox)
+        paddedBbox.grow(self.config.pixelMargin)
+        innerSkyRegion, outerSkyRegion, _, _ = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
 
         def _filterFunction(refCat, region):
-            # Add columns to the reference catalog relating to center positions and use afwTable
-            # to populate those columns
+            # Add columns to the reference catalog relating their coordinates to
+            # equivalent pixel positions for the wcs provided and use afwTable
+            # to populate those columns.
             refCat = self.remapReferenceCatalogSchema(refCat, position=True)
             afwTable.updateRefCentroids(wcs, refCat)
-            # no need to filter the catalog if it is sure that it is entirely contained in the region
-            # defined by given bbox
+            # No need to filter the catalog if it is entirely contained in the
+            # region defined by the inner sky region.
             if innerSkyRegion.contains(region):
                 return refCat
-            # Create a new reference catalog, and populate it with records which fall inside the bbox
+            # Create a new reference catalog, and populate it only with records
+            # that fall inside the padded bbox.
             filteredRefCat = type(refCat)(refCat.table)
             centroidKey = afwTable.Point2DKey(refCat.schema['centroid'])
             for record in refCat:
                 pixCoords = record[centroidKey]
-                if bbox.contains(geom.Point2I(pixCoords)):
+                if paddedBbox.contains(geom.Point2D(pixCoords)):
                     filteredRefCat.append(record)
             return filteredRefCat
         return self.loadRegion(outerSkyRegion, filtFunc=_filterFunction, epoch=epoch, filterName=filterName)
@@ -427,9 +434,12 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             Raised if the loaded reference catalogs do not have matching schemas
 
         """
-        regionBounding = region.getBoundingBox()
-        self.log.info("Loading reference objects from region bounded by {}, {} lat lon".format(
-            regionBounding.getLat(), regionBounding.getLon()))
+        regionLat = region.getBoundingBox().getLat()
+        regionLon = region.getBoundingBox().getLon()
+        self.log.info("Loading reference objects from region bounded by "
+                      "[{:.8f}, {:.8f}], [{:.8f}, {:.8f}] RA Dec".
+                      format(regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
+                             regionLat.getA().asDegrees(), regionLat.getB().asDegrees()))
         if filtFunc is None:
             filtFunc = _FilterCatalog(region)
         # filter out all the regions supplied by the constructor that do not overlap
@@ -558,8 +568,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         """
         return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
 
-    @classmethod
-    def getMetadataBox(cls, bbox, wcs, filterName=None, photoCalib=None, epoch=None, bboxPadding=100):
+    def getMetadataBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None,
+                       bboxToSpherePadding=100):
         """Return metadata about the load
 
         This metadata is used for reloading the catalog (e.g., for
@@ -568,30 +578,29 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         Parameters
         ----------
         bbox : `lsst.geom.Box2I`
-            Bounding bos for the pixels
-        wcs : `lsst.afw.geom.SkyWcs
-            WCS object
-        filterName : `str` or None
-            filterName of the camera filter, or None or blank for the default filter
-        photoCalib : None
-            Deprecated, only included for api compatibility
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
-        bboxPadding : `int`
-            Number describing how much to pad the input bbox by (in pixels), defaults
-            to 100. This parameter is necessary because optical distortions in telescopes
-            can cause a rectangular pixel grid to map into a non "rectangular" spherical
-            region in sky coordinates. This padding is used to create a spherical
-            "rectangle", which will for sure enclose the input box.  This padding is only
-            used to determine if the reference catalog for a sky patch will be loaded from
-            the data store, this function will filter out objects which lie within the
-            padded region but fall outside the input bounding box region.
+            Bounding box for the pixels.
+        wcs : `lsst.afw.geom.SkyWcs`
+            The WCS object associated with ``bbox``.
+        filterName : `str` or `None`, optional
+            Name of the camera filter, or `None` or blank for the default
+            filter.
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
+        epoch : `astropy.time.Time` or `None`,  optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
+        bboxToSpherePadding : `int`, optional
+            Padding to account for translating a set of corners into a
+            spherical (convex) boundary that is certain to encompase the
+            enitre area covered by the box.
+
         Returns
         -------
         md : `lsst.daf.base.PropertyList`
         """
-        _, _, innerCorners, outerCorners = cls._makeBoxRegion(bbox, wcs, bboxPadding)
+        paddedBbox = geom.Box2D(bbox)
+        paddedBbox.grow(self.config.pixelMargin)
+        _, _, innerCorners, outerCorners = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
         md = PropertyList()
         for box, corners in zip(("INNER", "OUTER"), (innerCorners, outerCorners)):
             for (name, corner) in zip(("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"),
