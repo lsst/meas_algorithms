@@ -91,6 +91,19 @@ class StampsTestCase(lsst.utils.tests.TestCase):
         """
         self.roundtrip(make_stamps(1))
 
+    def testIOsub(self):
+        """Test the class' write and readFits when passing on a bounding box.
+        """
+        bbox = geom.Box2I(geom.Point2I(3, 9), geom.Extent2I(11, 7))
+        ss = make_stamps()
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            options = {'bbox': bbox}
+            subStamps = stamps.Stamps.readFitsWithOptions(f.name, options)
+            for s1, s2 in zip(ss, subStamps):
+                self.assertEqual(bbox.getDimensions(), s2.stamp_im.getDimensions())
+                self.assertMaskedImagesAlmostEqual(s1.stamp_im[bbox], s2.stamp_im)
+
     def roundtrip(self, ss):
         """Round trip a Stamps object to disk and check values
         """
