@@ -94,7 +94,8 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return Struct(selected=good)
 
     def _getSchemaKeys(self, schema):
-        """Extract and save the necessary keys from schema with asKey."""
+        """Extract and save the necessary keys from schema with asKey.
+        """
         self.parentKey = schema["parent"].asKey()
         self.centroidXKey = schema["slot_Centroid_x"].asKey()
         self.centroidYKey = schema["slot_Centroid_y"].asKey()
@@ -111,18 +112,21 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         self.saturatedKey = schema["base_PixelFlags_flag_saturated"].asKey()
 
     def _isParent(self, sourceCat):
-        """Return True for each source that is the parent source."""
+        """Return True for each source that is the parent source.
+        """
         test = (sourceCat.get(self.parentKey) == 0)
         return test
 
     def _hasCentroid(self, sourceCat):
-        """Return True for each source that has a valid centroid"""
+        """Return True for each source that has a valid centroid
+        """
         return np.isfinite(sourceCat.get(self.centroidXKey)) \
             & np.isfinite(sourceCat.get(self.centroidYKey)) \
             & ~sourceCat.get(self.centroidFlagKey)
 
     def _goodSN(self, sourceCat):
-        """Return True for each source that has Signal/Noise > config.minSnr."""
+        """Return True for each source that has Signal/Noise > config.minSnr.
+        """
         if self.config.minSnr <= 0:
             return True
         else:

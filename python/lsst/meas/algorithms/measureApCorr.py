@@ -42,10 +42,14 @@ class FluxKeys:
     def __init__(self, name, schema):
         """Construct a FluxKeys
 
-        @parma[in] name  name of flux measurement algorithm, e.g. "base_PsfFlux"
-        @param[in,out] schema  catalog schema containing the flux field
-            read: {name}_instFlux, {name}_instFluxErr, {name}_flag
-            added: apcorr_{name}_used
+        Parameters
+        ----------
+        name : `str`
+            Name of flux measurement algorithm, e.g. "base_PsfFlux"
+        schema : `lsst.afw.table.Schema`
+            Catalog schema containing the flux field
+                read: {name}_instFlux, {name}_instFluxErr, {name}_flag
+                added: apcorr_{name}_used
         """
         self.flux = schema.find(name + "_instFlux").key
         self.err = schema.find(name + "_instFluxErr").key
@@ -53,17 +57,9 @@ class FluxKeys:
         self.used = schema.addField("apcorr_" + name + "_used", type="Flag",
                                     doc="set if source was used in measuring aperture correction")
 
-# The following block adds links to these tasks from the Task Documentation page.
-## @addtogroup LSST_task_documentation
-## @{
-## @page measureApCorrTask
-## @ref MeasureApCorrTask "MeasureApCorrTask"
-##      Task to measure aperture correction
-## @}
-
 
 class MeasureApCorrConfig(lsst.pex.config.Config):
-    """!Configuration for MeasureApCorrTask
+    """Configuration for MeasureApCorrTask
     """
     refFluxName = lsst.pex.config.Field(
         doc="Field name prefix for the flux other measurements should be aperture corrected to match",
@@ -112,61 +108,13 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 
 
 class MeasureApCorrTask(Task):
-    r"""!Task to measure aperture correction
-
-    @section measAlg_MeasureApCorrTask_Contents Contents
-
-     - @ref measAlg_MeasureApCorrTask_Purpose
-     - @ref measAlg_MeasureApCorrTask_Config
-     - @ref measAlg_MeasureApCorrTask_Debug
-
-    @section measAlg_MeasureApCorrTask_Purpose Description
-
-    @copybrief MeasureApCorrTask
-
-    This task measures aperture correction for the flux fields returned by
-    lsst.meas.base.getApCorrNameSet()
-
-    The main method is @ref MeasureApCorrTask.run "run".
-
-    @section measAlg_MeasureApCorrTask_Config  Configuration parameters
-
-    See @ref MeasureApCorrConfig
-
-    @section measAlg_MeasureApCorrTask_Debug   Debug variables
-
-    The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
-    `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
-
-    MeasureApCorrTask has a debug dictionary containing a single boolean key:
-    <dl>
-    <dt>display
-    <dd>If True: will show plots as aperture corrections are fitted
-    </dl>
-
-    For example, put something like:
-    @code{.py}
-        import lsstDebug
-        def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name == "lsst.meas.algorithms.measureApCorr":
-                di.display = dict(
-                    unsubtracted = 1,
-                    subtracted = 2,
-                    background = 3,
-                )
-
-            return di
-
-        lsstDebug.Info = DebugInfo
-    @endcode
-    into your `debug.py` file and run your command-line task with the `--debug` flag (or `import debug`).
+    r"""Task to measure aperture correction
     """
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
     def __init__(self, schema, **kwds):
-        """!Construct a MeasureApCorrTask
+        """Construct a MeasureApCorrTask
 
         For every name in lsst.meas.base.getApCorrNameSet():
         - If the corresponding flux fields exist in the schema:
@@ -186,23 +134,29 @@ class MeasureApCorrTask(Task):
         self.makeSubtask("sourceSelector")
 
     def run(self, exposure, catalog):
-        """!Measure aperture correction
+        """Measure aperture correction
 
-        @param[in]  exposure  Exposure aperture corrections are being measured
-                              on. The bounding box is retrieved from it, and
-                              it is passed to the sourceSelector.
-                              The output aperture correction map is *not*
-                              added to the exposure; this is left to the
-                              caller.
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure aperture corrections are being measured on. The
+            bounding box is retrieved from it, and it is passed to the
+            sourceSelector. The output aperture correction map is *not*
+            added to the exposure; this is left to the caller.
+        catalog : `lsst.afw.table.SourceCatalog`
+            SourceCatalog containing measurements to be used to
+            compute aperture corrections.
 
-        @param[in]  catalog   SourceCatalog containing measurements to be used
-                              to compute aperturecorrections.
+        Returns
+        -------
+        Struct : `lsst.pipe.base.Struct`
+            Contains the following:
 
-        @return an lsst.pipe.base.Struct containing:
-        - apCorrMap: an aperture correction map (lsst.afw.image.ApCorrMap) that contains two entries
-            for each flux field:
-            - flux field (e.g. base_PsfFlux_instFlux): 2d model
-            - flux sigma field (e.g. base_PsfFlux_instFluxErr): 2d model of error
+            ``apCorrMap``
+                aperture correction map (`lsst.afw.image.ApCorrMap`)
+                that contains two entries for each flux field:
+                - flux field (e.g. base_PsfFlux_instFlux): 2d model
+                - flux sigma field (e.g. base_PsfFlux_instFluxErr): 2d model of error
         """
         bbox = exposure.getBBox()
         import lsstDebug
@@ -320,16 +274,23 @@ def plotApCorr(bbox, xx, yy, zzMeasure, field, title, doPause):
 
     Intended for debugging.
 
-    @param bbox  Bounding box (for bounds)
-    @param xx  x coordinates
-    @param yy  y coordinates
-    @param zzMeasure  Measured value of the aperture correction
-    @param field  Fit aperture correction field
-    @param title  Title for plot
-    @param doPause  Pause to inspect the residuals plot?  If False,
-                    there will be a 4 second delay to allow for
-                    inspection of the plot before closing it and
-                    moving on.
+    Parameters
+    ----------
+    bbox : `lsst.geom.Box2I`
+        Bounding box (for bounds)
+    xx, yy : `numpy.ndarray`, (N)
+        x and y coordinates
+    zzMeasure : `float`
+        Measured value of the aperture correction
+    field : `lsst.afw.math.ChebyshevBoundedField`
+        Fit aperture correction field
+    title : 'str'
+        Title for plot
+    doPause : `bool`
+        Pause to inspect the residuals plot? If
+        False, there will be a 4 second delay to
+        allow for inspection of the plot before
+        closing it and moving on.
     """
     import matplotlib.pyplot as plt
 
