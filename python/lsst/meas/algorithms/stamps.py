@@ -295,9 +295,20 @@ class StampsBase(abc.ABC, Sequence):
         options : `PropertyList`
             Collection of metadata parameters
         """
+        # To avoid problems since this is no longer an abstract method
+        if cls is not StampsBase:
+            raise NotImplementedError(
+                f"Please implement specific FITS reader for class {cls}"
+            )
+
         # Load metadata to get class
         metadata = afwFits.readMetadata(filename, hdu=0)
-        type_name = metadata["STAMPCLS"]
+        type_name = metadata.get("STAMPCLS")
+        if type_name is None:
+            raise RuntimeError(
+                f"No class name in file {filename}. Unable to instantiate correct"
+                " stamps subclass. Is this an old version format Stamps file?"
+            )
 
         # Import class and override `cls`
         stamp_type = doImport(type_name)

@@ -57,6 +57,52 @@ def make_stamps(n_stamps=3):
     return stamps.Stamps(stamp_list, metadata=metadata)
 
 
+class StampsBaseTestCase(lsst.utils.tests.TestCase):
+    """Test StampsBase.
+    """
+    def testReadFitsWithOptionsNotImplementedErrorRaised(self):
+        """
+        Test that subclasses have their own version
+        of this implemented or an error is raised.
+        """
+        class FakeStampsBase(stamps.StampsBase):
+            def __init__(self):
+                return
+
+        with self.assertRaises(NotImplementedError):
+            FakeStampsBase.readFitsWithOptions('noFile', {})
+
+    def testReadFitsWithOptionsMetadataError(self):
+        """Test that error is raised when STAMPCLS returns None
+        """
+        with tempfile.NamedTemporaryFile() as f:
+            ss = make_stamps()
+            emptyMetadata = PropertyList()
+            stamps.writeFits(
+                f.name, [ss[0].stamp_im], emptyMetadata, None, True, True
+            )
+            with self.assertRaises(RuntimeError):
+                stamps.StampsBase.readFits(f.name)
+
+    def testReadFitsReturnsNewClass(self):
+        """Test that readFits will return subclass
+        """
+        class FakeStampsBase(stamps.StampsBase):
+            def __init__(self):
+                self._metadata = {}
+                return
+
+            @classmethod
+            def readFitsWithOptions(cls, filename, options):
+                return cls()
+
+            def _refresh_metadata(self):
+                self._metadata = {}
+
+        fakeStamps = FakeStampsBase.readFitsWithOptions('noFile', {})
+        self.assertEqual(type(fakeStamps), FakeStampsBase)
+
+
 class StampsTestCase(lsst.utils.tests.TestCase):
     """Test Stamps.
     """
