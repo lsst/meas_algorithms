@@ -60,6 +60,8 @@ def writeFits(filename, stamp_ims, metadata, type_name, write_mask, write_varian
     metadata['HAS_VARIANCE'] = write_variance
     metadata['N_STAMPS'] = len(stamp_ims)
     metadata['STAMPCLS'] = type_name
+    # Record version number in case of future code changes
+    metadata['VERSION'] = 1
     # create primary HDU with global metadata
     fitsPrimary = afwFits.Fits(filename, "w")
     fitsPrimary.createEmpty()
