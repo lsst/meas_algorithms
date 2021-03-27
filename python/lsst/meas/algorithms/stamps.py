@@ -33,9 +33,11 @@ import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
 from lsst.geom import Box2I, Point2I, Extent2I, Angle, degrees, SpherePoint
 from lsst.daf.base import PropertyList
+from lsst.daf.butler.core.utils import getFullTypeName
+from lsst.utils import doImport
 
 
-def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
+def writeFits(filename, stamp_ims, metadata, type_name, write_mask, write_variance):
     """Write a single FITS file containing all stamps.
 
     Parameters
@@ -47,6 +49,8 @@ def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
     metadata : `PropertyList`
         A collection of key, value metadata pairs to be
         written to the primary header
+    type_name : `str`
+        Python type name of the StampsBase subclass to use
     write_mask : `bool`
         Write the mask data to the output file?
     write_variance : `bool`
@@ -55,6 +59,9 @@ def writeFits(filename, stamp_ims, metadata, write_mask, write_variance):
     metadata['HAS_MASK'] = write_mask
     metadata['HAS_VARIANCE'] = write_variance
     metadata['N_STAMPS'] = len(stamp_ims)
+    metadata['STAMPCLS'] = type_name
+    # Record version number in case of future code changes
+    metadata['VERSION'] = 1
     # create primary HDU with global metadata
     fitsPrimary = afwFits.Fits(filename, "w")
     fitsPrimary.createEmpty()
@@ -268,7 +275,6 @@ class StampsBase(abc.ABC, Sequence):
         self.use_variance = use_variance
 
     @classmethod
-    @abc.abstractmethod
     def readFits(cls, filename):
         """Build an instance of this class from a file.
 
@@ -277,10 +283,10 @@ class StampsBase(abc.ABC, Sequence):
         filename : `str`
             Name of the file to read
         """
-        raise NotImplementedError
+
+        return cls.readFitsWithOptions(filename, None)
 
     @classmethod
-    @abc.abstractmethod
     def readFitsWithOptions(cls, filename, options):
         """Build an instance of this class with options.
 
@@ -291,7 +297,26 @@ class StampsBase(abc.ABC, Sequence):
         options : `PropertyList`
             Collection of metadata parameters
         """
-        raise NotImplementedError
+        # To avoid problems since this is no longer an abstract method
+        if cls is not StampsBase:
+            raise NotImplementedError(
+                f"Please implement specific FITS reader for class {cls}"
+            )
+
+        # Load metadata to get class
+        metadata = afwFits.readMetadata(filename, hdu=0)
+        type_name = metadata.get("STAMPCLS")
+        if type_name is None:
+            raise RuntimeError(
+                f"No class name in file {filename}. Unable to instantiate correct"
+                " stamps subclass. Is this an old version format Stamps file?"
+            )
+
+        # Import class and override `cls`
+        stamp_type = doImport(type_name)
+        cls = stamp_type
+
+        return cls.readFitsWithOptions(filename, options)
 
     @abc.abstractmethod
     def _refresh_metadata(self):
@@ -310,7 +335,8 @@ class StampsBase(abc.ABC, Sequence):
         """
         self._refresh_metadata()
         stamps_ims = self.getMaskedImages()
-        writeFits(filename, stamps_ims, self._metadata, self.use_mask, self.use_variance)
+        type_name = getFullTypeName(self)
+        writeFits(filename, stamps_ims, self._metadata, type_name, self.use_mask, self.use_variance)
 
     def __len__(self):
         return len(self._stamps)
@@ -354,7 +380,7 @@ class Stamps(StampsBase):
             Stamp object to append.
         """
         if not isinstance(item, Stamp):
-            raise ValueError("Ojbects added must be a Stamp object.")
+            raise ValueError("Objects added must be a Stamp object.")
         self._stamps.append(item)
         return None
 
