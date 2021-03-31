@@ -2033,7 +2033,7 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
 
 namespace {
 template <typename T>
-struct Sort_ByX0 : public std::binary_function<std::shared_ptr<T> const, std::shared_ptr<T> const, bool> {
+struct Sort_ByX0 {
     bool operator()(std::shared_ptr<T> const a, std::shared_ptr<T> const b) const {
         return a->getX0() < b->getX0();
     }
