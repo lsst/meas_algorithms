@@ -73,7 +73,7 @@ public:
 /**
  * comparison functor; sort by ID, then by row (y), then by column range start (x0)
  */
-struct IdSpanCompar : public std::binary_function<const IdSpan::ConstPtr, const IdSpan::ConstPtr, bool> {
+  struct IdSpanCompar {
     bool operator()(const IdSpan::ConstPtr a, const IdSpan::ConstPtr b) {
         if (a->id < b->id) {
             return true;
