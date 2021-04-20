@@ -4,7 +4,8 @@
 PcaPsfDeterminerTask
 ####################
 
-``PcaPsfDeterminerTask`` estimates psf based off of `measurePsfTask`.
+``PcaPsfDeterminerTask`` estimates PSFs of pre-selected likely stars using a PCA decomposition approach.
+
 
 Python API summary
 ==================

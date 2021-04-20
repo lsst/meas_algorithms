@@ -4,7 +4,7 @@
 ObjectSizeStarSelectorTask
 ##########################
 
-``ObjectSizeStarSelectorTask`` looks for a cluster of small objects in a size-magnitude plot.
+``ObjectSizeStarSelectorTask`` selects likely stars by looking for a cluster of small objects in a size-magnitude plot.
 
 .. _lsst.meas.algorithms.ObjectSizeStarSelectorTask-api:
 
@@ -35,16 +35,16 @@ Debugging
 ObjectSizeStarSelectorTask has a debug dictionary with the following boolean keys:
 
 display
-  display = lsstDebug.Info(__name__).display
+ bool; if True display debug information
 
 displayExpsoure
-  displayExpsoure = lsstDebug.Info(__name__).displayExposure
+  bool; if True display the exposure and spatial cells
 
 plotMagSize
-  plotMagSize = lsstDebug.Info(__name__).plotMagSize
+  bool; if True display the magnitude-size relation using matplotlib
 
 dumpData
-  dumpData = lsstDebug.Info(__name__).dumpData
+  bool; if True dump data to a pickle file
 
 
 More information can be found in `lsstDebug`.

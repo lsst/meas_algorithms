@@ -4,7 +4,8 @@
 BasePsfDeterminerTask
 #####################
 
-``BasePsfDeterminerTask`` registers all PSF determiners with the `psfDeterminerRegistry`.
+``BasePsfDeterminerTask`` is the base class for PSF determiners: override ``determinePsf`` to implement your algorithm, and register your new Task with ``psfDeterminerRegistry`` to allow it to be used in a pipeline.
+
 
 .. _lsst.meas.algorithms.BasePsfDeterminerTask-api:
 

@@ -122,7 +122,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
 
 
 class EventHandler:
-    """A class to handle key strokes with matplotlib displays
+    """A class to handle key strokes with matplotlib displays.
     """
 
     def __init__(self, axes, xs, ys, x, y, frames=[0]):
@@ -156,7 +156,7 @@ class EventHandler:
 
 
 def _assignClusters(yvec, centers):
-    """Return a vector of centerIds based on their distance to the centers
+    """Return a vector of centerIds based on their distance to the centers.
     """
     assert len(centers) > 0
 
@@ -229,7 +229,7 @@ def _kcenters(yvec, nCluster, useMedian=False, widthStdAllowed=0.15):
 
 
 def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, clusterNum=0, widthStdAllowed=0.15):
-    """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median
+    """Improve our estimate of one of the clusters (clusterNum) by sigma-clipping around its median.
     """
 
     nMember = sum(clusterId == clusterNum)
@@ -313,7 +313,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
-    r"""!A star selector that looks for a cluster of small objects in a size-magnitude plot
+    r"""A star selector that looks for a cluster of small objects in a size-magnitude plot.
     """
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument

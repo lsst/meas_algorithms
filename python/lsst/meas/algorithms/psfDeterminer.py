@@ -52,7 +52,7 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
-    """!Base class for PSF determiners
+    """Base class for PSF determiners
 
     Register all PSF determiners with the psfDeterminerRegistry using:
         psfDeterminerRegistry.register(name, class)
@@ -63,12 +63,12 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     _DefaultName = "psfDeterminer"
 
     def __init__(self, config, schema=None, **kwds):
-        """Construct a PSF Determiner
+        """Construct a PSF Determiner.
 
         Parameters
         ----------
         config : `lsst.pexConfig.Config`
-            Input for configuring the algorithm
+            Input for configuring the algorithm.
         schema : `lsst.afw.table.Schema`
             Schema used for sources; passing a schema allows the determiner
             to reserve a flag field to mark stars used in PSF measurement,
@@ -78,22 +78,23 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None):
-        """Determine a PSF model
+        """Determine a PSF model.
 
         Parameters
         ----------
         exposure : `lsst.afw.Exposure`
-            Exposure containing the psf candidates
-        psdCandidateList : `lsst.meas.algorithms.PsfCandidate`
+            Exposure containing the psf candidates.
+        psdCandidateList : `list` [`lsst.meas.algorithms.PsfCandidate`]
             A sequence of PSF candidates; typically obtained by
             detecting sources and then running them through a star
-            selector
+            selector.
         metadata : `str`
-            A place to save interesting items
+            A place to save interesting items.
 
         Returns
         -------
-        psf : `lsst.afw.detection.Psf
+        psf : `lsst.afw.detection.Psf`
+            The fit PSF.
         cellSet : `lsst.afw.math.SpatialCellSet`
             The spatial cell set used to determine the PSF
         """
