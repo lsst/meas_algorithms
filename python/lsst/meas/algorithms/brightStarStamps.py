@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from operator import ior
 from functools import reduce
 from typing import Optional
+import numpy as np
 
 from lsst.afw.image import MaskedImageF
 from lsst.afw import geom as afwGeom
@@ -124,6 +125,8 @@ class BrightStarStamp(AbstractStamp):
         # compute annularFlux
         annulusStat = afwMath.makeStatistics(annulusImage, statsFlag, statsControl)
         self.annularFlux = annulusStat.getValue()
+        if np.isnan(self.annularFlux):
+            raise RuntimeError("Annular flux computation failed, likely because no pixels were valid.")
         # normalize stamps
         self.stamp_im.image.array /= self.annularFlux
         return None
@@ -186,7 +189,7 @@ class BrightStarStamps(StampsBase):
     @classmethod
     def initAndNormalize(cls, starStamps, innerRadius, outerRadius,
                          metadata=None, use_mask=True, use_variance=False,
-                         imCenter=None,
+                         imCenter=None, discardNanFluxObjects=True,
                          statsControl=afwMath.StatisticsControl(),
                          statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
                          badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
@@ -220,6 +223,9 @@ class BrightStarStamps(StampsBase):
         imCenter : `collections.abc.Sequence`, optional
             Center of the object, in pixels. If not provided, the center of the
             first stamp's pixel grid will be used.
+        discardNanFluxObjects : `bool`
+            Whether objects with NaN annular flux should be discarded.
+            If False, these objects will not be normalized.
         statsControl : `lsst.afw.math.statistics.StatisticsControl`, optional
             StatisticsControl to be used when computing flux over all pixels
             within the annulus.
@@ -254,9 +260,18 @@ class BrightStarStamps(StampsBase):
         bss._checkNormalization(True, innerRadius, outerRadius)
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
         # Apply normalization
-        for stamp in bss._stamps:
-            stamp.measureAndNormalize(annulus, statsControl=statsControl, statsFlag=statsFlag,
-                                      badMaskPlanes=badMaskPlanes)
+        for j, stamp in enumerate(bss._stamps):
+            try:
+                stamp.measureAndNormalize(annulus, statsControl=statsControl, statsFlag=statsFlag,
+                                          badMaskPlanes=badMaskPlanes)
+            except ValueError:
+                # Optionally keep NaN flux objects, for bookkeeping purposes,
+                # and to avoid having to re-find and redo the preprocessing
+                # steps needed before bright stars can be subtracted.
+                if discardNanFluxObjects:
+                    bss._stamps.pop(j)
+                else:
+                    stamp.annularFlux = np.nan
         bss.normalized = True
         return bss
 
