@@ -56,6 +56,15 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     Register all PSF determiners with the psfDeterminerRegistry using:
         psfDeterminerRegistry.register(name, class)
+
+    Parameters
+    ----------
+    config : `lsst.pexConfig.Config`
+        Input for configuring the algorithm
+    schema : `lsst.afw.table.Schema`
+        Schema used for sources; passing a schema allows the
+        determiner to reserve a flag field to mark stars used in
+        PSF measurement, but some PSF determiners ignore this argument.
     """
 
     usesMatches = False  # Does the PSF determiner use the "matches" argument in the "run method? Few do.
@@ -63,17 +72,6 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     _DefaultName = "psfDeterminer"
 
     def __init__(self, config, schema=None, **kwds):
-        """Construct a PSF Determiner.
-
-        Parameters
-        ----------
-        config : `lsst.pexConfig.Config`
-            Input for configuring the algorithm.
-        schema : `lsst.afw.table.Schema`
-            Schema used for sources; passing a schema allows the determiner
-            to reserve a flag field to mark stars used in PSF measurement,
-            but some PSF determiners ignore this argument.
-        """
         pipeBase.Task.__init__(self, config=config, **kwds)
 
     @abc.abstractmethod
