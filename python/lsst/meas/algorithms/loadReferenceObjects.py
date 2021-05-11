@@ -854,7 +854,7 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
     pixelMargin = pexConfig.RangeField(
         doc="Padding to add to 4 all edges of the bounding box (pixels)",
         dtype=int,
-        default=300,
+        default=250,
         min=0,
     )
     defaultFilter = pexConfig.Field(
