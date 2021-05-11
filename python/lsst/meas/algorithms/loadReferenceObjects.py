@@ -375,9 +375,21 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         innerSkyRegion, outerSkyRegion, _, _ = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
 
         def _filterFunction(refCat, region):
-            # Add columns to the reference catalog relating their coordinates to
-            # equivalent pixel positions for the wcs provided and use afwTable
-            # to populate those columns.
+            # Perform an initial "pre filter" step based on the refCat coords
+            # and the outerSkyRegion created from the self.config.pixelMargin-
+            # paddedBbox plus an "extra" padding of bboxToSpherePadding and the
+            # raw wcs.  This should ensure a large enough projected area on the
+            # sky that accounts for any projection/distortion issues, but small
+            # enough to filter out loaded reference objects that lie well
+            # beyond the projected detector of interest.  This step is required
+            # due to the very local nature of the wcs available for the
+            # sky <--> pixel conversions.
+            preFiltFunc = _FilterCatalog(outerSkyRegion)
+            refCat = preFiltFunc(refCat, region)
+
+            # Add columns to the pre-filtered reference catalog relating their
+            # coordinates to equivalent pixel positions for the wcs provided
+            # and use to populate those columns.
             refCat = self.remapReferenceCatalogSchema(refCat, position=True)
             afwTable.updateRefCentroids(wcs, refCat)
             # No need to filter the catalog if it is entirely contained in the
