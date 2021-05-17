@@ -28,6 +28,7 @@ from collections.abc import Sequence
 import abc
 from dataclasses import dataclass
 import numpy
+from typing import Optional
 
 import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
@@ -203,7 +204,7 @@ class Stamp(AbstractStamp):
         must keep track of the coordinate system
     """
     stamp_im: afwImage.maskedImage.MaskedImageF
-    position: SpherePoint
+    position: Optional[SpherePoint] = SpherePoint(Angle(numpy.nan), Angle(numpy.nan))
 
     @classmethod
     def factory(cls, stamp_im, metadata, index):
