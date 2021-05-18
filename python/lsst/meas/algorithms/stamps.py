@@ -39,15 +39,15 @@ from lsst.daf.butler.core.utils import getFullTypeName
 from lsst.utils import doImport
 
 
-def writeFits(filename, stamp_ims, metadata, type_name, write_mask, write_variance, write_archive=False):
+def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance, write_archive=False):
     """Write a single FITS file containing all stamps.
 
     Parameters
     ----------
     filename : `str`
         A string indicating the output filename
-    stamps_ims : iterable of `lsst.afw.image.MaskedImageF`
-        An iterable of masked images
+    stamps : iterable of `BaseStamp`
+        An iterable of Stamp objects
     metadata : `PropertyList`
         A collection of key, value metadata pairs to be
         written to the primary header
@@ -80,20 +80,21 @@ def writeFits(filename, stamp_ims, metadata, type_name, write_mask, write_varian
         oa.writeFits(fitsFile)
     else:
         fitsFile.writeMetadata(metadata)
+    fitsFile.closeFile()
     # add all pixel data optionally writing mask and variance information
-    for i, stamp in enumerate(stamp_ims):
+    for i, stamp in enumerate(stamps):
         metadata = PropertyList()
         # EXTVER should be 1-based, the index from enumerate is 0-based
         metadata.update({'EXTVER': i+1, 'EXTNAME': 'IMAGE'})
-        stamp.getImage().writeFits(filename, metadata=metadata, mode='a')
+        stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode='a')
         if write_mask:
             metadata = PropertyList()
             metadata.update({'EXTVER': i+1, 'EXTNAME': 'MASK'})
-            stamp.getMask().writeFits(filename, metadata=metadata, mode='a')
+            stamp.stamp_im.getMask().writeFits(filename, metadata=metadata, mode='a')
         if write_variance:
             metadata = PropertyList()
             metadata.update({'EXTVER': i+1, 'EXTNAME': 'VARIANCE'})
-            stamp.getVariance().writeFits(filename, metadata=metadata, mode='a')
+            stamp.stamp_im.getVariance().writeFits(filename, metadata=metadata, mode='a')
     return None
 
 
@@ -368,9 +369,8 @@ class StampsBase(abc.ABC, Sequence):
             Name of file to write
         """
         self._refresh_metadata()
-        stamps_ims = self.getMaskedImages()
         type_name = getFullTypeName(self)
-        writeFits(filename, stamps_ims, self._metadata, type_name, self.use_mask, self.use_variance,
+        writeFits(filename, self._stamps, self._metadata, type_name, self.use_mask, self.use_variance,
                   self.use_archive)
 
     def __len__(self):
