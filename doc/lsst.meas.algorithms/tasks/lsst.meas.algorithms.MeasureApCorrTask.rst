@@ -34,8 +34,8 @@ Debugging
 
 MeasureApCorrTask has a debug dictionary containing two boolean keys:
 
-display
-  display = lsstDebug.Info(__name__).display
-
 doPause
-  doPause = lsstDebug.Info(__name__).doPause
+  bool; Pause to inspect the residuals plot? If False, there will be a 4 second delay to allow for inspection of the plot before closing it and moving on.
+
+display
+  bool; if True display debug information
