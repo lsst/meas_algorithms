@@ -20,7 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-import esutil
+import lsst.sphgeom
 
 
 class HtmIndexer:
@@ -33,7 +33,7 @@ class HtmIndexer:
         Depth of the HTM hierarchy to construct.
     """
     def __init__(self, depth=8):
-        self.htm = esutil.htm.HTM(depth)
+        self.pixelization = lsst.sphgeom.HtmPixelization(depth)
 
     def getShardIds(self, ctrCoord, radius):
         """Get the IDs of all shards that touch a circular aperture.
@@ -56,13 +56,14 @@ class HtmIndexer:
                 For each shard in ``shardIdList`` is the shard on the
                 boundary (not fully enclosed by the search region)?
         """
-        shardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
-                                         ctrCoord.getLatitude().asDegrees(),
-                                         radius.asDegrees(), inclusive=True)
-        coveredShardIdList = self.htm.intersect(ctrCoord.getLongitude().asDegrees(),
-                                                ctrCoord.getLatitude().asDegrees(),
-                                                radius.asDegrees(), inclusive=False)
-        isOnBoundary = (shardId not in coveredShardIdList for shardId in shardIdList)
+        circle = lsst.sphgeom.Circle(ctrCoord.getVector(), lsst.sphgeom.Angle.fromRadians(radius.asRadians()))
+        interior = self.pixelization.interior(circle)
+        shardIdList = []
+        isOnBoundary = []
+        for begin, end in self.pixelization.envelope(circle):
+            for shardId in range(begin, end):
+                shardIdList.append(shardId)
+                isOnBoundary.append(not interior.contains(shardId))
         return shardIdList, isOnBoundary
 
     def indexPoints(self, raList, decList):
@@ -80,7 +81,10 @@ class HtmIndexer:
         shardIds : `list` of `int`
             List of shard IDs
         """
-        return self.htm.lookup_id(raList, decList)
+        return [
+            self.pixelization.index(lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees).getVector())
+            for ra, dec in zip(raList, decList)
+        ]
 
     @staticmethod
     def makeDataId(shardId, datasetName):

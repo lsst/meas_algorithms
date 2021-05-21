@@ -341,15 +341,14 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         """
         schema, key_map = self._saveMasterSchema(inputFiles[0])
         # create an HTM we can interrogate about pixel ids
-        htm = lsst.sphgeom.HtmPixelization(self.indexer.htm.get_depth())
-        filenames = self._getButlerFilenames(htm)
+        filenames = self._getButlerFilenames(self.indexer.pixelization)
         worker = self.IngestManager(filenames,
                                     self.config,
                                     self.file_reader,
                                     self.indexer,
                                     schema,
                                     key_map,
-                                    htm.universe()[0],
+                                    self.indexer.pixelization.universe()[0],
                                     addRefCatMetadata,
                                     self.log)
         worker.run(inputFiles)
