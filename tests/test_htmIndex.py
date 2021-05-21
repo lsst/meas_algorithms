@@ -280,7 +280,7 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
             # at assessing the correctness of the change.  This is left to the
             # explicit testProperMotion() test below.
             resultWithEpoch = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a",
-                                                  epoch=astropy.time.Time(20000, format='mjd', scale="tai"))
+                                                  epoch=astropy.time.Time(30000, format='mjd', scale="tai"))
             self.assertFloatsNotEqual(result.refCat["coord_ra"], resultWithEpoch.refCat["coord_ra"],
                                       rtol=1.0e-4)
             self.assertFloatsNotEqual(result.refCat["coord_dec"], resultWithEpoch.refCat["coord_dec"],
