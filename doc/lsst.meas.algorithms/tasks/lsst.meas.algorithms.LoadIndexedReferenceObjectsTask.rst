@@ -4,8 +4,10 @@
 LoadIndexedReferenceObjectsTask
 ###############################
 
-``LoadIndexedReferenceObjectsTask`` loads reference objects from an indexed catalog ingested by `lsst.meas.algorithms.IngestIndexReferenceTask`.
-For more details about loading reference catalogs, see `lsst.meas.algorithms.LoadReferenceObjectsTask``.
+``LoadIndexedReferenceObjectsTask`` loads reference objects from a `Hierarchical Triangular Mesh (HTM)`_ indexed catalog ingested by :lsst-task:`~lsst.meas.algorithms.ingestIndexReferenceTask.IngestIndexedReferenceTask`.
+For more details about loading reference catalogs, see :lsst-task:`~lsst.meas.algorithms.LoadReferenceObjectsTask`.
+
+.. _Hierarchical Triangular Mesh (HTM): https://arxiv.org/abs/cs/0701164
 
 
 .. _lsst.meas.algorithms.LoadIndexedReferenceObjectsTask-api:
