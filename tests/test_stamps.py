@@ -27,6 +27,7 @@ from lsst.meas.algorithms import stamps
 from lsst.afw import image as afwImage
 from lsst.daf.base import PropertyList
 import lsst.geom as geom
+import lsst.afw.geom.transformFactory as tF
 import lsst.utils.tests
 
 np.random.seed(90210)
@@ -46,15 +47,17 @@ def make_stamps(n_stamps=3):
         stampVarArray += 1000.
     ras = np.random.rand(n_stamps)*360.
     decs = np.random.rand(n_stamps)*180 - 90
+    archive_elements = [tF.makeTransform(geom.AffineTransform(np.random.rand(2))) for _ in range(n_stamps)]
     stamp_list = [stamps.Stamp(stamp_im=stampIm,
                                position=geom.SpherePoint(geom.Angle(ra, geom.degrees),
-                                                         geom.Angle(dec, geom.degrees)))
-                  for stampIm, ra, dec in zip(stampImages, ras, decs)]
+                                                         geom.Angle(dec, geom.degrees)),
+                               archive_element=ae)
+                  for stampIm, ra, dec, ae in zip(stampImages, ras, decs, archive_elements)]
     metadata = PropertyList()
     metadata['RA_DEG'] = ras
     metadata['DEC_DEG'] = decs
 
-    return stamps.Stamps(stamp_list, metadata=metadata)
+    return stamps.Stamps(stamp_list, metadata=metadata, use_archive=True)
 
 
 class StampsBaseTestCase(lsst.utils.tests.TestCase):
@@ -79,7 +82,7 @@ class StampsBaseTestCase(lsst.utils.tests.TestCase):
             ss = make_stamps()
             emptyMetadata = PropertyList()
             stamps.writeFits(
-                f.name, [ss[0].stamp_im], emptyMetadata, None, True, True
+                f.name, [ss[0]], emptyMetadata, None, True, True
             )
             with self.assertRaises(RuntimeError):
                 stamps.StampsBase.readFits(f.name)
