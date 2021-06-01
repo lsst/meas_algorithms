@@ -50,6 +50,10 @@ PYBIND11_MODULE(coaddPsf, mod) {
                     "catalog"_a, "coaddWcs"_a, "weightFieldName"_a = "weight",
                     "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
     clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
+                             geom::Point2D const &, std::string const &, int>(),
+                    "catalog"_a, "coaddWcs"_a, "averagePosition"_a,
+                    "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
+    clsCoaddPsf.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
                              CoaddPsfControl const &, std::string const &>(),
                     "catalog"_a, "coaddWcs"_a, "ctrl"_a, "weightFieldName"_a = "weight");
 

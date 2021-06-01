@@ -167,6 +167,15 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog, afw::geom::SkyWcs
     _averagePosition = computeAveragePosition(_catalog, _coaddWcs, _weightKey);
 }
 
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog, afw::geom::SkyWcs const &coaddWcs,
+                   geom::Point2D const &averagePosition, std::string const &warpingKernelName, int cacheSize)
+        : _catalog(catalog),
+          _coaddWcs(coaddWcs),
+          _weightKey(_catalog.getSchema()["weight"]),
+          _averagePosition(averagePosition),
+          _warpingKernelName(warpingKernelName),
+          _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize)) {}
+
 std::shared_ptr<afw::detection::Psf> CoaddPsf::clone() const { return std::make_shared<CoaddPsf>(*this); }
 
 std::shared_ptr<afw::detection::Psf> CoaddPsf::resized(int width, int height) const {
@@ -429,15 +438,6 @@ void CoaddPsf::write(OutputArchiveHandle &handle) const {
     handle.saveCatalog(cat1);
     _catalog.writeToArchive(handle, false);
 }
-
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog, afw::geom::SkyWcs const &coaddWcs,
-                   geom::Point2D const &averagePosition, std::string const &warpingKernelName, int cacheSize)
-        : _catalog(catalog),
-          _coaddWcs(coaddWcs),
-          _weightKey(_catalog.getSchema()["weight"]),
-          _averagePosition(averagePosition),
-          _warpingKernelName(warpingKernelName),
-          _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize)) {}
 
 }  // namespace algorithms
 }  // namespace meas
