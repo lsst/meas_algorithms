@@ -22,9 +22,11 @@
 import unittest
 import numpy as np
 import tempfile
+import os
 
 from lsst.meas.algorithms import stamps
 from lsst.afw import image as afwImage
+from lsst.afw.geom.testUtils import TransformTestBaseClass
 from lsst.daf.base import PropertyList
 import lsst.geom as geom
 import lsst.afw.geom.transformFactory as tF
@@ -33,7 +35,7 @@ import lsst.utils.tests
 np.random.seed(90210)
 
 
-def make_stamps(n_stamps=3):
+def make_stamps(n_stamps=3, use_archive=False):
     stampSize = 25
     # create dummy stamp stamps
     stampImages = [afwImage.maskedImage.MaskedImageF(stampSize, stampSize)
@@ -47,7 +49,8 @@ def make_stamps(n_stamps=3):
         stampVarArray += 1000.
     ras = np.random.rand(n_stamps)*360.
     decs = np.random.rand(n_stamps)*180 - 90
-    archive_elements = [tF.makeTransform(geom.AffineTransform(np.random.rand(2))) for _ in range(n_stamps)]
+    archive_elements = [tF.makeTransform(geom.AffineTransform(np.random.rand(2))) if use_archive else None
+                        for _ in range(n_stamps)]
     stamp_list = [stamps.Stamp(stamp_im=stampIm,
                                position=geom.SpherePoint(geom.Angle(ra, geom.degrees),
                                                          geom.Angle(dec, geom.degrees)),
@@ -58,6 +61,21 @@ def make_stamps(n_stamps=3):
     metadata['DEC_DEG'] = decs
 
     return stamps.Stamps(stamp_list, metadata=metadata, use_archive=True)
+
+
+class TransformTestClass(TransformTestBaseClass):
+    """Class for unit tests for Transform<X>To<Y> within meas_algorithms.
+
+    Inherits from `lsst.afw.geom.testUtils.TransformTestBaseClass`.
+    """
+    def getTestDir(self):
+        """Returns the test directory of the `meas_algorithms` package.
+
+        If a similar test is needed in another package, inherit from
+        `TransformTestBaseClass` and overwrite this method; see the docstrings
+        in the parent class.
+        """
+        return os.path.join(lsst.utils.getPackageDir("meas_algorithms"), "tests")
 
 
 class StampsBaseTestCase(lsst.utils.tests.TestCase):
@@ -153,6 +171,11 @@ class StampsTestCase(lsst.utils.tests.TestCase):
                 self.assertEqual(bbox.getDimensions(), s2.stamp_im.getDimensions())
                 self.assertMaskedImagesAlmostEqual(s1.stamp_im[bbox], s2.stamp_im)
 
+    def testIOarchive(self):
+        """Test the class' write and readFits when Stamps contain Persistables.
+        """
+        self.roundtripWithArchive(make_stamps(use_archive=True))
+
     def roundtrip(self, ss):
         """Round trip a Stamps object to disk and check values
         """
@@ -167,6 +190,23 @@ class StampsTestCase(lsst.utils.tests.TestCase):
                                        s2.position.getRa().asDegrees())
                 self.assertAlmostEqual(s1.position.getDec().asDegrees(),
                                        s2.position.getDec().asDegrees())
+
+    def roundtripWithArchive(self, ss):
+        """Round trip a Stamps object, including Archive elements, and check values
+        """
+        transformTest = TransformTestClass()
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            options = PropertyList()
+            ss2 = stamps.Stamps.readFitsWithOptions(f.name, options)
+            self.assertEqual(len(ss), len(ss2))
+            for s1, s2 in zip(ss, ss2):
+                self.assertMaskedImagesAlmostEqual(s1.stamp_im, s2.stamp_im)
+                self.assertAlmostEqual(s1.position.getRa().asDegrees(),
+                                       s2.position.getRa().asDegrees())
+                self.assertAlmostEqual(s1.position.getDec().asDegrees(),
+                                       s2.position.getDec().asDegrees())
+                transformTest.assertTransformsEqual(s1.archive_element, s2.archive_element)
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
