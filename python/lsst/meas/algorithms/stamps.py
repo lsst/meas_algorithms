@@ -292,7 +292,7 @@ class StampsBase(abc.ABC, Sequence):
     A butler can be used to read only a part of the stamps,
     specified by a bbox:
 
-    >>> starSubregions = butler.get("brightStarStamps_sub", dataId, bbox=bbox)
+    >>> starSubregions = butler.get("brightStarStamps", dataId, parameters={'bbox': bbox})
     """
 
     def __init__(self, stamps, metadata=None, use_mask=True, use_variance=True,
