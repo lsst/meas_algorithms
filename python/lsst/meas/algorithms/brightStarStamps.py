@@ -33,6 +33,7 @@ import numpy as np
 from lsst.afw.image import MaskedImageF
 from lsst.afw import geom as afwGeom
 from lsst.afw import math as afwMath
+from lsst.afw import table as afwTable
 from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
 
 
@@ -55,10 +56,11 @@ class BrightStarStamp(AbstractStamp):
     stamp_im: MaskedImageF
     gaiaGMag: float
     gaiaId: int
+    archive_element: Optional[afwTable.io.Persistable] = None
     annularFlux: Optional[float] = None
 
     @classmethod
-    def factory(cls, stamp_im, metadata, idx):
+    def factory(cls, stamp_im, metadata, idx, archive_element=None):
         """This method is needed to service the FITS reader.
         We need a standard interface to construct objects like this.
         Parameters needed to construct this object are passed in via
@@ -76,6 +78,8 @@ class BrightStarStamp(AbstractStamp):
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
+        archive_element : `lsst.afwTable.io.Persistable`, optional
+            Archive element (e.g. Transform or WCS) associated with this stamp.
 
         Returns
         -------
@@ -85,6 +89,7 @@ class BrightStarStamp(AbstractStamp):
         return cls(stamp_im=stamp_im,
                    gaiaGMag=metadata.getArray('G_MAGS')[idx],
                    gaiaId=metadata.getArray('GAIA_IDS')[idx],
+                   archive_element=archive_element,
                    annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx])
 
     def measureAndNormalize(self, annulus, statsControl=afwMath.StatisticsControl(),
@@ -154,6 +159,11 @@ class BrightStarStamps(StampsBase):
         If `True` read and write mask data. Default `True`.
     use_variance : `bool`
         If ``True`` read and write variance data. Default ``False``.
+    use_archive : `bool`
+        If ``True`` read and write an Archive that contains a Persistable
+        associated with each stamp. In the case of bright stars, this is
+        usually a ``TransformPoint2ToPoint2``, used to warp each stamp
+        to the same pixel grid before stacking.
 
     Raises
     ------
@@ -175,8 +185,8 @@ class BrightStarStamps(StampsBase):
     """
 
     def __init__(self, starStamps, innerRadius=None, outerRadius=None,
-                 metadata=None, use_mask=True, use_variance=False):
-        super().__init__(starStamps, metadata, use_mask, use_variance)
+                 metadata=None, use_mask=True, use_variance=False, use_archive=False):
+        super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
         # Ensure stamps contain a flux measurement if and only if they are
         # already expected to be normalized
         self._checkNormalization(False, innerRadius, outerRadius)
@@ -316,10 +326,10 @@ class BrightStarStamps(StampsBase):
             return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
                        metadata=metadata, use_mask=metadata['HAS_MASK'],
-                       use_variance=metadata['HAS_VARIANCE'])
+                       use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
         else:
             return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
-                       use_variance=metadata['HAS_VARIANCE'])
+                       use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
 
     def append(self, item, innerRadius=None, outerRadius=None):
         """Add an additional bright star stamp.
