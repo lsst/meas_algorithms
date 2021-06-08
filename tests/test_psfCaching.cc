@@ -11,7 +11,6 @@
 #include <map>
 #include <cmath>
 
-#include "boost/filesystem.hpp"
 
 #include "ndarray/eigen.h"
 #include "lsst/geom/Point.h"
