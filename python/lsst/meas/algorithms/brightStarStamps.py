@@ -34,6 +34,7 @@ from lsst.afw.image import MaskedImageF
 from lsst.afw import geom as afwGeom
 from lsst.afw import math as afwMath
 from lsst.afw import table as afwTable
+from lsst.geom import Point2I
 from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
 
 
@@ -46,6 +47,8 @@ class BrightStarStamp(AbstractStamp):
     ----------
     stamp_im : `lsst.afw.image.MaskedImage`
         Pixel data for this postage stamp
+    position : `lsst.geom.Point2I`
+        Origin of the stamps in its origin exposure (pixels)
     gaiaGMag : `float`
         Gaia G magnitude for the object in this stamp
     gaiaId : `int`
@@ -56,6 +59,7 @@ class BrightStarStamp(AbstractStamp):
     stamp_im: MaskedImageF
     gaiaGMag: float
     gaiaId: int
+    position: Point2I
     archive_element: Optional[afwTable.io.Persistable] = None
     annularFlux: Optional[float] = None
 
@@ -86,9 +90,16 @@ class BrightStarStamp(AbstractStamp):
         brightstarstamp : `BrightStarStamp`
             An instance of this class
         """
+        if 'X0S' in metadata and 'Y0S' in metadata:
+            x0 = metadata.getArray('X0S')[idx]
+            y0 = metadata.getArray('Y0S')[idx]
+            position = Point2I(x0, y0)
+        else:
+            position = None
         return cls(stamp_im=stamp_im,
                    gaiaGMag=metadata.getArray('G_MAGS')[idx],
                    gaiaId=metadata.getArray('GAIA_IDS')[idx],
+                   position=position,
                    archive_element=archive_element,
                    annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx])
 
@@ -289,10 +300,13 @@ class BrightStarStamps(StampsBase):
         """Refresh the metadata. Should be called before writing this object
         out.
         """
-        # add full list of Gaia magnitudes, IDs and annularFlxes to shared
-        # metadata
+        # add full list of positions, Gaia magnitudes, IDs and annularFlxes to
+        # shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
+        positions = self.getPositions()
+        self._metadata["X0S"] = [xy0[0] for xy0 in positions]
+        self._metadata["Y0S"] = [xy0[1] for xy0 in positions]
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
         self._metadata["NORMALIZED"] = self.normalized
         self._metadata["INNER_RADIUS"] = self._innerRadius
