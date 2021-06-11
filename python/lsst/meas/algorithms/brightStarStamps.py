@@ -35,7 +35,7 @@ from lsst.afw import geom as afwGeom
 from lsst.afw import math as afwMath
 from lsst.afw import table as afwTable
 from lsst.geom import Point2I
-from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
+from .stamps import Stamps, AbstractStamp, readFitsWithOptions
 
 
 @dataclass
@@ -148,7 +148,7 @@ class BrightStarStamp(AbstractStamp):
         return None
 
 
-class BrightStarStamps(StampsBase):
+class BrightStarStamps(Stamps):
     """Collection of bright star stamps and associated metadata.
 
     Parameters
