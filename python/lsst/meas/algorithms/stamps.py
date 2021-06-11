@@ -32,21 +32,22 @@ from typing import Optional
 
 import lsst.afw.image as afwImage
 import lsst.afw.fits as afwFits
+import lsst.afw.table as afwTable
 from lsst.geom import Box2I, Point2I, Extent2I, Angle, degrees, SpherePoint
 from lsst.daf.base import PropertyList
 from lsst.daf.butler.core.utils import getFullTypeName
 from lsst.utils import doImport
 
 
-def writeFits(filename, stamp_ims, metadata, type_name, write_mask, write_variance):
+def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance, write_archive=False):
     """Write a single FITS file containing all stamps.
 
     Parameters
     ----------
     filename : `str`
         A string indicating the output filename
-    stamps_ims : iterable of `lsst.afw.image.MaskedImageF`
-        An iterable of masked images
+    stamps : iterable of `BaseStamp`
+        An iterable of Stamp objects
     metadata : `PropertyList`
         A collection of key, value metadata pairs to be
         written to the primary header
@@ -56,33 +57,44 @@ def writeFits(filename, stamp_ims, metadata, type_name, write_mask, write_varian
         Write the mask data to the output file?
     write_variance : `bool`
         Write the variance data to the output file?
+    write_archive : `bool`, optional
+        Write an archive to store Persistables along with each stamp?
+        Default: ``False``.
     """
     metadata['HAS_MASK'] = write_mask
     metadata['HAS_VARIANCE'] = write_variance
-    metadata['N_STAMPS'] = len(stamp_ims)
+    metadata['HAS_ARCHIVE'] = write_archive
+    metadata['N_STAMPS'] = len(stamps)
     metadata['STAMPCLS'] = type_name
     # Record version number in case of future code changes
     metadata['VERSION'] = 1
     # create primary HDU with global metadata
-    fitsPrimary = afwFits.Fits(filename, "w")
-    fitsPrimary.createEmpty()
-    fitsPrimary.writeMetadata(metadata)
-    fitsPrimary.closeFile()
-
+    fitsFile = afwFits.Fits(filename, "w")
+    fitsFile.createEmpty()
+    # Store Persistables in an OutputArchive and write it
+    if write_archive:
+        oa = afwTable.io.OutputArchive()
+        archive_ids = [oa.put(stamp.archive_element) for stamp in stamps]
+        metadata["ARCHIVE_IDS"] = archive_ids
+        fitsFile.writeMetadata(metadata)
+        oa.writeFits(fitsFile)
+    else:
+        fitsFile.writeMetadata(metadata)
+    fitsFile.closeFile()
     # add all pixel data optionally writing mask and variance information
-    for i, stamp in enumerate(stamp_ims):
+    for i, stamp in enumerate(stamps):
         metadata = PropertyList()
         # EXTVER should be 1-based, the index from enumerate is 0-based
         metadata.update({'EXTVER': i+1, 'EXTNAME': 'IMAGE'})
-        stamp.getImage().writeFits(filename, metadata=metadata, mode='a')
+        stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode='a')
         if write_mask:
             metadata = PropertyList()
             metadata.update({'EXTVER': i+1, 'EXTNAME': 'MASK'})
-            stamp.getMask().writeFits(filename, metadata=metadata, mode='a')
+            stamp.stamp_im.getMask().writeFits(filename, metadata=metadata, mode='a')
         if write_variance:
             metadata = PropertyList()
             metadata.update({'EXTVER': i+1, 'EXTNAME': 'VARIANCE'})
-            stamp.getVariance().writeFits(filename, metadata=metadata, mode='a')
+            stamp.stamp_im.getVariance().writeFits(filename, metadata=metadata, mode='a')
     return None
 
 
@@ -113,35 +125,44 @@ def readFitsWithOptions(filename, stamp_factory, options):
     """
     # extract necessary info from metadata
     metadata = afwFits.readMetadata(filename, hdu=0)
-    f = afwFits.Fits(filename, 'r')
-    nExtensions = f.countHdus()
     nStamps = metadata["N_STAMPS"]
-    # check if a bbox was provided
-    kwargs = {}
-    if options:
-        # gen3 API
-        if "bbox" in options.keys():
-            kwargs["bbox"] = options["bbox"]
-        # gen2 API
-        elif "llcX" in options.keys():
-            llcX = options["llcX"]
-            llcY = options["llcY"]
-            width = options["width"]
-            height = options["height"]
-            bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
-            kwargs["bbox"] = bbox
-    stamp_parts = {}
-    # We need to be careful because nExtensions includes the primary
-    # header data unit
-    for idx in range(nExtensions-1):
-        md = afwFits.readMetadata(filename, hdu=idx+1)
-        if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
-            reader = afwImage.ImageFitsReader(filename, hdu=idx+1)
-        elif md['EXTNAME'] == 'MASK':
-            reader = afwImage.MaskFitsReader(filename, hdu=idx+1)
-        else:
-            raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
-        stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
+    has_archive = metadata["HAS_ARCHIVE"]
+    if has_archive:
+        archive_ids = metadata.getArray("ARCHIVE_IDS")
+    with afwFits.Fits(filename, 'r') as f:
+        nExtensions = f.countHdus()
+        # check if a bbox was provided
+        kwargs = {}
+        if options:
+            # gen3 API
+            if "bbox" in options.keys():
+                kwargs["bbox"] = options["bbox"]
+            # gen2 API
+            elif "llcX" in options.keys():
+                llcX = options["llcX"]
+                llcY = options["llcY"]
+                width = options["width"]
+                height = options["height"]
+                bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
+                kwargs["bbox"] = bbox
+        stamp_parts = {}
+        # We need to be careful because nExtensions includes the primary
+        # header data unit
+        for idx in range(nExtensions-1):
+            md = afwFits.readMetadata(filename, hdu=idx+1)
+            if md['EXTNAME'] in ('IMAGE', 'VARIANCE'):
+                reader = afwImage.ImageFitsReader(filename, hdu=idx+1)
+            elif md['EXTNAME'] == 'MASK':
+                reader = afwImage.MaskFitsReader(filename, hdu=idx+1)
+            elif md['EXTNAME'] == 'ARCHIVE_INDEX':
+                f.setHdu(idx+1)
+                archive = afwTable.io.InputArchive.readFits(f)
+                continue
+            elif md['EXTTYPE'] == 'ARCHIVE_DATA':
+                continue
+            else:
+                raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
+            stamp_parts.setdefault(md['EXTVER'], {})[md['EXTNAME'].lower()] = reader.read(**kwargs)
     if len(stamp_parts) != nStamps:
         raise ValueError(f'Number of stamps read ({len(stamp_parts)}) does not agree with the '
                          f'number of stamps recorded in the metadata ({nStamps}).')
@@ -150,7 +171,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
     for k in range(nStamps):
         # Need to increment by one since EXTVER starts at 1
         maskedImage = afwImage.MaskedImageF(**stamp_parts[k+1])
-        stamps.append(stamp_factory(maskedImage, metadata, k))
+        archive_element = archive.get(archive_ids[k]) if has_archive else None
+        stamps.append(stamp_factory(maskedImage, metadata, k, archive_element))
 
     return stamps, metadata
 
@@ -166,7 +188,7 @@ class AbstractStamp(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def factory(cls, stamp_im, metadata, index):
+    def factory(cls, stamp_im, metadata, index, archive_element=None):
         """This method is needed to service the FITS reader.
         We need a standard interface to construct objects like this.
         Parameters needed to construct this object are passed in via
@@ -182,6 +204,8 @@ class AbstractStamp(abc.ABC):
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
+        archive_element : `lsst.afwTable.io.Persistable`, optional
+            Archive element (e.g. Transform or WCS) associated with this stamp.
 
         Returns
         -------
@@ -199,15 +223,16 @@ class Stamp(AbstractStamp):
     ----------
     stamp_im : `lsst.afw.image.MaskedImageF`
         The actual pixel values for the postage stamp
-    position : `lsst.geom.SpherePoint`
+    position : `lsst.geom.SpherePoint`, optional
         Position of the center of the stamp.  Note the user
         must keep track of the coordinate system
     """
     stamp_im: afwImage.maskedImage.MaskedImageF
+    archive_element: Optional[afwTable.io.Persistable] = None
     position: Optional[SpherePoint] = SpherePoint(Angle(numpy.nan), Angle(numpy.nan))
 
     @classmethod
-    def factory(cls, stamp_im, metadata, index):
+    def factory(cls, stamp_im, metadata, index, archive_element=None):
         """This method is needed to service the FITS reader.
         We need a standard interface to construct objects like this.
         Parameters needed to construct this object are passed in via
@@ -226,6 +251,8 @@ class Stamp(AbstractStamp):
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
+        archive_element : `afwTable.io.Persistable`, optional
+            Archive element (e.g. Transform or WCS) associated with this stamp.
 
         Returns
         -------
@@ -233,11 +260,12 @@ class Stamp(AbstractStamp):
             An instance of this class
         """
         if 'RA_DEG' in metadata and 'DEC_DEG' in metadata:
-            return cls(stamp_im=stamp_im,
+            return cls(stamp_im=stamp_im, archive_element=archive_element,
                        position=SpherePoint(Angle(metadata.getArray('RA_DEG')[index], degrees),
                                             Angle(metadata.getArray('DEC_DEG')[index], degrees)))
         else:
-            return cls(stamp_im=stamp_im, position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)))
+            return cls(stamp_im=stamp_im, archive_element=archive_element,
+                       position=SpherePoint(Angle(numpy.nan), Angle(numpy.nan)))
 
 
 class StampsBase(abc.ABC, Sequence):
@@ -249,21 +277,26 @@ class StampsBase(abc.ABC, Sequence):
         This should be an iterable of dataclass objects
         a la ``lsst.meas.algorithms.Stamp``.
     metadata : `lsst.daf.base.PropertyList`, optional
-        Metadata associated with the bright stars.
+        Metadata associated with the objects within the stamps.
     use_mask : `bool`, optional
         If ``True`` read and write the mask data.  Default ``True``.
     use_variance : `bool`, optional
         If ``True`` read and write the variance data. Default ``True``.
+    use_archive : `bool`, optional
+        If ``True``, read and write an Archive that contains a Persistable
+        associated with each stamp, for example a Transform or a WCS.
+        Default ``False``.
 
     Notes
     -----
     A butler can be used to read only a part of the stamps,
     specified by a bbox:
 
-    >>> starSubregions = butler.get("brightStarStamps_sub", dataId, bbox=bbox)
+    >>> starSubregions = butler.get("brightStarStamps", dataId, parameters={'bbox': bbox})
     """
 
-    def __init__(self, stamps, metadata=None, use_mask=True, use_variance=True):
+    def __init__(self, stamps, metadata=None, use_mask=True, use_variance=True,
+                 use_archive=False):
         if not hasattr(stamps, '__iter__'):
             raise ValueError('The stamps parameter must be iterable.')
         for stamp in stamps:
@@ -274,6 +307,7 @@ class StampsBase(abc.ABC, Sequence):
         self._metadata = PropertyList() if metadata is None else metadata.deepCopy()
         self.use_mask = use_mask
         self.use_variance = use_variance
+        self.use_archive = use_archive
 
     @classmethod
     def readFits(cls, filename):
@@ -322,7 +356,7 @@ class StampsBase(abc.ABC, Sequence):
     @abc.abstractmethod
     def _refresh_metadata(self):
         """Make sure metadata is up to date since this object
-        can be extende
+        can be extended
         """
         raise NotImplementedError
 
@@ -335,9 +369,9 @@ class StampsBase(abc.ABC, Sequence):
             Name of file to write
         """
         self._refresh_metadata()
-        stamps_ims = self.getMaskedImages()
         type_name = getFullTypeName(self)
-        writeFits(filename, stamps_ims, self._metadata, type_name, self.use_mask, self.use_variance)
+        writeFits(filename, self._stamps, self._metadata, type_name, self.use_mask, self.use_variance,
+                  self.use_archive)
 
     def __len__(self):
         return len(self._stamps)
@@ -357,6 +391,16 @@ class StampsBase(abc.ABC, Sequence):
             `list` [`lsst.afw.image.maskedImage.maskedImage.MaskedImageF`]
         """
         return [stamp.stamp_im for stamp in self._stamps]
+
+    def getArchiveElements(self):
+        """Retrieve archive elements associated with each stamp.
+
+        Returns
+        -------
+        archiveElements :
+            `list` [`lsst.afwTable.io.Persistable`]
+        """
+        return [stamp.archive_element for stamp in self._stamps]
 
     @property
     def metadata(self):
@@ -432,4 +476,4 @@ class Stamps(StampsBase):
         """
         stamps, metadata = readFitsWithOptions(filename, Stamp.factory, options)
         return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
-                   use_variance=metadata['HAS_VARIANCE'])
+                   use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
