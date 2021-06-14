@@ -274,7 +274,7 @@ class BrightStarStamps(StampsBase):
             try:
                 stamp.measureAndNormalize(annulus, statsControl=statsControl, statsFlag=statsFlag,
                                           badMaskPlanes=badMaskPlanes)
-            except ValueError:
+            except RuntimeError:
                 # Optionally keep NaN flux objects, for bookkeeping purposes,
                 # and to avoid having to re-find and redo the preprocessing
                 # steps needed before bright stars can be subtracted.
