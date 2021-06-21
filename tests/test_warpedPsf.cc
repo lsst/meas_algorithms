@@ -1,3 +1,26 @@
+/*
+ * This file is part of meas_algorithms.
+ *
+ * Developed for the LSST Data Management System.
+ * This product includes software developed by the LSST Project
+ * (https://www.lsst.org).
+ * See the COPYRIGHT file at the top-level directory of this distribution
+ * for details of code ownership.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE DISTORTION
 #include <memory>
@@ -17,40 +40,32 @@ using namespace lsst::afw::detection;
 using namespace lsst::afw::geom::ellipses;
 using namespace lsst::meas::algorithms;
 
-
 static std::mt19937 rng(0);  // RNG deliberately initialized with same seed every time
-static std::uniform_int_distribution<> uni_int(0,100);
-static std::uniform_real_distribution<> uni_double(0.0,1.0);
-
+static std::uniform_int_distribution<> uni_int(0, 100);
+static std::uniform_real_distribution<> uni_double(0.0, 1.0);
 
 // -------------------------------------------------------------------------------------------------
 //
 // Helper functions
 
-
-static inline Point2D randpt()
-{
+static inline Point2D randpt() {
     // returns randomly located point in [-100,100] x [-100,100]
-    return Point2D(200*uni_double(rng)-100, 200*uni_double(rng)-100);
+    return Point2D(200 * uni_double(rng) - 100, 200 * uni_double(rng) - 100);
 }
 
-static inline double dist(const Point2D &p1, const Point2D &p2)
-{
+static inline double dist(const Point2D &p1, const Point2D &p2) {
     double dx = p1.getX() - p2.getX();
     double dy = p1.getY() - p2.getY();
-    return sqrt(dx*dx + dy*dy);
+    return sqrt(dx * dx + dy * dy);
 }
 
-static inline double dist(const AffineTransform &a1, const AffineTransform &a2)
-{
+static inline double dist(const AffineTransform &a1, const AffineTransform &a2) {
     double ret = 0.0;
-    for (int i = 0; i < 6; i++)
-        ret += (a1[i]-a2[i]) * (a1[i]-a2[i]);
+    for (int i = 0; i < 6; i++) ret += (a1[i] - a2[i]) * (a1[i] - a2[i]);
     return sqrt(ret);
 }
 
-static inline double compare(const Image<double> &im1, const Image<double> &im2)
-{
+static inline double compare(const Image<double> &im1, const Image<double> &im2) {
     assert(im1.getWidth() == im2.getWidth());
     assert(im1.getHeight() == im2.getHeight());
     assert(im1.getX0() == im2.getX0());
@@ -65,17 +80,17 @@ static inline double compare(const Image<double> &im1, const Image<double> &im2)
 
     for (int i = 0; i < nx; i++) {
         for (int j = 0; j < ny; j++) {
-            double x = im1(i,j);
-            double y = im2(i,j);
-            t11 += x*x;
-            t12 += (x-y)*(x-y);
-            t22 += y*y;
+            double x = im1(i, j);
+            double y = im2(i, j);
+            t11 += x * x;
+            t12 += (x - y) * (x - y);
+            t22 += y * y;
         }
     }
 
     assert(t11 > 0.0);
     assert(t22 > 0.0);
-    return sqrt(fabs(t12) / sqrt(t11*t22));
+    return sqrt(fabs(t12) / sqrt(t11 * t22));
 }
 
 //
@@ -84,17 +99,18 @@ static inline double compare(const Image<double> &im1, const Image<double> &im2)
 //   y' = y + Fx + Gy + Hx^2 + Ixy + Jy^2
 //
 std::shared_ptr<lsst::afw::geom::TransformPoint2ToPoint2> makeRandomToyTransform() {
-    double A = 0.1 * (uni_double(rng)-0.5);
-    double B = 0.1 * (uni_double(rng)-0.5);
-    double C = 0.0001 * (uni_double(rng)-0.5);
-    double D = 0.0001 * (uni_double(rng)-0.5);
-    double E = 0.0001 * (uni_double(rng)-0.5);
-    double F = 0.1 * (uni_double(rng)-0.5);
-    double G = 0.1 * (uni_double(rng)-0.5);
-    double H = 0.0001 * (uni_double(rng)-0.5);
-    double I = 0.0001 * (uni_double(rng)-0.5);
-    double J = 0.0001 * (uni_double(rng)-0.5);
+    double A = 0.1 * (uni_double(rng) - 0.5);
+    double B = 0.1 * (uni_double(rng) - 0.5);
+    double C = 0.0001 * (uni_double(rng) - 0.5);
+    double D = 0.0001 * (uni_double(rng) - 0.5);
+    double E = 0.0001 * (uni_double(rng) - 0.5);
+    double F = 0.1 * (uni_double(rng) - 0.5);
+    double G = 0.1 * (uni_double(rng) - 0.5);
+    double H = 0.0001 * (uni_double(rng) - 0.5);
+    double I = 0.0001 * (uni_double(rng) - 0.5);
+    double J = 0.0001 * (uni_double(rng) - 0.5);
 
+    // clang-format off
     // each 4 entries are: coefficient, output index, power of x, power of y
     std::vector<double> const coeffVec = {
         1 + A, 1, 1, 0,
@@ -109,6 +125,7 @@ std::shared_ptr<lsst::afw::geom::TransformPoint2ToPoint2> makeRandomToyTransform
         I, 2, 1, 1,
         J, 2, 0, 2
     };
+    // clang-format on
     int const nOut = 2;
     int const nCoeffs = coeffVec.size() / (nOut + 2);
     auto const coeffArr = ast::arrayFromVector(coeffVec, nCoeffs);
@@ -127,35 +144,33 @@ std::shared_ptr<lsst::afw::geom::TransformPoint2ToPoint2> makeRandomToyTransform
 //   c = 0.1 (1 + Ex + Fy)
 //
 
-
 //
 // Helper function which fills an image with a normalized 2D Gaussian of the form
 //   exp(-a(x-px)^2/2 - b(x-px)(y-py) - c(y-py)^2/2)
 //
-static PTR(Image<double>) fill_gaussian(double a, double b, double c, double px, double py, 
-                                        int nx, int ny, int x0, int y0)
-{
+static std::shared_ptr<Image<double>> fill_gaussian(double a, double b, double c, double px, double py,
+                                                    int nx, int ny, int x0, int y0) {
     // smallest eigenvalue
-    double lambda = 0.5 * (a+c + sqrt((a-c)*(a-c) + b*b));
+    double lambda = 0.5 * (a + c + sqrt((a - c) * (a - c) + b * b));
 
     // approximate size of box needed to hold kernel
-    double width = sqrt(5./lambda);
+    double width = sqrt(5. / lambda);
 
     assert(lambda > 1.0e-10);
-    assert(x0-px <= -width && x0-px+nx-1 >= width);
-    assert(y0-py <= -width && y0-py+ny-1 >= width);
+    assert(x0 - px <= -width && x0 - px + nx - 1 >= width);
+    assert(y0 - py <= -width && y0 - py + ny - 1 >= width);
 
-    PTR(Image<double>) im = std::make_shared<Image<double> >(nx, ny);
+    auto im = std::make_shared<Image<double>>(nx, ny);
     im->setXY0(x0, y0);
 
     double imSum = 0.0;
 
     for (int i = 0; i < nx; i++) {
         for (int j = 0; j < ny; j++) {
-            double x = i+x0-px;
-            double y = j+y0-py;
-            double t = exp(-0.5*a*x*x - b*x*y - 0.5*c*y*y);
-            (*im)(i,j) = t;
+            double x = i + x0 - px;
+            double y = j + y0 - py;
+            double t = exp(-0.5 * a * x * x - b * x * y - 0.5 * c * y * y);
+            (*im)(i, j) = t;
             imSum += t;
         }
     }
@@ -164,72 +179,62 @@ static PTR(Image<double>) fill_gaussian(double a, double b, double c, double px,
     return im;
 }
 
-
-struct ToyPsf : public ImagePsf
-{    
+struct ToyPsf : public ImagePsf {
     double _A, _B, _C, _D, _E, _F, _ksize;
 
     ToyPsf(double A, double B, double C, double D, double E, double F, int ksize)
-        : _A(A), _B(B), _C(C), _D(D), _E(E), _F(F), _ksize(ksize)
-    { }
+            : _A(A), _B(B), _C(C), _D(D), _E(E), _F(F), _ksize(ksize) {}
 
-    virtual ~ToyPsf() { }
-    
-    virtual PTR(Psf) clone() const 
-    { 
+    virtual ~ToyPsf() {}
+
+    std::shared_ptr<Psf> clone() const override {
         return std::make_shared<ToyPsf>(_A, _B, _C, _D, _E, _F, _ksize);
     }
 
-    virtual PTR(Psf) resized(int width, int height) const
-    {
+    std::shared_ptr<Psf> resized(int width, int height) const override {
         return std::make_shared<ToyPsf>(_A, _B, _C, _D, _E, _F, width);
     }
 
-    void evalABC(double &a, double &b, double &c, Point2D const &p) const
-    {
+    void evalABC(double &a, double &b, double &c, Point2D const &p) const {
         double x = p.getX();
         double y = p.getY();
 
-        a = 0.1 * (1.0 + _A*x + _B*y);
-        b = 0.1 * (_C*x + _D*y);
-        c = 0.1 * (1.0 + _E*x + _F*y);
+        a = 0.1 * (1.0 + _A * x + _B * y);
+        b = 0.1 * (_C * x + _D * y);
+        c = 0.1 * (1.0 + _E * x + _F * y);
     }
 
-    virtual Box2I doComputeBBox(Point2D const &, Color const &) const {
-        return Box2I(Point2I(-_ksize, -_ksize), Extent2I(2*_ksize + 1, 2*_ksize + 1));
+    Box2I doComputeBBox(Point2D const &, Color const &) const override {
+        return Box2I(Point2I(-_ksize, -_ksize), Extent2I(2 * _ksize + 1, 2 * _ksize + 1));
     }
 
-    virtual PTR(Image) doComputeKernelImage(Point2D const &ccdXY, Color const &) const {
+    std::shared_ptr<Image> doComputeKernelImage(Point2D const &ccdXY, Color const &) const override {
         double a, b, c;
         this->evalABC(a, b, c, ccdXY);
 
         Box2I bbox = computeBBox();
-        return fill_gaussian(a, b, c, 0, 0, bbox.getWidth(), bbox.getHeight(),
-                             bbox.getMinX(), bbox.getMinY());
+        return fill_gaussian(a, b, c, 0, 0, bbox.getWidth(), bbox.getHeight(), bbox.getMinX(),
+                             bbox.getMinY());
     }
 
     // factory function
-    static std::shared_ptr<ToyPsf> makeRandom(int ksize)
-    {
-        double A = 0.005 * (uni_double(rng)-0.5);
-        double B = 0.005 * (uni_double(rng)-0.5);
-        double C = 0.005 * (uni_double(rng)-0.5);
-        double D = 0.005 * (uni_double(rng)-0.5);
-        double E = 0.005 * (uni_double(rng)-0.5);
-        double F = 0.005 * (uni_double(rng)-0.5);
+    static std::shared_ptr<ToyPsf> makeRandom(int ksize) {
+        double A = 0.005 * (uni_double(rng) - 0.5);
+        double B = 0.005 * (uni_double(rng) - 0.5);
+        double C = 0.005 * (uni_double(rng) - 0.5);
+        double D = 0.005 * (uni_double(rng) - 0.5);
+        double E = 0.005 * (uni_double(rng) - 0.5);
+        double F = 0.005 * (uni_double(rng) - 0.5);
 
-        return std::make_shared<ToyPsf> (A, B, C, D, E, F, ksize);
+        return std::make_shared<ToyPsf>(A, B, C, D, E, F, ksize);
     }
-
 };
 
-
-BOOST_AUTO_TEST_CASE(warpedPsf)
-{
+BOOST_AUTO_TEST_CASE(warpedPsf) {
     auto distortion = makeRandomToyTransform();
 
-    PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom(100);
-    PTR(WarpedPsf) warped_psf = std::make_shared<WarpedPsf> (unwarped_psf, distortion);
+    std::shared_ptr<ToyPsf> unwarped_psf = ToyPsf::makeRandom(100);
+    std::shared_ptr<WarpedPsf> warped_psf = std::make_shared<WarpedPsf>(unwarped_psf, distortion);
 
     Point2D p = randpt();
     Point2D q = distortion->applyInverse(p);
@@ -237,7 +242,7 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
     BOOST_CHECK(dist(distortion->applyForward(q), p) < 1e-7);
 
     // warped image
-    PTR(Image<double>) im = warped_psf->computeImage(p);
+    std::shared_ptr<Image<double>> im = warped_psf->computeImage(p);
     int nx = im->getWidth();
     int ny = im->getHeight();
     int x0 = im->getX0();
@@ -247,24 +252,28 @@ BOOST_AUTO_TEST_CASE(warpedPsf)
     unwarped_psf->evalABC(a, b, c, q);
 
     Eigen::Matrix2d m0;
+    // clang-format off
     m0 << a, b,
           b, c;
+    // clang-format on
 
     AffineTransform atr = lsst::afw::geom::linearizeTransform(*distortion->inverted(), p);
 
     Eigen::Matrix2d md;
+    // clang-format off
     md << atr.getLinear()[0], atr.getLinear()[2],
-          atr.getLinear()[1], atr.getLinear()[3];   // LinearTransform transposed index convention
+          atr.getLinear()[1], atr.getLinear()[3];  // LinearTransform transposed index convention
+    // clang-format on
 
     Eigen::Matrix2d m1 = md.transpose() * m0 * md;
 
     // this should be the same as the warped image, up to artifacts from warping/pixelization
-    PTR(Image<double>) im2 = fill_gaussian(m1(0,0), m1(0,1), m1(1,1), 
-                                           p.getX(), p.getY(), nx, ny, x0, y0);
+    std::shared_ptr<Image<double>> im2 =
+            fill_gaussian(m1(0, 0), m1(0, 1), m1(1, 1), p.getX(), p.getY(), nx, ny, x0, y0);
 
-    // TODO: improve this test; the ideal thing would be to repeat with 
+    // TODO: improve this test; the ideal thing would be to repeat with
     // finer resolutions and more stringent threshold
-    BOOST_CHECK(compare(*im,*im2) < 0.006);
+    BOOST_CHECK(compare(*im, *im2) < 0.006);
 
     // Check that computeBBox returns same dimensions as image
     BOOST_CHECK(warped_psf->computeBBox(p).getWidth() == nx);
@@ -279,9 +288,9 @@ BOOST_AUTO_TEST_CASE(warpedPsfPadding) {
     auto distortion = makeRandomToyTransform();
 
     // Make psf with small kernel size  so that lack of padding is more apparent
-    PTR(ToyPsf) unwarped_psf = ToyPsf::makeRandom(7);
-    PTR(WarpedPsf) warped_psf = std::make_shared<WarpedPsf> (unwarped_psf, distortion);
-    PTR(Image<double>) warpedImage = warped_psf->computeKernelImage(Point2D(-10., 150.));
+    std::shared_ptr<ToyPsf> unwarped_psf = ToyPsf::makeRandom(7);
+    std::shared_ptr<WarpedPsf> warped_psf = std::make_shared<WarpedPsf>(unwarped_psf, distortion);
+    std::shared_ptr<Image<double>> warpedImage = warped_psf->computeKernelImage(Point2D(-10., 150.));
 
     // The outer columns and rows must test non-zero
     // Tolerance should be very low, because edges of small PSFs with large BBoxes
@@ -291,20 +300,20 @@ BOOST_AUTO_TEST_CASE(warpedPsfPadding) {
     double sumRow = 0.;
 
     // Check first and last row
-    for (const int& y : {0, warpedImage->getHeight() - 1}) {
+    for (const int &y : {0, warpedImage->getHeight() - 1}) {
         sumRow = 0.;
-        for (Image<double>::x_iterator ptr = warpedImage->row_begin(y),
-             end = warpedImage->row_end(y); ptr != end; ++ptr) {
+        for (Image<double>::x_iterator ptr = warpedImage->row_begin(y), end = warpedImage->row_end(y);
+             ptr != end; ++ptr) {
             sumRow += *ptr;
         }
         BOOST_CHECK(std::abs(sumRow) > zero);
     }
 
     // Check first and last column
-    for (const int& x : {0, warpedImage->getWidth() - 1}) {
+    for (const int &x : {0, warpedImage->getWidth() - 1}) {
         sumRow = 0.;
-        for (Image<double>::y_iterator ptr = warpedImage->col_begin(x),
-             end = warpedImage->col_end(x); ptr != end; ++ptr) {
+        for (Image<double>::y_iterator ptr = warpedImage->col_begin(x), end = warpedImage->col_end(x);
+             ptr != end; ++ptr) {
             sumRow += *ptr;
         }
         BOOST_CHECK(std::abs(sumRow) > zero);

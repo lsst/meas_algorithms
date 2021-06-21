@@ -1,11 +1,13 @@
 // -*- lsst-c++ -*-
 
 /*
- * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
+ * This file is part of meas_algorithms.
  *
- * This product includes software developed by the
- * LSST Project (http://www.lsst.org/).
+ * Developed for the LSST Data Management System.
+ * This product includes software developed by the LSST Project
+ * (https://www.lsst.org).
+ * See the COPYRIGHT file at the top-level directory of this distribution
+ * for details of code ownership.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,25 +19,24 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the LSST License Statement and
- * the GNU General Public License along with this program.  If not,
- * see <http://www.lsstcorp.org/LegalNotices/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+#ifndef LSST_MEAS_ALGORITHMS_WARPEDPSF_H
+#define LSST_MEAS_ALGORITHMS_WARPEDPSF_H
 
 #include "lsst/geom/Box.h"
 #include "lsst/afw/geom/Transform.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 
-#ifndef LSST_AFW_DETECTION_WARPEDPSF_H
-#define LSST_AFW_DETECTION_WARPEDPSF_H
-
 namespace lsst {
 namespace meas {
 namespace algorithms {
 
 /**
- * @brief A Psf class that maps an arbitrary Psf through a coordinate transformation
+ * A Psf class that maps an arbitrary Psf through a coordinate transformation
  *
  * If K_0(x,x') is the unwarped PSF, and f is the coordinate transform, then the
  * warped PSF is defined by
@@ -50,44 +51,43 @@ namespace algorithms {
 class WarpedPsf : public ImagePsf {
 public:
     /**
-     * @brief Construct WarpedPsf from unwarped psf and distortion.
+     * Construct WarpedPsf from unwarped psf and distortion.
      *
      * If p is the nominal pixel position, and p' is the true position on the sky, then our
      * convention for the transform is that p' = distortion.applyForward(p)
      */
-    WarpedPsf(CONST_PTR(afw::detection::Psf) undistortedPsf,
-              CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
-              CONST_PTR(afw::math::WarpingControl) control);
-    WarpedPsf(CONST_PTR(afw::detection::Psf) undistortedPsf,
-              CONST_PTR(afw::geom::TransformPoint2ToPoint2) distortion,
+    WarpedPsf(std::shared_ptr<afw::detection::Psf const> undistortedPsf,
+              std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const> distortion,
+              std::shared_ptr<afw::math::WarpingControl const> control);
+    WarpedPsf(std::shared_ptr<afw::detection::Psf const> undistortedPsf,
+              std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const> distortion,
               std::string const& kernelName = "lanczos3", unsigned int cache = 10000);
 
     /**
-     *  @brief Return the average of the positions of the stars that went into this Psf.
+     *  Return the average of the positions of the stars that went into this Psf.
      *
      *  For WarpedPsf, this is just the transform of the undistorted Psf's average position.
      */
-    virtual geom::Point2D getAveragePosition() const;
+    geom::Point2D getAveragePosition() const override;
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
-    virtual PTR(afw::detection::Psf) clone() const;
+    std::shared_ptr<afw::detection::Psf> clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    virtual PTR(afw::detection::Psf) resized(int width, int height) const;
+    std::shared_ptr<afw::detection::Psf> resized(int width, int height) const override;
 
 protected:
-    virtual PTR(afw::detection::Psf::Image)
-            doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const;
+    std::shared_ptr<afw::detection::Psf::Image> doComputeKernelImage(
+            geom::Point2D const& position, afw::image::Color const& color) const override;
 
-protected:
-    PTR(afw::detection::Psf const) _undistortedPsf;
-    PTR(afw::geom::TransformPoint2ToPoint2 const) _distortion;
+    std::shared_ptr<afw::detection::Psf const> _undistortedPsf;
+    std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const> _distortion;
 
 private:
     void _init();
-    CONST_PTR(afw::math::WarpingControl) _warpingControl;
+    std::shared_ptr<afw::math::WarpingControl const> _warpingControl;
 
-    virtual geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const;
+    geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const override;
 };
 
 }  // namespace algorithms
