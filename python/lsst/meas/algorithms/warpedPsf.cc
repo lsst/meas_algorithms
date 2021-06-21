@@ -21,10 +21,14 @@
  */
 #include "pybind11/pybind11.h"
 
+#include "lsst/utils/python/PySharedPtr.h"
+
+#include "lsst/meas/algorithms/WarpedPsf.h"
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-#include "lsst/meas/algorithms/WarpedPsf.h"
+using lsst::utils::python::PySharedPtr;
 
 namespace lsst {
 namespace meas {
@@ -32,7 +36,7 @@ namespace algorithms {
 namespace {
 
 PYBIND11_MODULE(warpedPsf, mod) {
-    py::class_<WarpedPsf, std::shared_ptr<WarpedPsf>, ImagePsf> clsWarpedPsf(mod, "WarpedPsf");
+    py::class_<WarpedPsf, PySharedPtr<WarpedPsf>, ImagePsf> clsWarpedPsf(mod, "WarpedPsf", py::is_final());
 
     /* Constructors */
     clsWarpedPsf.def(py::init<std::shared_ptr<afw::detection::Psf const>,

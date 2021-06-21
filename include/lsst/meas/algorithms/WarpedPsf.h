@@ -48,7 +48,7 @@ namespace algorithms {
  * transformation, since the afw convention is that PSF's are normalized to
  * have integral 1 anyway.
  */
-class WarpedPsf : public ImagePsf {
+class WarpedPsf final : public ImagePsf {
 public:
     /**
      * Construct WarpedPsf from unwarped psf and distortion.
