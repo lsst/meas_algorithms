@@ -29,6 +29,7 @@
 #include "lsst/geom/Box.h"
 #include "lsst/afw/geom/Transform.h"
 #include "lsst/afw/math/warpExposure.h"
+#include "lsst/afw/table/io/Persistable.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 
 namespace lsst {
@@ -48,7 +49,7 @@ namespace algorithms {
  * transformation, since the afw convention is that PSF's are normalized to
  * have integral 1 anyway.
  */
-class WarpedPsf final : public ImagePsf {
+class WarpedPsf final : public afw::table::io::PersistableFacade<WarpedPsf>, public ImagePsf {
 public:
     /**
      * Construct WarpedPsf from unwarped psf and distortion.

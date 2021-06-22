@@ -28,8 +28,20 @@
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/afw/image/Image.h"
+#include "lsst/afw/table/io/Persistable.cc"
 
 namespace lsst {
+namespace afw {
+namespace table {
+namespace io {
+
+template std::shared_ptr<meas::algorithms::WarpedPsf>
+PersistableFacade<meas::algorithms::WarpedPsf>::dynamicCast(std::shared_ptr<Persistable> const &);
+
+}  // namespace io
+}  // namespace table
+}  // namespace afw
+
 namespace meas {
 namespace algorithms {
 
