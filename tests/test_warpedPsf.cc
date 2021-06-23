@@ -29,6 +29,10 @@
 #include <boost/test/unit_test.hpp>
 #include "astshim.h"
 
+#include "lsst/afw/table/io/Persistable.cc"
+#include "lsst/afw/table/io/InputArchive.h"
+#include "lsst/afw/table/io/OutputArchive.h"
+#include "lsst/afw/table/io/CatalogVector.h"
 #include "lsst/meas/algorithms/WarpedPsf.h"
 
 using namespace std;
@@ -228,7 +232,72 @@ struct ToyPsf : public ImagePsf {
 
         return std::make_shared<ToyPsf>(A, B, C, D, E, F, ksize);
     }
+
+    bool isPersistable() const noexcept override { return true; }
+
+    std::string getPersistenceName() const override { return "ToyPsf"; }
+
+    std::string getPythonModule() const override { return "lsst.meas.algorithms"; };
+
+    void write(OutputArchiveHandle &handle) const override {
+        lsst::afw::table::Schema schema;
+        lsst::afw::table::Key<double> keyA = schema.addField<double>("A", "");
+        lsst::afw::table::Key<double> keyB = schema.addField<double>("B", "");
+        lsst::afw::table::Key<double> keyC = schema.addField<double>("C", "");
+        lsst::afw::table::Key<double> keyD = schema.addField<double>("D", "");
+        lsst::afw::table::Key<double> keyE = schema.addField<double>("E", "");
+        lsst::afw::table::Key<double> keyF = schema.addField<double>("F", "");
+        lsst::afw::table::Key<double> keySize = schema.addField<double>("Size", "");
+
+        lsst::afw::table::BaseCatalog catalog = handle.makeCatalog(schema);
+        std::shared_ptr<lsst::afw::table::BaseRecord> record = catalog.addNew();
+        record->set(keyA, _A);
+        record->set(keyB, _B);
+        record->set(keyC, _C);
+        record->set(keyD, _D);
+        record->set(keyE, _E);
+        record->set(keyF, _F);
+        record->set(keySize, _ksize);
+        handle.saveCatalog(catalog);
+    }
 };
+
+namespace {
+
+// A PersistableFactory for ToyPsf
+class : public lsst::afw::table::io::PersistableFactory {
+public:
+    std::shared_ptr<lsst::afw::table::io::Persistable> read(
+            lsst::afw::table::io::InputArchive const &archive,
+            lsst::afw::table::io::CatalogVector const &catalogs) const override {
+        lsst::afw::table::Schema schema;
+        lsst::afw::table::Key<double> keyA = schema.addField<double>("A", "");
+        lsst::afw::table::Key<double> keyB = schema.addField<double>("B", "");
+        lsst::afw::table::Key<double> keyC = schema.addField<double>("C", "");
+        lsst::afw::table::Key<double> keyD = schema.addField<double>("D", "");
+        lsst::afw::table::Key<double> keyE = schema.addField<double>("E", "");
+        lsst::afw::table::Key<double> keyF = schema.addField<double>("F", "");
+        lsst::afw::table::Key<double> keySize = schema.addField<double>("Size", "");
+
+        LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
+        LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
+        lsst::afw::table::BaseRecord const &record = catalogs.front().front();
+        LSST_ARCHIVE_ASSERT(record.getSchema() == schema);
+        return std::make_shared<ToyPsf>(record.get(keyA), record.get(keyB), record.get(keyC),
+                                        record.get(keyD), record.get(keyE), record.get(keyF),
+                                        record.get(keySize));
+    }
+
+    using lsst::afw::table::io::PersistableFactory::PersistableFactory;
+} registration("ToyPsf");
+
+}  // namespace
+
+namespace lsst::afw::table::io {
+
+template std::shared_ptr<ToyPsf> PersistableFacade<ToyPsf>::dynamicCast(std::shared_ptr<Persistable> const &);
+
+}  // namespace lsst::afw::table::io
 
 BOOST_AUTO_TEST_CASE(warpedPsf) {
     auto distortion = makeRandomToyTransform();
@@ -317,5 +386,40 @@ BOOST_AUTO_TEST_CASE(warpedPsfPadding) {
             sumRow += *ptr;
         }
         BOOST_CHECK(std::abs(sumRow) > zero);
+    }
+}
+
+template <class T>
+std::shared_ptr<T> roundTrip(std::shared_ptr<T> original) {
+    // writeFits(MemFileManager) and writeFits(string) are non-overrideable methods
+    // that delegate to the same WarpedPsf code, so we only need to test one.
+    lsst::afw::fits::MemFileManager tempFile;
+    original->writeFits(tempFile);
+    return lsst::afw::table::io::PersistableFacade<T>::readFits(tempFile);
+}
+
+BOOST_AUTO_TEST_CASE(persistence) {
+    auto distortion = makeRandomToyTransform();
+
+    std::shared_ptr<ToyPsf> unwarped_psf = ToyPsf::makeRandom(100);
+    std::shared_ptr<WarpedPsf> warped_psf = std::make_shared<WarpedPsf>(unwarped_psf, distortion);
+
+    // If ToyPsf's persistence is buggy, can't test WarpedPsf
+    BOOST_TEST_REQUIRE(unwarped_psf->isPersistable());
+    std::shared_ptr<ToyPsf> copy_unwarped_psf = roundTrip(unwarped_psf);
+    for (int i = 0; i < 10; ++i) {
+        Point2D p = randpt();
+        // Threshold copied from warpedPsf test, no idea where it comes from
+        BOOST_TEST_REQUIRE(compare(*(unwarped_psf->computeImage(p)), *(copy_unwarped_psf->computeImage(p))) <
+                           0.006);
+    }
+
+    BOOST_TEST_REQUIRE(warped_psf->isPersistable());
+    std::shared_ptr<WarpedPsf> copy_warped_psf = roundTrip(warped_psf);
+
+    for (int i = 0; i < 10; ++i) {
+        Point2D p = randpt();
+        // Threshold copied from warpedPsf test, no idea where it comes from
+        BOOST_TEST(compare(*(warped_psf->computeImage(p)), *(copy_warped_psf->computeImage(p))) < 0.006);
     }
 }

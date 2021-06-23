@@ -77,9 +77,18 @@ public:
     /// Return a clone with specified kernel dimensions
     std::shared_ptr<afw::detection::Psf> resized(int width, int height) const override;
 
+    bool isPersistable() const noexcept override {
+        return _undistortedPsf->isPersistable() && _distortion->isPersistable() &&
+               _warpingControl->isPersistable();
+    }
+
 protected:
     std::shared_ptr<afw::detection::Psf::Image> doComputeKernelImage(
             geom::Point2D const& position, afw::image::Color const& color) const override;
+
+    std::string getPersistenceName() const override;
+    std::string getPythonModule() const override;
+    void write(OutputArchiveHandle& handle) const override;
 
     std::shared_ptr<afw::detection::Psf const> _undistortedPsf;
     std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const> _distortion;

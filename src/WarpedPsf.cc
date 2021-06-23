@@ -28,6 +28,9 @@
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/afw/image/Image.h"
+#include "lsst/afw/table/io/InputArchive.h"
+#include "lsst/afw/table/io/OutputArchive.h"
+#include "lsst/afw/table/io/CatalogVector.h"
 #include "lsst/afw/table/io/Persistable.cc"
 
 namespace lsst {
@@ -233,6 +236,66 @@ geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::
     geom::Box2I ret =
             computeBBoxFromTransform(bboxUndistorted, geom::AffineTransform(t.inverted().getLinear()));
     return ret;
+}
+
+namespace {
+
+struct PersistenceHelper {
+    afw::table::Schema schema;
+    afw::table::Key<int> psfIndex;
+    afw::table::Key<int> transformIndex;
+    afw::table::Key<int> controlIndex;
+
+    static PersistenceHelper const &get() {
+        static PersistenceHelper const instance;
+        return instance;
+    }
+
+private:
+    PersistenceHelper()
+            : schema(),
+              psfIndex(schema.addField<int>("psfIndex", "archive ID of nested Psf object")),
+              transformIndex(schema.addField<int>("transformIndex", "archive ID of nested Transform object")),
+              controlIndex(
+                      schema.addField<int>("controlIndex", "archive ID of nested WarpingControl object")) {}
+};
+
+std::string _getPersistenceName() { return "WarpedPsf"; }
+
+class : public afw::table::io::PersistableFactory {
+public:
+    virtual std::shared_ptr<afw::table::io::Persistable> read(
+            afw::table::io::InputArchive const &archive,
+            afw::table::io::CatalogVector const &catalogs) const {
+        static PersistenceHelper const &keys = PersistenceHelper::get();
+        LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
+        LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
+        afw::table::BaseRecord const &record = catalogs.front().front();
+        LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
+        return std::make_shared<WarpedPsf>(
+                archive.get<afw::detection::Psf>(record.get(keys.psfIndex)),
+                archive.get<afw::geom::TransformPoint2ToPoint2>(record.get(keys.transformIndex)),
+                archive.get<afw::math::WarpingControl>(record.get(keys.controlIndex)));
+    }
+
+    using afw::table::io::PersistableFactory::PersistableFactory;
+} warpedPsfFactory(_getPersistenceName());
+
+}  // namespace
+
+std::string WarpedPsf::getPersistenceName() const { return _getPersistenceName(); }
+std::string WarpedPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
+
+void WarpedPsf::write(OutputArchiveHandle &handle) const {
+    static PersistenceHelper const &keys = PersistenceHelper::get();
+    afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
+    PTR(afw::table::BaseRecord) record = catalog.addNew();
+
+    record->set(keys.psfIndex, handle.put(_undistortedPsf));
+    record->set(keys.transformIndex, handle.put(_distortion));
+    record->set(keys.controlIndex, handle.put(_warpingControl));
+
+    handle.saveCatalog(catalog);
 }
 
 }  // namespace algorithms
