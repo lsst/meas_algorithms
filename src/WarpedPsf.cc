@@ -28,8 +28,23 @@
 #include "lsst/meas/algorithms/WarpedPsf.h"
 #include "lsst/afw/math/warpExposure.h"
 #include "lsst/afw/image/Image.h"
+#include "lsst/afw/table/io/InputArchive.h"
+#include "lsst/afw/table/io/OutputArchive.h"
+#include "lsst/afw/table/io/CatalogVector.h"
+#include "lsst/afw/table/io/Persistable.cc"
 
 namespace lsst {
+namespace afw {
+namespace table {
+namespace io {
+
+template std::shared_ptr<meas::algorithms::WarpedPsf>
+PersistableFacade<meas::algorithms::WarpedPsf>::dynamicCast(std::shared_ptr<Persistable> const &);
+
+}  // namespace io
+}  // namespace table
+}  // namespace afw
+
 namespace meas {
 namespace algorithms {
 
@@ -45,12 +60,12 @@ inline double max4(double a, double b, double c, double d) {
 
 // TODO: make this routine externally callable and more generic using templates
 //  (also useful in e.g. math/offsetImage.cc)
-PTR(afw::detection::Psf::Image) zeroPadImage(afw::detection::Psf::Image const &im, int xPad, int yPad) {
+std::shared_ptr<afw::detection::Psf::Image> zeroPadImage(afw::detection::Psf::Image const &im, int xPad,
+                                                         int yPad) {
     int nx = im.getWidth();
     int ny = im.getHeight();
 
-    PTR(afw::detection::Psf::Image)
-    out = std::make_shared<afw::detection::Psf::Image>(nx + 2 * xPad, ny + 2 * yPad);
+    auto out = std::make_shared<afw::detection::Psf::Image>(nx + 2 * xPad, ny + 2 * yPad);
     out->setXY0(im.getX0() - xPad, im.getY0() - yPad);
 
     geom::Box2I box(geom::Point2I(xPad, yPad), geom::Extent2I(nx, ny));
@@ -110,9 +125,9 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
  *
  * The input image is assumed zero-padded.
  */
-PTR(afw::detection::Psf::Image)
-warpAffine(afw::detection::Psf::Image const &im, geom::AffineTransform const &srcToDest,
-           afw::math::WarpingControl const &wc) {
+std::shared_ptr<afw::detection::Psf::Image> warpAffine(afw::detection::Psf::Image const &im,
+                                                       geom::AffineTransform const &srcToDest,
+                                                       afw::math::WarpingControl const &wc) {
     std::shared_ptr<afw::geom::TransformPoint2ToPoint2> srcToDestTransform =
             afw::geom::makeTransform(srcToDest);
 
@@ -123,10 +138,10 @@ warpAffine(afw::detection::Psf::Image const &im, geom::AffineTransform const &sr
 
     // allocate output image
     geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), srcToDest);
-    PTR(afw::detection::Psf::Image) ret = std::make_shared<afw::detection::Psf::Image>(bbox);
+    auto ret = std::make_shared<afw::detection::Psf::Image>(bbox);
 
     // zero-pad input image
-    PTR(afw::detection::Psf::Image) im_padded = zeroPadImage(im, xPad, yPad);
+    std::shared_ptr<afw::detection::Psf::Image> im_padded = zeroPadImage(im, xPad, yPad);
 
     // warp it!
     afw::math::warpImage(*ret, *im_padded, *srcToDestTransform, wc, 0.0);
@@ -135,9 +150,9 @@ warpAffine(afw::detection::Psf::Image const &im, geom::AffineTransform const &sr
 
 }  // namespace
 
-WarpedPsf::WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf,
-                     PTR(afw::geom::TransformPoint2ToPoint2 const) distortion,
-                     CONST_PTR(afw::math::WarpingControl) control)
+WarpedPsf::WarpedPsf(std::shared_ptr<afw::detection::Psf const> undistortedPsf,
+                     std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const> distortion,
+                     std::shared_ptr<afw::math::WarpingControl const> control)
         : ImagePsf(false),
           _undistortedPsf(undistortedPsf),
           _distortion(distortion),
@@ -145,9 +160,9 @@ WarpedPsf::WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf,
     _init();
 }
 
-WarpedPsf::WarpedPsf(PTR(afw::detection::Psf const) undistortedPsf,
-                     PTR(afw::geom::TransformPoint2ToPoint2 const) distortion, std::string const &kernelName,
-                     unsigned int cache)
+WarpedPsf::WarpedPsf(std::shared_ptr<afw::detection::Psf const> undistortedPsf,
+                     std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const> distortion,
+                     std::string const &kernelName, unsigned int cache)
         : ImagePsf(false),
           _undistortedPsf(undistortedPsf),
           _distortion(distortion),
@@ -173,27 +188,27 @@ geom::Point2D WarpedPsf::getAveragePosition() const {
     return _distortion->applyForward(_undistortedPsf->getAveragePosition());
 }
 
-PTR(afw::detection::Psf) WarpedPsf::clone() const {
+std::shared_ptr<afw::detection::Psf> WarpedPsf::clone() const {
     return std::make_shared<WarpedPsf>(_undistortedPsf->clone(), _distortion, _warpingControl);
 }
 
-PTR(afw::detection::Psf) WarpedPsf::resized(int width, int height) const {
+std::shared_ptr<afw::detection::Psf> WarpedPsf::resized(int width, int height) const {
     // For a given set of requested dimensions and distortion, it is not guaranteed that a
     // _undistortedPsf would exist to manifest those dimensions after distortion
     // Not possible to implement with member data currently in WarpedPsf
     throw LSST_EXCEPT(pex::exceptions::LogicError, "Not Implemented");
 }
 
-PTR(afw::detection::Psf::Image)
-WarpedPsf::doComputeKernelImage(geom::Point2D const &position, afw::image::Color const &color) const {
+std::shared_ptr<afw::detection::Psf::Image> WarpedPsf::doComputeKernelImage(
+        geom::Point2D const &position, afw::image::Color const &color) const {
     geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->inverted(), position);
     geom::Point2D tp = t(position);
 
-    PTR(Image) im = _undistortedPsf->computeKernelImage(tp, color);
+    std::shared_ptr<Image> im = _undistortedPsf->computeKernelImage(tp, color);
 
     // Go to the warped coordinate system with 'p' at the origin
     auto srcToDest = geom::AffineTransform(t.inverted().getLinear());
-    PTR(afw::detection::Psf::Psf::Image) ret = warpAffine(*im, srcToDest, *_warpingControl);
+    std::shared_ptr<afw::detection::Psf::Psf::Image> ret = warpAffine(*im, srcToDest, *_warpingControl);
 
     double normFactor = 1.0;
     //
@@ -221,6 +236,66 @@ geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::
     geom::Box2I ret =
             computeBBoxFromTransform(bboxUndistorted, geom::AffineTransform(t.inverted().getLinear()));
     return ret;
+}
+
+namespace {
+
+struct PersistenceHelper {
+    afw::table::Schema schema;
+    afw::table::Key<int> psfIndex;
+    afw::table::Key<int> transformIndex;
+    afw::table::Key<int> controlIndex;
+
+    static PersistenceHelper const &get() {
+        static PersistenceHelper const instance;
+        return instance;
+    }
+
+private:
+    PersistenceHelper()
+            : schema(),
+              psfIndex(schema.addField<int>("psfIndex", "archive ID of nested Psf object")),
+              transformIndex(schema.addField<int>("transformIndex", "archive ID of nested Transform object")),
+              controlIndex(
+                      schema.addField<int>("controlIndex", "archive ID of nested WarpingControl object")) {}
+};
+
+std::string _getPersistenceName() { return "WarpedPsf"; }
+
+class : public afw::table::io::PersistableFactory {
+public:
+    virtual std::shared_ptr<afw::table::io::Persistable> read(
+            afw::table::io::InputArchive const &archive,
+            afw::table::io::CatalogVector const &catalogs) const {
+        static PersistenceHelper const &keys = PersistenceHelper::get();
+        LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
+        LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
+        afw::table::BaseRecord const &record = catalogs.front().front();
+        LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
+        return std::make_shared<WarpedPsf>(
+                archive.get<afw::detection::Psf>(record.get(keys.psfIndex)),
+                archive.get<afw::geom::TransformPoint2ToPoint2>(record.get(keys.transformIndex)),
+                archive.get<afw::math::WarpingControl>(record.get(keys.controlIndex)));
+    }
+
+    using afw::table::io::PersistableFactory::PersistableFactory;
+} warpedPsfFactory(_getPersistenceName());
+
+}  // namespace
+
+std::string WarpedPsf::getPersistenceName() const { return _getPersistenceName(); }
+std::string WarpedPsf::getPythonModule() const { return "lsst.meas.algorithms"; }
+
+void WarpedPsf::write(OutputArchiveHandle &handle) const {
+    static PersistenceHelper const &keys = PersistenceHelper::get();
+    afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
+    PTR(afw::table::BaseRecord) record = catalog.addNew();
+
+    record->set(keys.psfIndex, handle.put(_undistortedPsf));
+    record->set(keys.transformIndex, handle.put(_distortion));
+    record->set(keys.controlIndex, handle.put(_warpingControl));
+
+    handle.saveCatalog(catalog);
 }
 
 }  // namespace algorithms
