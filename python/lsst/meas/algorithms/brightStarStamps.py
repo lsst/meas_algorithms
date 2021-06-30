@@ -164,6 +164,9 @@ class BrightStarStamps(Stamps):
         Outer radius value, in pixels. This and ``innerRadius`` define the
         annulus used to compute the ``"annularFlux"`` values within each
         ``starStamp``. Must be provided if ``normalize`` is True.
+    nb90Rots : `int`, optional
+        Number of 90 degree rotations required to compensate for detector
+        orientation.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
     use_mask : `bool`
@@ -195,7 +198,7 @@ class BrightStarStamps(Stamps):
     >>> starSubregions = butler.get("brightStarStamps", dataId, parameters={'bbox': bbox})
     """
 
-    def __init__(self, starStamps, innerRadius=None, outerRadius=None,
+    def __init__(self, starStamps, innerRadius=None, outerRadius=None, nb90Rots=None,
                  metadata=None, use_mask=True, use_variance=False, use_archive=False):
         super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
         # Ensure stamps contain a flux measurement if and only if they are
@@ -206,9 +209,10 @@ class BrightStarStamps(Stamps):
             self.normalized = True
         else:
             self.normalized = False
+        self.nb90Rots = nb90Rots
 
     @classmethod
-    def initAndNormalize(cls, starStamps, innerRadius, outerRadius,
+    def initAndNormalize(cls, starStamps, innerRadius, outerRadius, nb90Rots=None,
                          metadata=None, use_mask=True, use_variance=False,
                          imCenter=None, discardNanFluxObjects=True,
                          statsControl=afwMath.StatisticsControl(),
@@ -235,6 +239,9 @@ class BrightStarStamps(Stamps):
             Outer radius value, in pixels. This and ``innerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
             ``starStamp``.
+        nb90Rots : `int`, optional
+            Number of 90 degree rotations required to compensate for detector
+            orientation.
         metadata : `lsst.daf.base.PropertyList`, optional
             Metadata associated with the bright stars.
         use_mask : `bool`
@@ -274,7 +281,7 @@ class BrightStarStamps(Stamps):
         innerCircle = afwGeom.SpanSet.fromShape(innerRadius, afwGeom.Stencil.CIRCLE, offset=imCenter)
         annulus = outerCircle.intersectNot(innerCircle)
         # Initialize (unnormalized) brightStarStamps instance
-        bss = cls(starStamps, innerRadius=None, outerRadius=None,
+        bss = cls(starStamps, innerRadius=None, outerRadius=None, nb90Rots=nb90Rots,
                   metadata=metadata, use_mask=use_mask,
                   use_variance=use_variance)
         # Ensure no stamps had already been normalized
@@ -311,6 +318,8 @@ class BrightStarStamps(Stamps):
         self._metadata["NORMALIZED"] = self.normalized
         self._metadata["INNER_RADIUS"] = self._innerRadius
         self._metadata["OUTER_RADIUS"] = self._outerRadius
+        if self.nb90Rots is not None:
+            self._metadata["NB_90_ROTS"] = self.nb90Rots
         return None
 
     @classmethod
@@ -336,13 +345,14 @@ class BrightStarStamps(Stamps):
             Collection of metadata parameters
         """
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
+        nb90Rots = metadata["NB_90_ROTS"] if "NB_90_ROTS" in metadata else None
         if metadata["NORMALIZED"]:
             return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
-                       metadata=metadata, use_mask=metadata['HAS_MASK'],
+                       nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
         else:
-            return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
+            return cls(stamps, nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
 
     def append(self, item, innerRadius=None, outerRadius=None):
