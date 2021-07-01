@@ -214,7 +214,8 @@ class BrightStarStamps(Stamps):
     @classmethod
     def initAndNormalize(cls, starStamps, innerRadius, outerRadius, nb90Rots=None,
                          metadata=None, use_mask=True, use_variance=False,
-                         imCenter=None, discardNanFluxObjects=True,
+                         use_archive=False, imCenter=None,
+                         discardNanFluxObjects=True,
                          statsControl=afwMath.StatisticsControl(),
                          statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
                          badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
@@ -248,6 +249,11 @@ class BrightStarStamps(Stamps):
             If `True` read and write mask data. Default `True`.
         use_variance : `bool`
             If ``True`` read and write variance data. Default ``False``.
+        use_archive : `bool`
+            If ``True`` read and write an Archive that contains a Persistable
+            associated with each stamp. In the case of bright stars, this is
+            usually a ``TransformPoint2ToPoint2``, used to warp each stamp
+            to the same pixel grid before stacking.
         imCenter : `collections.abc.Sequence`, optional
             Center of the object, in pixels. If not provided, the center of the
             first stamp's pixel grid will be used.
@@ -283,7 +289,7 @@ class BrightStarStamps(Stamps):
         # Initialize (unnormalized) brightStarStamps instance
         bss = cls(starStamps, innerRadius=None, outerRadius=None, nb90Rots=nb90Rots,
                   metadata=metadata, use_mask=use_mask,
-                  use_variance=use_variance)
+                  use_variance=use_variance, use_archive=use_archive)
         # Ensure no stamps had already been normalized
         bss._checkNormalization(True, innerRadius, outerRadius)
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
