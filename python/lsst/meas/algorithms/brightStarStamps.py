@@ -34,7 +34,8 @@ from lsst.afw.image import MaskedImageF
 from lsst.afw import geom as afwGeom
 from lsst.afw import math as afwMath
 from lsst.afw import table as afwTable
-from .stamps import StampsBase, AbstractStamp, readFitsWithOptions
+from lsst.geom import Point2I
+from .stamps import Stamps, AbstractStamp, readFitsWithOptions
 
 
 @dataclass
@@ -46,6 +47,8 @@ class BrightStarStamp(AbstractStamp):
     ----------
     stamp_im : `lsst.afw.image.MaskedImage`
         Pixel data for this postage stamp
+    position : `lsst.geom.Point2I`
+        Origin of the stamps in its origin exposure (pixels)
     gaiaGMag : `float`
         Gaia G magnitude for the object in this stamp
     gaiaId : `int`
@@ -56,6 +59,7 @@ class BrightStarStamp(AbstractStamp):
     stamp_im: MaskedImageF
     gaiaGMag: float
     gaiaId: int
+    position: Point2I
     archive_element: Optional[afwTable.io.Persistable] = None
     annularFlux: Optional[float] = None
 
@@ -86,9 +90,16 @@ class BrightStarStamp(AbstractStamp):
         brightstarstamp : `BrightStarStamp`
             An instance of this class
         """
+        if 'X0S' in metadata and 'Y0S' in metadata:
+            x0 = metadata.getArray('X0S')[idx]
+            y0 = metadata.getArray('Y0S')[idx]
+            position = Point2I(x0, y0)
+        else:
+            position = None
         return cls(stamp_im=stamp_im,
                    gaiaGMag=metadata.getArray('G_MAGS')[idx],
                    gaiaId=metadata.getArray('GAIA_IDS')[idx],
+                   position=position,
                    archive_element=archive_element,
                    annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx])
 
@@ -137,7 +148,7 @@ class BrightStarStamp(AbstractStamp):
         return None
 
 
-class BrightStarStamps(StampsBase):
+class BrightStarStamps(Stamps):
     """Collection of bright star stamps and associated metadata.
 
     Parameters
@@ -153,6 +164,9 @@ class BrightStarStamps(StampsBase):
         Outer radius value, in pixels. This and ``innerRadius`` define the
         annulus used to compute the ``"annularFlux"`` values within each
         ``starStamp``. Must be provided if ``normalize`` is True.
+    nb90Rots : `int`, optional
+        Number of 90 degree rotations required to compensate for detector
+        orientation.
     metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
     use_mask : `bool`
@@ -184,7 +198,7 @@ class BrightStarStamps(StampsBase):
     >>> starSubregions = butler.get("brightStarStamps", dataId, parameters={'bbox': bbox})
     """
 
-    def __init__(self, starStamps, innerRadius=None, outerRadius=None,
+    def __init__(self, starStamps, innerRadius=None, outerRadius=None, nb90Rots=None,
                  metadata=None, use_mask=True, use_variance=False, use_archive=False):
         super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
         # Ensure stamps contain a flux measurement if and only if they are
@@ -195,11 +209,13 @@ class BrightStarStamps(StampsBase):
             self.normalized = True
         else:
             self.normalized = False
+        self.nb90Rots = nb90Rots
 
     @classmethod
-    def initAndNormalize(cls, starStamps, innerRadius, outerRadius,
+    def initAndNormalize(cls, starStamps, innerRadius, outerRadius, nb90Rots=None,
                          metadata=None, use_mask=True, use_variance=False,
-                         imCenter=None, discardNanFluxObjects=True,
+                         use_archive=False, imCenter=None,
+                         discardNanFluxObjects=True,
                          statsControl=afwMath.StatisticsControl(),
                          statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
                          badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
@@ -224,12 +240,20 @@ class BrightStarStamps(StampsBase):
             Outer radius value, in pixels. This and ``innerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
             ``starStamp``.
+        nb90Rots : `int`, optional
+            Number of 90 degree rotations required to compensate for detector
+            orientation.
         metadata : `lsst.daf.base.PropertyList`, optional
             Metadata associated with the bright stars.
         use_mask : `bool`
             If `True` read and write mask data. Default `True`.
         use_variance : `bool`
             If ``True`` read and write variance data. Default ``False``.
+        use_archive : `bool`
+            If ``True`` read and write an Archive that contains a Persistable
+            associated with each stamp. In the case of bright stars, this is
+            usually a ``TransformPoint2ToPoint2``, used to warp each stamp
+            to the same pixel grid before stacking.
         imCenter : `collections.abc.Sequence`, optional
             Center of the object, in pixels. If not provided, the center of the
             first stamp's pixel grid will be used.
@@ -263,9 +287,9 @@ class BrightStarStamps(StampsBase):
         innerCircle = afwGeom.SpanSet.fromShape(innerRadius, afwGeom.Stencil.CIRCLE, offset=imCenter)
         annulus = outerCircle.intersectNot(innerCircle)
         # Initialize (unnormalized) brightStarStamps instance
-        bss = cls(starStamps, innerRadius=None, outerRadius=None,
+        bss = cls(starStamps, innerRadius=None, outerRadius=None, nb90Rots=nb90Rots,
                   metadata=metadata, use_mask=use_mask,
-                  use_variance=use_variance)
+                  use_variance=use_variance, use_archive=use_archive)
         # Ensure no stamps had already been normalized
         bss._checkNormalization(True, innerRadius, outerRadius)
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
@@ -289,14 +313,19 @@ class BrightStarStamps(StampsBase):
         """Refresh the metadata. Should be called before writing this object
         out.
         """
-        # add full list of Gaia magnitudes, IDs and annularFlxes to shared
-        # metadata
+        # add full list of positions, Gaia magnitudes, IDs and annularFlxes to
+        # shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
         self._metadata["GAIA_IDS"] = self.getGaiaIds()
+        positions = self.getPositions()
+        self._metadata["X0S"] = [xy0[0] for xy0 in positions]
+        self._metadata["Y0S"] = [xy0[1] for xy0 in positions]
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
         self._metadata["NORMALIZED"] = self.normalized
         self._metadata["INNER_RADIUS"] = self._innerRadius
         self._metadata["OUTER_RADIUS"] = self._outerRadius
+        if self.nb90Rots is not None:
+            self._metadata["NB_90_ROTS"] = self.nb90Rots
         return None
 
     @classmethod
@@ -322,13 +351,14 @@ class BrightStarStamps(StampsBase):
             Collection of metadata parameters
         """
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
+        nb90Rots = metadata["NB_90_ROTS"] if "NB_90_ROTS" in metadata else None
         if metadata["NORMALIZED"]:
             return cls(stamps,
                        innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
-                       metadata=metadata, use_mask=metadata['HAS_MASK'],
+                       nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
         else:
-            return cls(stamps, metadata=metadata, use_mask=metadata['HAS_MASK'],
+            return cls(stamps, nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
                        use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
 
     def append(self, item, innerRadius=None, outerRadius=None):

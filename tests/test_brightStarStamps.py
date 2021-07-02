@@ -25,6 +25,7 @@ import tempfile
 
 from lsst.meas.algorithms import brightStarStamps
 from lsst.afw import image as afwImage
+from lsst.geom import Point2I
 from lsst.daf.base import PropertyList
 import lsst.utils.tests
 
@@ -42,6 +43,8 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
             starImArray = starIm.image.array
             starImArray += np.random.rand(*stampSize)
         ids = ["111", "aaa", "bbb"]
+        positions = [Point2I(x0, y0)
+                     for x0, y0 in zip(np.random.randint(11, size=3), np.random.randint(11, size=3))]
         mags = np.random.rand(3)
         # faint object to test magnitude cuts
         self.faintObjIdx = 1
@@ -50,22 +53,30 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         fluxes = np.random.rand(3)
         self.starStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
                                                             gaiaGMag=mag,
+                                                            position=pos,
                                                             gaiaId=gaiaId,
                                                             annularFlux=flux)
-                           for starIm, mag, gaiaId, flux in zip(starImages, mags, ids, fluxes)]
+                           for starIm, mag, gaiaId, pos, flux in
+                           zip(starImages, mags, ids, positions, fluxes)]
         self.unnormalizedStarStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
                                                                         gaiaGMag=mag,
+                                                                        position=pos,
                                                                         gaiaId=gaiaId)
-                                       for starIm, mag, gaiaId, flux in zip(starImages, mags, ids, fluxes)]
+                                       for starIm, mag, gaiaId, pos, flux in
+                                       zip(starImages, mags, ids, positions, fluxes)]
         self.toBeNormalizedStarStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
                                                                           gaiaGMag=mag,
+                                                                          position=pos,
                                                                           gaiaId=gaiaId)
-                                         for starIm, mag, gaiaId, flux in zip(starImages, mags, ids, fluxes)]
+                                         for starIm, mag, gaiaId, pos, flux in
+                                         zip(starImages, mags, ids, positions, fluxes)]
         self.innerRadius = 5
         self.outerRadius = 10
+        self.nb90Rots = 2
         self.bss = brightStarStamps.BrightStarStamps(self.starStamps,
                                                      innerRadius=self.innerRadius,
-                                                     outerRadius=self.outerRadius)
+                                                     outerRadius=self.outerRadius,
+                                                     nb90Rots=self.nb90Rots)
 
     def tearDown(self):
         del self.bss
@@ -94,6 +105,10 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
             np.testing.assert_almost_equal(self.bss.getAnnularFluxes(), bss2.getAnnularFluxes())
             for id1, id2 in zip(self.bss.getGaiaIds(), bss2.getGaiaIds()):
                 self.assertEqual(id1, id2)
+            for pos1, pos2 in zip(self.bss.getPositions(), bss2.getPositions()):
+                self.assertEqual(pos1[0], pos2[0])
+                self.assertEqual(pos1[1], pos2[1])
+            self.assertEqual(bss2.nb90Rots, self.nb90Rots)
 
     def testMagnitudeSelection(self):
         brightOnly = self.bss.selectByMag(magMax=7)
