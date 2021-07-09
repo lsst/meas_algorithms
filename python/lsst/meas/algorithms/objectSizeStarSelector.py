@@ -271,7 +271,7 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
     try:
         import matplotlib.pyplot as plt
     except ImportError as e:
-        log.warn("Unable to import matplotlib: %s", e)
+        log.warning("Unable to import matplotlib: %s", e)
         return
 
     try:

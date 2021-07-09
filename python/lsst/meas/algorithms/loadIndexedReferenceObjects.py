@@ -86,9 +86,9 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
 
         # update version=0 style refcats to have nJy fluxes
         if self.dataset_config.format_version == 0 or not hasNanojanskyFluxUnits(refCat.schema):
-            self.log.warn("Found version 0 reference catalog with old style units in schema.")
-            self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
-            self.log.warn("See RFC-575 for more details.")
+            self.log.warning("Found version 0 reference catalog with old style units in schema.")
+            self.log.warning("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
+            self.log.warning("See RFC-575 for more details.")
             refCat = convertToNanojansky(refCat, self.log)
         else:
             # For version >= 1, the version should be in the catalog header,

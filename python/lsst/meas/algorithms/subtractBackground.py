@@ -357,8 +357,8 @@ class SubtractBackgroundTask(pipeBase.Task):
             order = self.config.approxOrderX
             minNumberGridPoints = order + 1
             if min(nx, ny) <= order:
-                self.log.warn("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "
-                              "[min(%d, %d) < %d]" % (nx, ny, order))
+                self.log.warning("Too few points in grid to constrain fit: min(nx, ny) < approxOrder) "
+                                 "[min(%d, %d) < %d]" % (nx, ny, order))
                 if self.config.undersampleStyle == "THROW_EXCEPTION":
                     raise ValueError("Too few points in grid (%d, %d) for order (%d) and binSize (%d, %d)" %
                                      (nx, ny, order, binSizeX, binSizeY))
@@ -367,7 +367,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                         raise ValueError("Cannot reduce approxOrder below 0.  "
                                          "Try using undersampleStyle = \"INCREASE_NXNYSAMPLE\" instead?")
                     order = min(nx, ny) - 1
-                    self.log.warn("Reducing approxOrder to %d" % order)
+                    self.log.warning("Reducing approxOrder to %d" % order)
                 elif self.config.undersampleStyle == "INCREASE_NXNYSAMPLE":
                     # Reduce bin size to the largest acceptable square bins
                     newBinSize = min(maskedImage.getWidth(), maskedImage.getHeight())//(minNumberGridPoints-1)
@@ -377,8 +377,8 @@ class SubtractBackgroundTask(pipeBase.Task):
                     newNy = maskedImage.getHeight()//newBinSize + 1
                     bctrl.setNxSample(newNx)
                     bctrl.setNySample(newNy)
-                    self.log.warn("Decreasing binSize from (%d, %d) to %d for a grid of (%d, %d)" %
-                                  (binSizeX, binSizeY, newBinSize, newNx, newNy))
+                    self.log.warning("Decreasing binSize from (%d, %d) to %d for a grid of (%d, %d)" %
+                                     (binSizeX, binSizeY, newBinSize, newNx, newNy))
 
             actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, order, order,
                                                self.config.weighting)

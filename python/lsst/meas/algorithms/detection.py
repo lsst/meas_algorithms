@@ -190,8 +190,8 @@ class SourceDetectionTask(pipeBase.Task):
             )
         else:
             if self.config.thresholdPolarity == "both":
-                self.log.warn("Detection polarity set to 'both', but no flag will be "
-                              "set to distinguish between positive and negative detections")
+                self.log.warning("Detection polarity set to 'both', but no flag will be "
+                                 "set to distinguish between positive and negative detections")
             self.negativeFlagKey = None
         if self.config.reEstimateBackground:
             self.makeSubtask("background")
@@ -600,7 +600,7 @@ class SourceDetectionTask(pipeBase.Task):
         """
         bg = self.background.fitBackground(maskedImage)
         if self.config.adjustBackground:
-            self.log.warn("Fiddling the background by %g", self.config.adjustBackground)
+            self.log.warning("Fiddling the background by %g", self.config.adjustBackground)
             bg += self.config.adjustBackground
         self.log.info("Resubtracting the background after object detection")
         maskedImage -= bg.getImageF(self.background.config.algorithm,

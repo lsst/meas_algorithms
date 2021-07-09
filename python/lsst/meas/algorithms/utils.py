@@ -367,7 +367,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
     try:
         import matplotlib.pyplot as plt
     except ImportError as e:
-        log.warn("Unable to import matplotlib: %s", e)
+        log.warning("Unable to import matplotlib: %s", e)
         return
 
     # Make show() call canvas.draw() too so that we know how large the axis labels are.  Sigh
@@ -460,7 +460,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
         import matplotlib.pyplot as plt
         import matplotlib as mpl
     except ImportError as e:
-        log.warn("Unable to import matplotlib: %s", e)
+        log.warning("Unable to import matplotlib: %s", e)
         return
 
     noSpatialKernel = psf.getKernel()

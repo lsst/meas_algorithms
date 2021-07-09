@@ -239,14 +239,14 @@ class ReferenceObjectLoaderBase:
             if self.config.requireProperMotion:
                 raise RuntimeError("requireProperMotion=True but refcat pm_ra field is not an Angle.")
             else:
-                self.log.warn("Reference catalog pm_ra field is not an Angle; cannot apply proper motion.")
+                self.log.warning("Reference catalog pm_ra field is not an Angle; cannot apply proper motion.")
                 return
 
         if ("epoch" not in catalog.schema or "pm_ra" not in catalog.schema):
             if self.config.requireProperMotion:
                 raise RuntimeError("requireProperMotion=True but PM data not available from catalog.")
             else:
-                self.log.warn("Proper motion correction not available for this reference catalog.")
+                self.log.warning("Proper motion correction not available for this reference catalog.")
             return
 
         applyProperMotionsImpl(self.log, catalog, epoch)
@@ -503,9 +503,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         # Verify the schema is in the correct units and has the correct version; automatically convert
         # it with a warning if this is not the case.
         if not hasNanojanskyFluxUnits(refCat.schema) or not getFormatVersionFromRefCat(refCat) >= 1:
-            self.log.warn("Found version 0 reference catalog with old style units in schema.")
-            self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
-            self.log.warn("See RFC-575 for more details.")
+            self.log.warning("Found version 0 reference catalog with old style units in schema.")
+            self.log.warning("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
+            self.log.warning("See RFC-575 for more details.")
             refCat = convertToNanojansky(refCat, self.log)
 
         expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
@@ -1479,7 +1479,7 @@ def applyProperMotionsImpl(log, catalog, epoch):
         Epoch to which to correct proper motion.
     """
     if "epoch" not in catalog.schema or "pm_ra" not in catalog.schema or "pm_dec" not in catalog.schema:
-        log.warn("Proper motion correction not available from catalog")
+        log.warning("Proper motion correction not available from catalog")
         return
     if not catalog.isContiguous():
         raise RuntimeError("Catalog must be contiguous")
