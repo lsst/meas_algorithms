@@ -32,8 +32,8 @@ from lsst.geom import Box2I, Point2I, Extent2I
 from lsst.meas.algorithms import ImagePsf
 
 
-class TestImagePsf(ImagePsf):
-    _factory = StorableHelperFactory(__name__, "TestImagePsf")
+class MyTestImagePsf(ImagePsf):
+    _factory = StorableHelperFactory(__name__, "MyTestImagePsf")
 
     def __init__(self, image):
         ImagePsf.__init__(self)
@@ -41,10 +41,10 @@ class TestImagePsf(ImagePsf):
 
     # "public" virtual overrides
     def __deepcopy__(self, meta=None):
-        return TestImagePsf(self.image)
+        return MyTestImagePsf(self.image)
 
     def resized(self, width, height):
-        raise NotImplementedError("resized not implemented for TestImagePsf")
+        raise NotImplementedError("resized not implemented for MyTestImagePsf")
 
     def isPersistable(self):
         return True
@@ -57,7 +57,7 @@ class TestImagePsf(ImagePsf):
         return self.image.getBBox()
 
     def _getPersistenceName(self):
-        return "TestImagePsf"
+        return "MyTestImagePsf"
 
     def _getPythonModule(self):
         return __name__
@@ -67,10 +67,10 @@ class TestImagePsf(ImagePsf):
 
     @staticmethod
     def _read(pkl):
-        return TestImagePsf(pickle.loads(pkl))
+        return MyTestImagePsf(pickle.loads(pkl))
 
     def __eq__(self, rhs):
-        if isinstance(rhs, TestImagePsf):
+        if isinstance(rhs, MyTestImagePsf):
             return np.array_equal(self.image.array, rhs.image.array)
         return False
 
@@ -85,7 +85,7 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
         # Some arbitrary circular double Gaussian
         self.img.array[:] = np.exp(-0.5*rsqr**2) + np.exp(-0.5*rsqr**2/4)
         self.img.array /= np.sum(self.img.array)
-        self.psf = TestImagePsf(self.img)
+        self.psf = MyTestImagePsf(self.img)
 
     def testImage(self):
         self.assertImagesEqual(
