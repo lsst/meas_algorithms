@@ -92,6 +92,8 @@ def generateSkyObjects(mask, seed, config):
 
 
 class SkyObjectsTask(Task):
+    """Generate a list of Footprints of sky objects.
+    """
     ConfigClass = SkyObjectsConfig
 
     def run(self, mask, seed):
