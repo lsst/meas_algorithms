@@ -277,7 +277,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         if self.config.kernelSize >= 15:
             self.log.warning("WARNING: NOT scaling kernelSize by stellar quadrupole moment "
                              "because config.kernelSize=%s >= 15; "
-                             "using config.kernelSize as as the width, instead",
+                             "using config.kernelSize as the width, instead",
                              self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
         else:
