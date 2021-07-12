@@ -772,7 +772,7 @@ public:
                               "Failed to cast SpatialCellCandidate to PsfCandidate");
         }
 
-        CONST_PTR(MaskedImage) data;
+        std::shared_ptr<MaskedImage const> data;
         try {
             data = imCandidate->getMaskedImage(_kernel.getWidth(), _kernel.getHeight());
         } catch (lsst::pex::exceptions::LengthError&) {

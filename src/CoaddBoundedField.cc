@@ -70,7 +70,7 @@ bool CoaddBoundedFieldElement::operator==(CoaddBoundedFieldElement const& rhs) c
            ptrEquals(validPolygon, rhs.validPolygon) && (weight == rhs.weight);
 }
 
-CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                                      ElementVector const& elements)
         : afw::math::BoundedField(bbox),
           _throwOnMissing(true),
@@ -78,7 +78,7 @@ CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::Sky
           _coaddWcs(coaddWcs),
           _elements(elements) {}
 
-CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+CoaddBoundedField::CoaddBoundedField(geom::Box2I const& bbox, std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                                      ElementVector const& elements, double default_)
         : afw::math::BoundedField(bbox),
           _throwOnMissing(false),
@@ -192,7 +192,7 @@ private:
 
 class CoaddBoundedField::Factory : public afw::table::io::PersistableFactory {
 public:
-    virtual PTR(afw::table::io::Persistable)
+    virtual std::shared_ptr<afw::table::io::Persistable>
             read(InputArchive const& archive, CatalogVector const& catalogs) const {
         CoaddBoundedFieldPersistenceKeys1 const& keys1 = CoaddBoundedFieldPersistenceKeys1::get();
         CoaddBoundedFieldPersistenceKeys2 const& keys2 = CoaddBoundedFieldPersistenceKeys2::get();
@@ -234,7 +234,7 @@ void CoaddBoundedField::write(OutputArchiveHandle& handle) const {
     CoaddBoundedFieldPersistenceKeys1 const& keys1 = CoaddBoundedFieldPersistenceKeys1::get();
     CoaddBoundedFieldPersistenceKeys2 const& keys2 = CoaddBoundedFieldPersistenceKeys2::get();
     afw::table::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
-    PTR(afw::table::BaseRecord) record1 = cat1.addNew();
+    std::shared_ptr<afw::table::BaseRecord> record1 = cat1.addNew();
     record1->set(keys1.bboxMin, getBBox().getMin());
     record1->set(keys1.bboxMax, getBBox().getMax());
     record1->set(keys1.coaddWcs, handle.put(_coaddWcs));
@@ -242,7 +242,7 @@ void CoaddBoundedField::write(OutputArchiveHandle& handle) const {
     handle.saveCatalog(cat1);
     afw::table::BaseCatalog cat2 = handle.makeCatalog(keys2.schema);
     for (ElementVector::const_iterator i = _elements.begin(); i != _elements.end(); ++i) {
-        PTR(afw::table::BaseRecord) record2 = cat2.addNew();
+        std::shared_ptr<afw::table::BaseRecord> record2 = cat2.addNew();
         record2->set(keys2.field, handle.put(i->field));
         record2->set(keys2.wcs, handle.put(i->wcs));
         record2->set(keys2.validPolygon, handle.put(i->validPolygon));
@@ -251,7 +251,7 @@ void CoaddBoundedField::write(OutputArchiveHandle& handle) const {
     handle.saveCatalog(cat2);
 }
 
-PTR(afw::math::BoundedField) CoaddBoundedField::operator*(double const scale) const {
+std::shared_ptr<afw::math::BoundedField> CoaddBoundedField::operator*(double const scale) const {
     throw LSST_EXCEPT(pex::exceptions::NotFoundError, "Scaling of CoaddBoundedField is not implemented");
 }
 

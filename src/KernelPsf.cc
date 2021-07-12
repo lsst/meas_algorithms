@@ -19,9 +19,9 @@ PersistableFacade<meas::algorithms::KernelPsf>::dynamicCast(std::shared_ptr<Pers
 namespace meas {
 namespace algorithms {
 
-PTR(afw::detection::Psf::Image)
+std::shared_ptr<afw::detection::Psf::Image>
 KernelPsf::doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const {
-    PTR(Psf::Image) im = std::make_shared<Psf::Image>(_kernel->getDimensions());
+    std::shared_ptr<Psf::Image> im = std::make_shared<Psf::Image>(_kernel->getDimensions());
     _kernel->computeImage(*im, true, position.getX(), position.getY());
     return im;
 }
@@ -35,12 +35,12 @@ KernelPsf::KernelPsf(afw::math::Kernel const& kernel, geom::Point2D const& avera
           _kernel(kernel.clone()),
           _averagePosition(averagePosition) {}
 
-KernelPsf::KernelPsf(PTR(afw::math::Kernel) kernel, geom::Point2D const& averagePosition)
+KernelPsf::KernelPsf(std::shared_ptr<afw::math::Kernel> kernel, geom::Point2D const& averagePosition)
         : ImagePsf(!kernel->isSpatiallyVarying()), _kernel(kernel), _averagePosition(averagePosition) {}
 
-PTR(afw::detection::Psf) KernelPsf::clone() const { return std::make_shared<KernelPsf>(*this); }
+std::shared_ptr<afw::detection::Psf> KernelPsf::clone() const { return std::make_shared<KernelPsf>(*this); }
 
-PTR(afw::detection::Psf) KernelPsf::resized(int width, int height) const {
+std::shared_ptr<afw::detection::Psf> KernelPsf::resized(int width, int height) const {
     return std::make_shared<KernelPsf>(*_kernel->resized(width, height), _averagePosition);
 }
 
@@ -72,7 +72,7 @@ std::string KernelPsf::getPythonModule() const { return "lsst.meas.algorithms"; 
 void KernelPsf::write(OutputArchiveHandle& handle) const {
     static KernelPsfPersistenceHelper const& keys = KernelPsfPersistenceHelper::get();
     afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
-    PTR(afw::table::BaseRecord) record = catalog.addNew();
+    std::shared_ptr<afw::table::BaseRecord> record = catalog.addNew();
     record->set(keys.kernel, handle.put(_kernel));
     record->set(keys.averagePosition, _averagePosition);
     handle.saveCatalog(catalog);

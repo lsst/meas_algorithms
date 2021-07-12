@@ -55,7 +55,7 @@ double ImagePsf::doComputeApertureFlux(double radius, geom::Point2D const& posit
 
 afw::geom::ellipses::Quadrupole ImagePsf::doComputeShape(geom::Point2D const& position,
                                                          afw::image::Color const& color) const {
-    PTR(Image) image = computeKernelImage(position, color, INTERNAL);
+    std::shared_ptr<Image> image = computeKernelImage(position, color, INTERNAL);
     return meas::base::SdssShapeAlgorithm::computeAdaptiveMoments(
                    *image, geom::Point2D(0.0, 0.0)  // image has origin at the center
                    )

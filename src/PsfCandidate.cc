@@ -161,7 +161,7 @@ private:
 ///   masked if they are not in the central footprint.  This is only applied if the pixelThreshold is
 ///   positive.  This deals with faint neighbouring sources.
 template <typename PixelT>
-PTR(afw::image::MaskedImage<PixelT>)
+std::shared_ptr<afw::image::MaskedImage<PixelT>>
 PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
                                    unsigned int height  // Height of image
                                    ) const {
@@ -172,7 +172,7 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
 
     geom::BoxI bbox(llc, geom::ExtentI(width, height));
 
-    PTR(MaskedImageT) image;
+    std::shared_ptr<MaskedImageT> image;
     try {
         MaskedImageT mimg = _parentExposure->getMaskedImage();
         image.reset(new MaskedImageT(mimg, bbox, afw::image::LOCAL, true));  // a deep copy
@@ -190,13 +190,13 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
 
     // Mask out blended objects
     if (getMaskBlends()) {
-        CONST_PTR(afw::detection::Footprint) foot = getSource()->getFootprint();
+        std::shared_ptr<afw::detection::Footprint const> foot = getSource()->getFootprint();
         typedef afw::detection::PeakCatalog PeakCatalog;
         PeakCatalog const& peaks = foot->getPeaks();
         if (peaks.size() > 1) {
             // Mask all pixels in the footprint except for those closest to the central peak
             double best = std::numeric_limits<double>::infinity();
-            PTR(afw::detection::PeakRecord) central;
+            std::shared_ptr<afw::detection::PeakRecord> central;
             for (PeakCatalog::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
                 double const dist2 = distanceSquared(getXCenter(), getYCenter(), *iter);
                 if (dist2 < best) {
@@ -209,7 +209,7 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
             PeakCatalog others(peaks.getTable());
             others.reserve(peaks.size() - 1);
             for (PeakCatalog::const_iterator iter = peaks.begin(), end = peaks.end(); iter != end; ++iter) {
-                PTR(afw::detection::PeakRecord) ptr(iter);
+                std::shared_ptr<afw::detection::PeakRecord> ptr(iter);
                 if (central != ptr) {
                     others.push_back(ptr);
                 }
@@ -226,10 +226,10 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
      */
     typedef afw::detection::FootprintSet::FootprintList FootprintList;
 
-    PTR(afw::image::Image<int>) mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
-    PTR(afw::detection::FootprintSet)
+    std::shared_ptr<afw::image::Image<int>> mim = makeImageFromMask<int>(*image->getMask(), makeAndMask(detected));
+    std::shared_ptr<afw::detection::FootprintSet>
     fs = std::make_shared<afw::detection::FootprintSet>(*mim, afw::detection::Threshold(1));
-    CONST_PTR(FootprintList) feet = fs->getFootprints();
+    std::shared_ptr<FootprintList const> feet = fs->getFootprints();
 
     if (feet->size() > 1) {
         int const ngrow = 3;  // number of pixels to grow bad Footprints
@@ -237,7 +237,7 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
         // Go through Footprints looking for ones that don't contain cen
         //
         for (FootprintList::const_iterator fiter = feet->begin(); fiter != feet->end(); ++fiter) {
-            PTR(afw::detection::Footprint) foot = *fiter;
+            std::shared_ptr<afw::detection::Footprint> foot = *fiter;
             if (foot->contains(cen)) {
                 continue;
             }
@@ -251,12 +251,12 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
 
     // Mask high pixels unconnected to the center
     if (_pixelThreshold > 0.0) {
-        CONST_PTR(afw::detection::FootprintSet)
+        std::shared_ptr<afw::detection::FootprintSet const>
         fpSet = std::make_shared<afw::detection::FootprintSet>(
                 *image, afw::detection::Threshold(_pixelThreshold, afw::detection::Threshold::PIXEL_STDEV));
         for (FootprintList::const_iterator fpIter = fpSet->getFootprints()->begin();
              fpIter != fpSet->getFootprints()->end(); ++fpIter) {
-            CONST_PTR(afw::detection::Footprint) fp = *fpIter;
+            std::shared_ptr<afw::detection::Footprint const> fp = *fpIter;
             if (!fp->contains(cen)) {
                 fp->getSpans()->clearMask(*image->getMask(), detected);
                 fp->getSpans()->setMask(*image->getMask(), intrp);
@@ -273,7 +273,7 @@ PsfCandidate<PixelT>::extractImage(unsigned int width,  // Width of image
  *
  */
 template <typename PixelT>
-CONST_PTR(afw::image::MaskedImage<PixelT>)
+std::shared_ptr<afw::image::MaskedImage<PixelT> const>
 PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
     if (!_image || (width != _image->getWidth() || height != _image->getHeight())) {
         _image = extractImage(width, height);
@@ -287,7 +287,7 @@ PsfCandidate<PixelT>::getMaskedImage(int width, int height) const {
  *
  */
 template <typename PixelT>
-CONST_PTR(afw::image::MaskedImage<PixelT>)
+std::shared_ptr<afw::image::MaskedImage<PixelT> const>
 PsfCandidate<PixelT>::getMaskedImage() const {
     int const width = getWidth() == 0 ? _defaultWidth : getWidth();
     int const height = getHeight() == 0 ? _defaultWidth : getHeight();
@@ -330,7 +330,7 @@ bool PsfCandidate<PixelT>::getMaskBlends() {
  *
  */
 template <typename PixelT>
-PTR(afw::image::MaskedImage<PixelT>)
+std::shared_ptr<afw::image::MaskedImage<PixelT>>
 PsfCandidate<PixelT>::getOffsetImage(std::string const algorithm,  // Warping algorithm to use
                                      unsigned int buffer           // Buffer for warping
                                      ) const {
@@ -341,13 +341,13 @@ PsfCandidate<PixelT>::getOffsetImage(std::string const algorithm,  // Warping al
         return _offsetImage;
     }
 
-    PTR(MaskedImageT) image = extractImage(width + 2 * buffer, height + 2 * buffer);
+    std::shared_ptr<MaskedImageT> image = extractImage(width + 2 * buffer, height + 2 * buffer);
 
     double const xcen = getXCenter(), ycen = getYCenter();
     double const dx = afw::image::positionToIndex(xcen, true).second;
     double const dy = afw::image::positionToIndex(ycen, true).second;
 
-    PTR(MaskedImageT) offset = afw::math::offsetImage(*image, -dx, -dy, algorithm);
+    std::shared_ptr<MaskedImageT> offset = afw::math::offsetImage(*image, -dx, -dy, algorithm);
     geom::Point2I llc(buffer, buffer);
     geom::Extent2I dims(width, height);
     geom::Box2I box(llc, dims);

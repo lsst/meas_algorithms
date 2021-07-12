@@ -54,14 +54,16 @@ private:
 template <typename T = KernelPsf, typename K = afw::math::Kernel>
 class KernelPsfFactory : public afw::table::io::PersistableFactory {
 public:
-    virtual PTR(afw::table::io::Persistable) read(afw::table::io::InputArchive const& archive,
+    virtual std::shared_ptr<afw::table::io::Persistable> read(afw::table::io::InputArchive const& archive,
                                                   afw::table::io::CatalogVector const& catalogs) const {
         static KernelPsfPersistenceHelper const& keys = KernelPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
         LSST_ARCHIVE_ASSERT(catalogs.front().size() == 1u);
         afw::table::BaseRecord const& record = catalogs.front().front();
         LSST_ARCHIVE_ASSERT(record.getSchema() == keys.schema);
-        return PTR(T)(new T(archive.get<K>(record.get(keys.kernel)), record.get(keys.averagePosition)));
+        // make_shared cannot be used here because
+        // the KernelPsf constructor that takes shared_ptr<Kernel> is protected
+        return std::shared_ptr<T>(new T(archive.get<K>(record.get(keys.kernel)), record.get(keys.averagePosition)));
     }
 
     KernelPsfFactory(std::string const& name) : afw::table::io::PersistableFactory(name) {}

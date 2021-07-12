@@ -65,8 +65,8 @@ public:
      *
      * The x/yCenter is set to source.getX/YAstrom()
      */
-    PsfCandidate(PTR(afw::table::SourceRecord) const & source,  ///< The detected Source
-                 CONST_PTR(afw::image::Exposure<PixelT>)
+    PsfCandidate(std::shared_ptr<afw::table::SourceRecord> const & source,  ///< The detected Source
+                 std::shared_ptr<afw::image::Exposure<PixelT> const>
                          parentExposure  ///< The image wherein lie the Sources
                  )
             : afw::math::SpatialCellImageCandidate(source->getX(), source->getY()),
@@ -80,8 +80,8 @@ public:
     /**
      * Construct a PsfCandidate from a specified source, image and xyCenter.
      */
-    PsfCandidate(PTR(afw::table::SourceRecord) const & source,  ///< The detected Source
-                 CONST_PTR(afw::image::Exposure<PixelT>)
+    PsfCandidate(std::shared_ptr<afw::table::SourceRecord> const & source,  ///< The detected Source
+                 std::shared_ptr<afw::image::Exposure<PixelT> const>
                          parentExposure,  ///< The image wherein lie the Sources
                  double xCenter,          ///< the desired x center
                  double yCenter           ///< the desired y center
@@ -105,7 +105,7 @@ public:
     double getCandidateRating() const { return _source->getPsfInstFlux(); }
 
     /// Return the original Source
-    PTR(afw::table::SourceRecord) getSource() const { return _source; }
+    std::shared_ptr<afw::table::SourceRecord> getSource() const { return _source; }
 
     /// Return the best-fit amplitude
     double getAmplitude() const { return _amplitude; }
@@ -119,9 +119,9 @@ public:
     /// Set the variance to use when fitting this object
     void setVar(double var) { _var = var; }
 
-    CONST_PTR(afw::image::MaskedImage<PixelT>) getMaskedImage() const;
-    CONST_PTR(afw::image::MaskedImage<PixelT>) getMaskedImage(int width, int height) const;
-    PTR(afw::image::MaskedImage<PixelT>)
+    std::shared_ptr<afw::image::MaskedImage<PixelT> const> getMaskedImage() const;
+    std::shared_ptr<afw::image::MaskedImage<PixelT> const> getMaskedImage(int width, int height) const;
+    std::shared_ptr<afw::image::MaskedImage<PixelT>>
     getOffsetImage(std::string const algorithm, unsigned int buffer) const;
 
     /// Return the number of pixels being ignored around the candidate image's edge
@@ -145,17 +145,17 @@ public:
     static bool getMaskBlends();
 
 private:
-    CONST_PTR(afw::image::Exposure<PixelT>)
+    std::shared_ptr<afw::image::Exposure<PixelT> const>
     _parentExposure;  // the %image that the Sources are found in
 
-    PTR(afw::image::MaskedImage<PixelT>)
-    offsetImage(PTR(afw::image::MaskedImage<PixelT>) img, std::string const algorithm, unsigned int buffer);
+    std::shared_ptr<afw::image::MaskedImage<PixelT>>
+    offsetImage(std::shared_ptr<afw::image::MaskedImage<PixelT>> img, std::string const algorithm, unsigned int buffer);
 
-    PTR(afw::image::MaskedImage<PixelT>)
+    std::shared_ptr<afw::image::MaskedImage<PixelT>>
     extractImage(unsigned int width, unsigned int height) const;
 
-    PTR(afw::image::MaskedImage<PixelT>) mutable _offsetImage;  // %image offset to put center on a pixel
-    PTR(afw::table::SourceRecord) _source;                      // the Source itself
+    std::shared_ptr<afw::image::MaskedImage<PixelT>> mutable _offsetImage;  // %image offset to put center on a pixel
+    std::shared_ptr<afw::table::SourceRecord> _source;                      // the Source itself
 
     mutable std::shared_ptr<afw::image::MaskedImage<PixelT>> _image;  // cutout image to return (cached)
     double _amplitude;   // best-fit amplitude of current PSF model
@@ -173,9 +173,9 @@ private:
  * Cf. std::make_pair
  */
 template <typename PixelT>
-std::shared_ptr<PsfCandidate<PixelT>> makePsfCandidate(PTR(afw::table::SourceRecord)
+std::shared_ptr<PsfCandidate<PixelT>> makePsfCandidate(std::shared_ptr<afw::table::SourceRecord>
                                                                const & source,  ///< The detected Source
-                                                       PTR(afw::image::Exposure<PixelT>)
+                                                       std::shared_ptr<afw::image::Exposure<PixelT>>
                                                                image  ///< The image wherein lies the object
                                                        ) {
     return std::make_shared<PsfCandidate<PixelT>>(source, image);

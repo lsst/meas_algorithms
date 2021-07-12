@@ -45,10 +45,10 @@ public:
     DoubleGaussianPsf(int width, int height, double sigma1, double sigma2 = 0.0, double b = 0.0);
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
-    PTR(afw::detection::Psf) clone() const override;
+    std::shared_ptr<afw::detection::Psf> clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    PTR(afw::detection::Psf) resized(int width, int height) const override;
+    std::shared_ptr<afw::detection::Psf> resized(int width, int height) const override;
 
     /// Return the radius of the inner Gaussian.
     double getSigma1() const { return _sigma1; }

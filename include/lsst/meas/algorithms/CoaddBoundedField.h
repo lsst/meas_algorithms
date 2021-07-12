@@ -35,8 +35,8 @@ namespace algorithms {
 
 /// Struct used to hold one Exposure's data in a CoaddBoundedField
 struct CoaddBoundedFieldElement {
-    CoaddBoundedFieldElement(PTR(afw::math::BoundedField) field_, PTR(afw::geom::SkyWcs const) wcs_,
-                             PTR(afw::geom::polygon::Polygon const) validPolygon_, double weight_ = 1.0)
+    CoaddBoundedFieldElement(std::shared_ptr<afw::math::BoundedField> field_, std::shared_ptr<afw::geom::SkyWcs const> wcs_,
+                             std::shared_ptr<afw::geom::polygon::Polygon const> validPolygon_, double weight_ = 1.0)
             : field(field_), wcs(wcs_), validPolygon(validPolygon_), weight(weight_) {}
 
     /**
@@ -50,9 +50,9 @@ struct CoaddBoundedFieldElement {
     /// @copydoc operator==
     bool operator!=(CoaddBoundedFieldElement const& rhs) const { return !(*this == rhs); };
 
-    PTR(afw::math::BoundedField) field;
-    PTR(afw::geom::SkyWcs const) wcs;
-    PTR(afw::geom::polygon::Polygon const) validPolygon;
+    std::shared_ptr<afw::math::BoundedField> field;
+    std::shared_ptr<afw::geom::SkyWcs const> wcs;
+    std::shared_ptr<afw::geom::polygon::Polygon const> validPolygon;
     double weight;
 };
 
@@ -62,10 +62,10 @@ public:
     typedef CoaddBoundedFieldElement Element;
     typedef std::vector<Element> ElementVector;
 
-    explicit CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+    explicit CoaddBoundedField(geom::Box2I const& bbox, std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                                ElementVector const& elements);
 
-    explicit CoaddBoundedField(geom::Box2I const& bbox, PTR(afw::geom::SkyWcs const) coaddWcs,
+    explicit CoaddBoundedField(geom::Box2I const& bbox, std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                                ElementVector const& elements, double default_);
 
     /// @copydoc afw::math::BoundedField::evaluate
@@ -88,7 +88,7 @@ public:
     // Factory used to read CoaddPsf from an InputArchive; defined only in the source file.
     class Factory;
 
-    PTR(afw::math::BoundedField) operator*(double const scale) const override;
+    std::shared_ptr<afw::math::BoundedField> operator*(double const scale) const override;
 
     /// BoundedFields (of the same sublcass) are equal if their bounding boxes and parameters are equal.
     bool operator==(BoundedField const& rhs) const override;
@@ -106,7 +106,7 @@ protected:
 private:
     bool _throwOnMissing;  // instead of using _default, raise an exception
     double _default;       // when none of the elements contribute at a point, return this value
-    PTR(afw::geom::SkyWcs const) _coaddWcs;  // coordinate system this field is defined in
+    std::shared_ptr<afw::geom::SkyWcs const> _coaddWcs;  // coordinate system this field is defined in
     ElementVector _elements;                 // vector of constituent fields being coadded
 
     std::string toString() const override {

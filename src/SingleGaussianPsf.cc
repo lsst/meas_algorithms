@@ -86,7 +86,7 @@ private:
 
 class SingleGaussianPsfFactory : public afw::table::io::PersistableFactory {
 public:
-    virtual PTR(afw::table::io::Persistable)
+    virtual std::shared_ptr<afw::table::io::Persistable>
             read(InputArchive const& archive, CatalogVector const& catalogs) const {
         static SingleGaussianPsfPersistenceHelper const& keys = SingleGaussianPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
@@ -103,7 +103,7 @@ public:
 
 SingleGaussianPsfFactory registration("SingleGaussianPsf");
 
-PTR(afw::math::Kernel) makeSingleGaussianKernel(int width, int height, double sigma) {
+std::shared_ptr<afw::math::Kernel> makeSingleGaussianKernel(int width, int height, double sigma) {
     if (sigma <= 0) {
         throw LSST_EXCEPT(pex::exceptions::DomainError,
                           (boost::format("sigma may not be 0: %g") % sigma).str());
@@ -117,11 +117,11 @@ PTR(afw::math::Kernel) makeSingleGaussianKernel(int width, int height, double si
 SingleGaussianPsf::SingleGaussianPsf(int width, int height, double sigma)
         : KernelPsf(makeSingleGaussianKernel(width, height, sigma)), _sigma(sigma) {}
 
-PTR(afw::detection::Psf) SingleGaussianPsf::clone() const {
+std::shared_ptr<afw::detection::Psf> SingleGaussianPsf::clone() const {
     return std::make_shared<SingleGaussianPsf>(getKernel()->getWidth(), getKernel()->getHeight(), _sigma);
 }
 
-PTR(afw::detection::Psf) SingleGaussianPsf::resized(int width, int height) const {
+std::shared_ptr<afw::detection::Psf> SingleGaussianPsf::resized(int width, int height) const {
     return std::make_shared<SingleGaussianPsf>(width, height, _sigma);
 }
 
@@ -130,7 +130,7 @@ std::string SingleGaussianPsf::getPersistenceName() const { return "SingleGaussi
 void SingleGaussianPsf::write(OutputArchiveHandle& handle) const {
     static SingleGaussianPsfPersistenceHelper const& keys = SingleGaussianPsfPersistenceHelper::get();
     afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
-    PTR(afw::table::BaseRecord) record = catalog.addNew();
+    std::shared_ptr<afw::table::BaseRecord> record = catalog.addNew();
     (*record)[keys.dimensions.getX()] = getKernel()->getWidth();
     (*record)[keys.dimensions.getY()] = getKernel()->getHeight();
     (*record)[keys.sigma] = getSigma();

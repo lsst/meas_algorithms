@@ -83,7 +83,7 @@ private:
 
 class DoubleGaussianPsfFactory : public afw::table::io::PersistableFactory {
 public:
-    virtual PTR(afw::table::io::Persistable)
+    virtual std::shared_ptr<afw::table::io::Persistable>
             read(InputArchive const& archive, CatalogVector const& catalogs) const {
         static DoubleGaussianPsfPersistenceHelper const& keys = DoubleGaussianPsfPersistenceHelper::get();
         LSST_ARCHIVE_ASSERT(catalogs.size() == 1u);
@@ -100,7 +100,7 @@ public:
 
 // Helper function for ctor: need to construct the kernel to pass to KernelPsf, because we
 // can't change it after construction.
-PTR(afw::math::Kernel)
+std::shared_ptr<afw::math::Kernel>
 makeDoubleGaussianKernel(int width, int height, double sigma1, double& sigma2, double b) {
     if (b == 0.0 && sigma2 == 0.0) {
         sigma2 = 1.0;  // avoid 0/0 at centre of Psf
@@ -110,7 +110,7 @@ makeDoubleGaussianKernel(int width, int height, double sigma1, double& sigma2, d
                           (boost::format("sigma may not be 0: %g, %g") % sigma1 % sigma2).str());
     }
     afw::math::DoubleGaussianFunction2<double> dg(sigma1, sigma2, b);
-    PTR(afw::math::Kernel) kernel(new afw::math::AnalyticKernel(width, height, dg));
+    std::shared_ptr<afw::math::Kernel> kernel(new afw::math::AnalyticKernel(width, height, dg));
     return kernel;
 }
 
@@ -126,12 +126,12 @@ DoubleGaussianPsf::DoubleGaussianPsf(int width, int height, double sigma1, doubl
           _sigma2(sigma2),
           _b(b) {}
 
-PTR(afw::detection::Psf) DoubleGaussianPsf::clone() const {
+std::shared_ptr<afw::detection::Psf> DoubleGaussianPsf::clone() const {
     return std::make_shared<DoubleGaussianPsf>(getKernel()->getWidth(), getKernel()->getHeight(), _sigma1,
                                                _sigma2, _b);
 }
 
-PTR(afw::detection::Psf) DoubleGaussianPsf::resized(int width, int height) const {
+    std::shared_ptr<afw::detection::Psf> DoubleGaussianPsf::resized(int width, int height) const {
     return std::make_shared<DoubleGaussianPsf>(width, height, _sigma1, _sigma2, _b);
 }
 
@@ -140,7 +140,7 @@ std::string DoubleGaussianPsf::getPersistenceName() const { return getDoubleGaus
 void DoubleGaussianPsf::write(OutputArchiveHandle& handle) const {
     static DoubleGaussianPsfPersistenceHelper const& keys = DoubleGaussianPsfPersistenceHelper::get();
     afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
-    PTR(afw::table::BaseRecord) record = catalog.addNew();
+    std::shared_ptr<afw::table::BaseRecord> record = catalog.addNew();
     (*record).set(keys.dimensions.getX(), getKernel()->getWidth());
     (*record).set(keys.dimensions.getY(), getKernel()->getHeight());
     (*record).set(keys.sigma1, getSigma1());

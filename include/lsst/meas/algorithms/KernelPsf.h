@@ -49,23 +49,23 @@ public:
                        geom::Point2D const& averagePosition = geom::Point2D());
 
     /// Return the Kernel used to define this Psf.
-    PTR(afw::math::Kernel const) getKernel() const { return _kernel; }
+    std::shared_ptr<afw::math::Kernel const> getKernel() const { return _kernel; }
 
     /// Return average position of stars; used as default position.
     geom::Point2D getAveragePosition() const override;
 
     /// Polymorphic deep copy.
-    PTR(afw::detection::Psf) clone() const override;
+    std::shared_ptr<afw::detection::Psf> clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    PTR(afw::detection::Psf) resized(int width, int height) const override;
+    std::shared_ptr<afw::detection::Psf> resized(int width, int height) const override;
 
     /// Whether this object is persistable; just delegates to the kernel.
      bool isPersistable() const noexcept override;
 
 protected:
     /// Construct a KernelPsf with the given kernel; it should not be modified afterwards.
-    explicit KernelPsf(PTR(afw::math::Kernel) kernel, geom::Point2D const& averagePosition = geom::Point2D());
+    explicit KernelPsf(std::shared_ptr<afw::math::Kernel> kernel, geom::Point2D const& averagePosition = geom::Point2D());
 
     // Name to use persist this object as (should be overridden by derived classes).
     std::string getPersistenceName() const override;
@@ -81,12 +81,12 @@ protected:
     friend class KernelPsfFactory;
 
 private:
-    PTR(Image)
+    std::shared_ptr<Image>
     doComputeKernelImage(geom::Point2D const& position, afw::image::Color const& color) const override;
 
     geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const override;
 
-    PTR(afw::math::Kernel) _kernel;
+    std::shared_ptr<afw::math::Kernel> _kernel;
     geom::Point2D _averagePosition;
 };
 
