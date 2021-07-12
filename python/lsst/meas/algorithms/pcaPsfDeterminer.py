@@ -183,7 +183,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 if nEigen == 1:         # can't go any lower
                     raise IndexError("No viable PSF candidates survive")
 
-                self.log.warning("%s: reducing number of eigen components" % e.what())
+                self.log.warning("%s: reducing number of eigen components", e.what())
         #
         # We got our eigen decomposition so let's use it
         #

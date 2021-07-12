@@ -578,10 +578,10 @@ class SourceDetectionTask(pipeBase.Task):
             results.numNegPeaks = sum(len(fp.getPeaks()) for fp in results.negative.getFootprints())
             negative = " %d negative peaks in %d footprints" % (results.numNegPeaks, results.numNeg)
 
-        self.log.info("Detected%s%s%s to %g %s" %
-                      (positive, " and" if positive and negative else "", negative,
-                       self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
-                       "DN" if self.config.thresholdType == "value" else "sigma"))
+        self.log.info("Detected%s%s%s to %g %s",
+                      positive, " and" if positive and negative else "", negative,
+                      self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
+                      "DN" if self.config.thresholdType == "value" else "sigma")
 
     def reEstimateBackground(self, maskedImage, backgrounds):
         """Estimate the background after detection

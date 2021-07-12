@@ -163,7 +163,7 @@ class MeasureApCorrTask(Task):
         display = lsstDebug.Info(__name__).display
         doPause = lsstDebug.Info(__name__).doPause
 
-        self.log.info("Measuring aperture corrections for %d flux fields" % (len(self.toCorrect),))
+        self.log.info("Measuring aperture corrections for %d flux fields", len(self.toCorrect))
         # First, create a subset of the catalog that contains only selected stars
         # with non-flagged reference fluxes.
         subset1 = [record for record in self.sourceSelector.run(catalog, exposure=exposure).sourceCat
@@ -193,8 +193,8 @@ class MeasureApCorrTask(Task):
             if len(subset2) - 1 < self.config.minDegreesOfFreedom:
                 if name in self.config.allowFailure:
                     self.log.warning("Unable to measure aperture correction for '%s': "
-                                     "only %d sources, but require at least %d." %
-                                     (name, len(subset2), self.config.minDegreesOfFreedom+1))
+                                     "only %d sources, but require at least %d.",
+                                     name, len(subset2), self.config.minDegreesOfFreedom+1)
                     continue
                 raise RuntimeError("Unable to measure aperture correction for required algorithm '%s': "
                                    "only %d sources, but require at least %d." %
@@ -244,8 +244,8 @@ class MeasureApCorrTask(Task):
             # Final fit after clipping
             apCorrField = ChebyshevBoundedField.fit(bbox, x, y, apCorrData, ctrl)
 
-            self.log.info("Aperture correction for %s: RMS %f from %d" %
-                          (name, numpy.mean((apCorrField.evaluate(x, y) - apCorrData)**2)**0.5, len(indices)))
+            self.log.info("Aperture correction for %s: RMS %f from %d",
+                          name, numpy.mean((apCorrField.evaluate(x, y) - apCorrData)**2)**0.5, len(indices))
 
             if display:
                 plotApCorr(bbox, x, y, apCorrData, apCorrField, "%s, final" % (name,), doPause)

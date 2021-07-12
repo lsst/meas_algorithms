@@ -73,7 +73,7 @@ def process_one(filename, write=False, quiet=False):
     if quiet:
         log.setLevel(lsst.log.WARN)
 
-    log.info(f"Reading: {filename}")
+    log.info("Reading: %s", filename)
     catalog = lsst.afw.table.SimpleCatalog.readFits(filename)
 
     output = convertToNanojansky(catalog, log, doConvert=write)
@@ -81,7 +81,7 @@ def process_one(filename, write=False, quiet=False):
     if write:
         addRefCatMetadata(output)
         output.writeFits(filename)
-        log.info(f"Wrote: {filename}")
+        log.info("Wrote: %s", filename)
 
 
 def main():

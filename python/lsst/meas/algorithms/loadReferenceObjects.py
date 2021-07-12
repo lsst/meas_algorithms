@@ -138,10 +138,10 @@ def convertToNanojansky(catalog, log, doConvert=True):
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9
-        log.info(f"Converted refcat flux fields to nJy (name, units): {fluxFieldsStr}")
+        log.info("Converted refcat flux fields to nJy (name, units): %s", fluxFieldsStr)
         return output
     else:
-        log.info(f"Found old-style refcat flux fields (name, units): {fluxFieldsStr}")
+        log.info("Found old-style refcat flux fields (name, units): %s", fluxFieldsStr)
         return None
 
 
@@ -454,9 +454,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         regionLat = region.getBoundingBox().getLat()
         regionLon = region.getBoundingBox().getLon()
         self.log.info("Loading reference objects from region bounded by "
-                      "[{:.8f}, {:.8f}], [{:.8f}, {:.8f}] RA Dec".
-                      format(regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
-                             regionLat.getA().asDegrees(), regionLat.getB().asDegrees()))
+                      "[%.8f, %.8f], [%.8f, %.8f] RA Dec",
+                      regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
+                      regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
             filtFunc = _FilterCatalog(region)
         # filter out all the regions supplied by the constructor that do not overlap
@@ -490,9 +490,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             refCat.extend(filteredCat)
             trimmedAmount += len(tmpCat) - len(filteredCat)
 
-        self.log.debug(f"Trimmed {trimmedAmount} refCat objects lying outside padded region, "
-                       "leaving {len(refCat)}")
-        self.log.info(f"Loaded {len(refCat)} reference objects")
+        self.log.debug("Trimmed %d refCat objects lying outside padded region, leaving %d",
+                       trimmedAmount, len(refCat))
+        self.log.info("Loaded %d reference objects", len(refCat))
 
         # Ensure that the loaded reference catalog is continuous in memory
         if not refCat.isContiguous():
@@ -957,8 +957,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
-        self.log.info("Loading reference objects using center %s and radius %s deg" %
-                      (circle.coord, circle.radius.asDegrees()))
+        self.log.info("Loading reference objects using center %s and radius %s deg",
+                      circle.coord, circle.radius.asDegrees())
         loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName=filterName, epoch=epoch,
                                      centroids=True)
         refCat = loadRes.refCat
