@@ -194,11 +194,11 @@ class MeasureApCorrTask(Task):
                 if name in self.config.allowFailure:
                     self.log.warning("Unable to measure aperture correction for '%s': "
                                      "only %d sources, but require at least %d.",
-                                     name, len(subset2), self.config.minDegreesOfFreedom+1)
+                                     name, len(subset2), self.config.minDegreesOfFreedom + 1)
                     continue
                 raise RuntimeError("Unable to measure aperture correction for required algorithm '%s': "
                                    "only %d sources, but require at least %d." %
-                                   (name, len(subset2), self.config.minDegreesOfFreedom+1))
+                                   (name, len(subset2), self.config.minDegreesOfFreedom + 1))
 
             # If we don't have enough data points to constrain the fit, reduce the order until we do
             ctrl = self.config.fitConfig.makeControl()
