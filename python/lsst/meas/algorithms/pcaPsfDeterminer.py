@@ -183,7 +183,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 if nEigen == 1:         # can't go any lower
                     raise IndexError("No viable PSF candidates survive")
 
-                self.log.warn("%s: reducing number of eigen components" % e.what())
+                self.log.warning("%s: reducing number of eigen components", e.what())
         #
         # We got our eigen decomposition so let's use it
         #
@@ -275,10 +275,10 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         nEigenComponents = self.config.nEigenComponents  # initial version
 
         if self.config.kernelSize >= 15:
-            self.log.warn("WARNING: NOT scaling kernelSize by stellar quadrupole moment "
-                          "because config.kernelSize=%s >= 15; "
-                          "using config.kernelSize as as the width, instead",
-                          self.config.kernelSize)
+            self.log.warning("WARNING: NOT scaling kernelSize by stellar quadrupole moment "
+                             "because config.kernelSize=%s >= 15; "
+                             "using config.kernelSize as the width, instead",
+                             self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
         else:
             medSize = numpy.median(sizes)

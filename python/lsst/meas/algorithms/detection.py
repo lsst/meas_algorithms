@@ -190,8 +190,8 @@ class SourceDetectionTask(pipeBase.Task):
             )
         else:
             if self.config.thresholdPolarity == "both":
-                self.log.warn("Detection polarity set to 'both', but no flag will be "
-                              "set to distinguish between positive and negative detections")
+                self.log.warning("Detection polarity set to 'both', but no flag will be "
+                                 "set to distinguish between positive and negative detections")
             self.negativeFlagKey = None
         if self.config.reEstimateBackground:
             self.makeSubtask("background")
@@ -578,10 +578,10 @@ class SourceDetectionTask(pipeBase.Task):
             results.numNegPeaks = sum(len(fp.getPeaks()) for fp in results.negative.getFootprints())
             negative = " %d negative peaks in %d footprints" % (results.numNegPeaks, results.numNeg)
 
-        self.log.info("Detected%s%s%s to %g %s" %
-                      (positive, " and" if positive and negative else "", negative,
-                       self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
-                       "DN" if self.config.thresholdType == "value" else "sigma"))
+        self.log.info("Detected%s%s%s to %g %s",
+                      positive, " and" if positive and negative else "", negative,
+                      self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
+                      "DN" if self.config.thresholdType == "value" else "sigma")
 
     def reEstimateBackground(self, maskedImage, backgrounds):
         """Estimate the background after detection
@@ -600,7 +600,7 @@ class SourceDetectionTask(pipeBase.Task):
         """
         bg = self.background.fitBackground(maskedImage)
         if self.config.adjustBackground:
-            self.log.warn("Fiddling the background by %g", self.config.adjustBackground)
+            self.log.warning("Fiddling the background by %g", self.config.adjustBackground)
             bg += self.config.adjustBackground
         self.log.info("Resubtracting the background after object detection")
         maskedImage -= bg.getImageF(self.background.config.algorithm,

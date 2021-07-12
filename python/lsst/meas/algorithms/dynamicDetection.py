@@ -126,8 +126,8 @@ class DynamicDetectionTask(SourceDetectionTask):
                 & np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
 
         if good.sum() < self.config.minNumSources:
-            self.log.warn("Insufficient good flux measurements (%d < %d) for dynamic threshold calculation",
-                          good.sum(), self.config.minNumSources)
+            self.log.warning("Insufficient good flux measurements (%d < %d) for dynamic threshold"
+                             " calculation", good.sum(), self.config.minNumSources)
             return Struct(multiplicative=1.0, additive=0.0)
 
         bgMedian = np.median((fluxes/area)[good])

@@ -128,7 +128,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
 
                 im = psfCandidate.getMaskedImage().getImage()
             except lsst.pex.exceptions.Exception as err:
-                self.log.warn("Failed to make a psfCandidate from star %d: %s", star.getId(), err)
+                self.log.warning("Failed to make a psfCandidate from star %d: %s", star.getId(), err)
                 continue
 
             vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()

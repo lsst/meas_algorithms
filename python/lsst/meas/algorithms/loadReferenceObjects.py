@@ -138,10 +138,10 @@ def convertToNanojansky(catalog, log, doConvert=True):
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9
-        log.info(f"Converted refcat flux fields to nJy (name, units): {fluxFieldsStr}")
+        log.info("Converted refcat flux fields to nJy (name, units): %s", fluxFieldsStr)
         return output
     else:
-        log.info(f"Found old-style refcat flux fields (name, units): {fluxFieldsStr}")
+        log.info("Found old-style refcat flux fields (name, units): %s", fluxFieldsStr)
         return None
 
 
@@ -239,14 +239,14 @@ class ReferenceObjectLoaderBase:
             if self.config.requireProperMotion:
                 raise RuntimeError("requireProperMotion=True but refcat pm_ra field is not an Angle.")
             else:
-                self.log.warn("Reference catalog pm_ra field is not an Angle; cannot apply proper motion.")
+                self.log.warning("Reference catalog pm_ra field is not an Angle; cannot apply proper motion.")
                 return
 
         if ("epoch" not in catalog.schema or "pm_ra" not in catalog.schema):
             if self.config.requireProperMotion:
                 raise RuntimeError("requireProperMotion=True but PM data not available from catalog.")
             else:
-                self.log.warn("Proper motion correction not available for this reference catalog.")
+                self.log.warning("Proper motion correction not available for this reference catalog.")
             return
 
         applyProperMotionsImpl(self.log, catalog, epoch)
@@ -454,9 +454,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         regionLat = region.getBoundingBox().getLat()
         regionLon = region.getBoundingBox().getLon()
         self.log.info("Loading reference objects from region bounded by "
-                      "[{:.8f}, {:.8f}], [{:.8f}, {:.8f}] RA Dec".
-                      format(regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
-                             regionLat.getA().asDegrees(), regionLat.getB().asDegrees()))
+                      "[%.8f, %.8f], [%.8f, %.8f] RA Dec",
+                      regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
+                      regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
             filtFunc = _FilterCatalog(region)
         # filter out all the regions supplied by the constructor that do not overlap
@@ -490,9 +490,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             refCat.extend(filteredCat)
             trimmedAmount += len(tmpCat) - len(filteredCat)
 
-        self.log.debug(f"Trimmed {trimmedAmount} refCat objects lying outside padded region, "
-                       "leaving {len(refCat)}")
-        self.log.info(f"Loaded {len(refCat)} reference objects")
+        self.log.debug("Trimmed %d refCat objects lying outside padded region, leaving %d",
+                       trimmedAmount, len(refCat))
+        self.log.info("Loaded %d reference objects", len(refCat))
 
         # Ensure that the loaded reference catalog is continuous in memory
         if not refCat.isContiguous():
@@ -503,9 +503,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         # Verify the schema is in the correct units and has the correct version; automatically convert
         # it with a warning if this is not the case.
         if not hasNanojanskyFluxUnits(refCat.schema) or not getFormatVersionFromRefCat(refCat) >= 1:
-            self.log.warn("Found version 0 reference catalog with old style units in schema.")
-            self.log.warn("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
-            self.log.warn("See RFC-575 for more details.")
+            self.log.warning("Found version 0 reference catalog with old style units in schema.")
+            self.log.warning("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
+            self.log.warning("See RFC-575 for more details.")
             refCat = convertToNanojansky(refCat, self.log)
 
         expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
@@ -957,8 +957,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
-        self.log.info("Loading reference objects using center %s and radius %s deg" %
-                      (circle.coord, circle.radius.asDegrees()))
+        self.log.info("Loading reference objects using center %s and radius %s deg",
+                      circle.coord, circle.radius.asDegrees())
         loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName=filterName, epoch=epoch,
                                      centroids=True)
         refCat = loadRes.refCat
@@ -1479,7 +1479,7 @@ def applyProperMotionsImpl(log, catalog, epoch):
         Epoch to which to correct proper motion.
     """
     if "epoch" not in catalog.schema or "pm_ra" not in catalog.schema or "pm_dec" not in catalog.schema:
-        log.warn("Proper motion correction not available from catalog")
+        log.warning("Proper motion correction not available from catalog")
         return
     if not catalog.isContiguous():
         raise RuntimeError("Catalog must be contiguous")
