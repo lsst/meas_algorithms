@@ -37,10 +37,10 @@ import lsst.pipe.base as pipeBase
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
-    """!Config for SubtractBackgroundTask
+    """Config for SubtractBackgroundTask
 
-    @note Many of these fields match fields in lsst.afw.math.BackgroundControl,
-    the control class for lsst.afw.math.makeBackground
+    Many of these fields match fields in `lsst.afw.math.BackgroundControl`,
+    the control class for `lsst.afw.math.makeBackground`
     """
     statisticsProperty = pexConfig.ChoiceField(
         doc="type of statistic to use for grid points",
@@ -116,121 +116,35 @@ class SubtractBackgroundConfig(pexConfig.Config):
     )
 
 
-## @addtogroup LSST_task_documentation
-## @{
-## @page SubtractBackgroundTask
-## @ref SubtractBackgroundTask_ "SubtractBackgroundTask"
-## @copybrief SubtractBackgroundTask
-## @}
-
 class SubtractBackgroundTask(pipeBase.Task):
-    r"""!Subtract the background from an exposure
-
-    @anchor SubtractBackgroundTask_
-
-    @section meas_algorithms_subtractBackground_Contents  Contents
-
-     - @ref meas_algorithms_subtractBackground_Purpose
-     - @ref meas_algorithms_subtractBackground_Initialize
-     - @ref meas_algorithms_subtractBackground_IO
-     - @ref meas_algorithms_subtractBackground_Config
-     - @ref meas_algorithms_subtractBackground_Metadata
-     - @ref meas_algorithms_subtractBackground_Debug
-     - @ref meas_algorithms_subtractBackground_Example
-
-    @section meas_algorithms_subtractBackground_Purpose  Description
-
-    Fit a model of the background of an exposure and subtract it.
-
-    @section meas_algorithms_subtractBackground_Initialize  Task initialisation
-
-    @copydoc \_\_init\_\_
-
-    @section meas_algorithms_subtractBackground_IO  Invoking the Task
-
-    Call `run` to fit the background and subtract it.
-
-    Call `fitBackground` to fit the background without subtracting it.
-
-    @section meas_algorithms_subtractBackground_Config  Configuration parameters
-
-    See @ref SubtractBackgroundConfig
-
-    @section meas_algorithms_subtractBackground_Metadata  Quantities set in exposure Metadata
-
-    The `run` method will optionally set the following items of exposure metadata;
-    the names may be overridden; the defaults are shown:
-    <dl>
-        <dt>BGMEAN <dd>mean value of background
-        <dt>BGVAR  <dd>standard deviation of background
-    </dl>
-
-    @section meas_algorithms_subtractBackground_Debug  Debug variables
-
-    The @link lsst.pipe.base.cmdLineTask.CmdLineTask command line task@endlink interface supports a flag
-    `--debug` to import `debug.py` from your `$PYTHONPATH`; see @ref baseDebug for more about `debug.py`.
-
-    SubtractBackgroundTask has a debug dictionary containing three integer keys:
-    <dl>
-    <dt>unsubtracted
-    <dd>If >0: `fitBackground` displays the unsubtracted masked image overlaid with the grid of cells
-                used to fit the background in the specified frame
-    <dt>subtracted
-    <dd>If >0: `run` displays the background-subtracted exposure is the specified frame
-    <dt>background
-    <dd>If >0: `run` displays the background image in the specified frame
-    </dl>
-
-    For example, put something like:
-    @code{.py}
-        import lsstDebug
-        def DebugInfo(name):
-            di = lsstDebug.getInfo(name)  # N.b. lsstDebug.Info(name) would call us recursively
-            if name == "lsst.meas.algorithms.subtractBackground":
-                di.display = dict(
-                    unsubtracted = 1,
-                    subtracted = 2,
-                    background = 3,
-                )
-
-            return di
-
-        lsstDebug.Info = DebugInfo
-    @endcode
-    into your `debug.py` file and run your task with the `--debug` flag.
-
-    @section meas_algorithms_subtractBackground_Example   A complete example of using SubtractBackgroundTask
-
-    This code is in @link subtractBackgroundExample.py@endlink in the examples directory, and can be run as:
-    @code
-    python examples/subtractBackgroundExample.py
-    @endcode
-    @dontinclude subtractBackgroundExample.py
-
-    Import the task (there are some other standard imports; read the file if you're curious)
-    @skipline import SubtractBackgroundTask
-
-    Create the task, run it, and report mean and variance of background.
-    @skip create the task
-    @until print
+    """Subtract the background from an exposure
     """
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
 
     def run(self, exposure, background=None, stats=True, statsKeys=None):
-        """!Fit and subtract the background of an exposure
+        """Fit and subtract the background of an exposure.
 
-        @param[in,out] exposure  exposure whose background is to be subtracted
-        @param[in,out] background  initial background model already subtracted from exposure
-            (an lsst.afw.math.BackgroundList). May be None if no background has been subtracted.
-        @param[in] stats  if True then measure the mean and variance of the full background model
-                        and record the results in the exposure's metadata
-        @param[in] statsKeys  key names used to store the mean and variance of the background
-            in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
-            ignored if stats is false
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure whose background is to be subtracted.
+        background : `lsst.afw.math.BackgroundList`
+            Initial background model already subtracted. May be None if no background
+            has been subtracted.
+        stats : `bool`
+            If True then measure the mean and variance of the full background model and
+            record the results in the exposure's metadata.
+        statsKeys : `tuple`
+            Key names used to store the mean and variance of the background in the
+            exposure's metadata (another tuple); if None then use ("BGMEAN", "BGVAR");
+            ignored if stats is false.
 
-        @return an lsst.pipe.base.Struct containing:
-        - background  full background model (initial model with changes), an lsst.afw.math.BackgroundList
+        Returns
+        -------
+        background : `lsst.afw.math.BackgroundLst`
+            Full background model (initial model with changes), contained in an
+            `lsst.pipe.base.Struct`.
         """
         if background is None:
             background = afwMath.BackgroundList()
@@ -265,11 +179,16 @@ class SubtractBackgroundTask(pipeBase.Task):
     def _addStats(self, exposure, background, statsKeys=None):
         """Add statistics about the background to the exposure's metadata
 
-        @param[in,out] exposure  exposure whose background was subtracted
-        @param[in,out] background  background model (an lsst.afw.math.BackgroundList)
-        @param[in] statsKeys  key names used to store the mean and variance of the background
-            in the exposure's metadata (a pair of strings); if None then use ("BGMEAN", "BGVAR");
-            ignored if stats is false
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure whose background was subtracted.
+        background : `lsst.afw.math.BackgroundList`
+            Background model
+        statsKeys : `tuple`
+            Key names used to store the mean and variance of the background in
+            the exposure's metadata (a tuple); if None then use
+            ("BGMEAN", "BGVAR"); ignored if stats is false.
         """
         netBgImg = background.getImage()
         if statsKeys is None:
@@ -283,17 +202,29 @@ class SubtractBackgroundTask(pipeBase.Task):
         meta.addDouble(varkey, bgvar)
 
     def fitBackground(self, maskedImage, nx=0, ny=0, algorithm=None):
-        """!Estimate the background of a masked image
+        """Estimate the background of a masked image
 
-        @param[in] maskedImage  masked image whose background is to be computed
-        @param[in] nx  number of x bands; if 0 compute from width and config.binSizeX
-        @param[in] ny  number of y bands; if 0 compute from height and config.binSizeY
-        @param[in] algorithm  name of interpolation algorithm; if None use self.config.algorithm
+        Parameters
+        ----------
+        maskedImage : `lsst.afw.image.maskedImage`
+            Masked image whose background is to be computed
+        nx : 'int`
+            Number of x bands; if 0 compute from width and `self.config.binSizeX`
+        ny : `int`
+            Number of y bands; if 0 compute from height and `self.config.binSizeY`
+        algorithm : `str`
+            Name of interpolation algorithm; if None use `self.config.algorithm`
 
-        @return fit background as an lsst.afw.math.Background
+        Returns
+        -------
+        bg : `lsst.afw.math.Background`
+            A fit background
 
-        @throw RuntimeError if lsst.afw.math.makeBackground returns None,
-            which is apparently one way it indicates failure
+        Raises
+        ------
+        RuntimeError
+            Raised if lsst.afw.math.makeBackground returns None, an indicator
+            of failure.
         """
 
         binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX
