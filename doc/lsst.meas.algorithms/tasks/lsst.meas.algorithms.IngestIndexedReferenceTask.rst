@@ -41,7 +41,7 @@ Butler datasets
 ===============
 
 ``IngestIndexedReferenceTask`` does not behave in the same manner as most LSST Tasks.
-When run directly through the `~lsst.meas.algorithms.IngestIndexedReferenceTask.createIndexedCatalog` method, ``IngestIndexedReferenceTask`` reads input from a collection of non-LSST files, and persists outputs to an output Butler data repository.
+When run directly through the `~lsst.meas.algorithms.IngestIndexedReferenceTask.run` method, ``IngestIndexedReferenceTask`` reads input from a collection of non-LSST files, and persists outputs to an output Butler data repository.
 Note that configurations for ``IngestIndexedReferenceTask``, and its subtasks, affect what the output dataset content is.
 
 .. _lsst.meas.algorithms.IngestIndexedReferenceTask-butler-outputs:

@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["IngestIndexCatalogTestBase", "make_coord", "makeIngestIndexConfig"]
+__all__ = ["ConvertReferenceCatalogTestBase", "make_coord", "makeConvertConfig"]
 
 import math
 import os.path
@@ -42,9 +42,9 @@ def make_coord(ra, dec):
     return lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees)
 
 
-def makeIngestIndexConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
-                          withParallax=False):
-    """Make a config for IngestIndexedReferenceTask
+def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
+                      withParallax=False):
+    """Make a config for ConvertReferenceCatalogTask
 
     This is primarily intended to simplify tests of config validation,
     so fields that are not validated are not set.
@@ -85,7 +85,7 @@ def makeIngestIndexConfig(withMagErr=False, withRaDecErr=False, withPm=False, wi
     return config
 
 
-class IngestIndexCatalogTestBase:
+class ConvertReferenceCatalogTestBase:
     """Base class for tests involving IngestIndexedReferenceTask
     """
     @classmethod
@@ -226,8 +226,8 @@ class IngestIndexCatalogTestBase:
                         cls.compCats[tupl].append(rec['id'])
 
         cls.testRepoPath = cls.outPath+"/test_repo"
-        config = makeIngestIndexConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
-                                       withParallax=True)
+        config = makeConvertConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
+                                   withParallax=True)
         # To match on disk test data
         config.dataset_config.indexer.active.depth = cls.depth
         config.id_name = 'id'

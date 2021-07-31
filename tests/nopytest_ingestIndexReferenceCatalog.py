@@ -38,16 +38,16 @@ from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferen
                                   LoadIndexedReferenceObjectsConfig)
 from lsst.meas.algorithms.htmIndexer import HtmIndexer
 from lsst.meas.algorithms.ingestIndexReferenceTask import addRefCatMetadata
-from lsst.meas.algorithms.ingestIndexManager import IngestIndexManager
+from lsst.meas.algorithms.ingestRefcatManager import IngestRefcatManager
 from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
 import lsst.utils
 
 import ingestIndexTestBase
 
 
-class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogTestBase,
-                                         lsst.utils.tests.TestCase):
-    """Test ingesting a refcat with multiprocessing turned on."""
+class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+                                          lsst.utils.tests.TestCase):
+    """Test converting a refcat with multiprocessing turned on."""
     def testIngestTwoFilesTwoCores(self):
         def runTest(withRaDecErr):
             # Generate a second catalog, with different ids
@@ -82,9 +82,9 @@ class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogT
         runTest(withRaDecErr=False)
 
 
-class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
-                             lsst.utils.tests.TestCase):
-    """Unittests of various methods of IngestIndexManager.
+class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+                               lsst.utils.tests.TestCase):
+    """Unittests of various methods of IngestRefcatManager.
 
     Uses mocks to force particular behavior regarding e.g. catalogs.
     """
@@ -108,15 +108,15 @@ class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
         self.path = tempfile.mkdtemp()
         self.filenames = {x: os.path.join(self.path, "%d.fits" % x) for x in set(self.matchedPixels)}
 
-        self.worker = IngestIndexManager(self.filenames,
-                                         self.config,
-                                         self.fileReader,
-                                         self.indexer,
-                                         self.schema,
-                                         self.key_map,
-                                         self.htm.universe()[0],
-                                         addRefCatMetadata,
-                                         self.log)
+        self.worker = IngestRefcatManager(self.filenames,
+                                          self.config,
+                                          self.fileReader,
+                                          self.indexer,
+                                          self.schema,
+                                          self.key_map,
+                                          self.htm.universe()[0],
+                                          addRefCatMetadata,
+                                          self.log)
 
     def _createFakeCatalog(self, nOld=5, nNew=0, idStart=42):
         """Create a fake output SimpleCatalog, populated with nOld+nNew elements.

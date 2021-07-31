@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["IngestIndexManager", "IngestGaiaManager"]
+__all__ = ["ConvertRefcatManager", "ConvertGaiaManager"]
 
 from ctypes import c_int
 import os.path
@@ -33,6 +33,7 @@ import numpy as np
 import lsst.sphgeom
 import lsst.afw.table as afwTable
 from lsst.afw.image import fluxErrFromABMagErr
+import lsst.pex.config as pexConfig
 
 
 # global shared counter to keep track of source ids
@@ -42,16 +43,23 @@ COUNTER = multiprocessing.Value(c_int, 0)
 FILE_PROGRESS = multiprocessing.Value(c_int, 0)
 
 
-class IngestIndexManager:
+class ConvertRefcatManagerConfig(pexConfig.Config):
+    """Placeholder for ConfigurableField validation; refcat convert is
+    configured by the parent convert Task.
     """
-    Ingest a reference catalog from external files into a butler repository,
-    using a multiprocessing Pool to speed up the work.
+    pass
+
+
+class ConvertRefcatManager:
+    """
+    Convert a reference catalog from external files into the LSST HTM sharded
+    format, using a multiprocessing Pool to speed up the work.
 
     Parameters
     ----------
     filenames : `dict` [`int`, `str`]
-        The HTM pixel id and filenames to ingest the catalog into.
-    config : `lsst.meas.algorithms.IngestIndexedReferenceConfig`
+        The HTM pixel id and filenames to convert the catalog into.
+    config : `lsst.meas.algorithms.ConvertReferenceCatalogConfig`
         The Task configuration holding the field names.
     file_reader : `lsst.pipe.base.Task`
         The file reader to use to load the files.
@@ -69,6 +77,8 @@ class IngestIndexManager:
         The log to send messages to.
     """
     _flags = ['photometric', 'resolved', 'variable']
+    _DefaultName = 'convertRefcatManager'
+    ConfigClass = ConvertRefcatManagerConfig
 
     def __init__(self, filenames, config, file_reader, indexer,
                  schema, key_map, htmRange, addRefCatMetadata, log):
@@ -108,7 +118,7 @@ class IngestIndexManager:
             with multiprocessing.Pool(self.config.n_processes) as pool:
                 pool.starmap(self._ingestOneFile, zip(inputFiles, itertools.repeat(fileLocks)))
 
-    def _ingestOneFile(self, filename, fileLocks):
+    def _convertOneFile(self, filename, fileLocks):
         """Read and process one file, and write its records to the correct
         indexed files, while handling exceptions in a useful way so that they
         don't get swallowed by the multiprocess pool.
@@ -233,16 +243,16 @@ class IngestIndexManager:
 
     @staticmethod
     def computeCoord(row, ra_name, dec_name):
-        """Create an ICRS coord. from a row of a catalog being ingested.
+        """Create an ICRS coord. from a row of a catalog being converted.
 
         Parameters
         ----------
         row : `numpy.ndarray`
-            Row from catalog being ingested.
+            Row from catalog being converted.
         ra_name : `str`
-            Name of RA key in catalog being ingested.
+            Name of RA key in catalog being converted.
         dec_name : `str`
-            Name of Dec key in catalog being ingested.
+            Name of Dec key in catalog being converted.
 
         Returns
         -------
@@ -287,7 +297,7 @@ class IngestIndexManager:
         record : `lsst.afw.table.SimpleRecord`
             Row from indexed catalog to modify.
         row : `numpy.ndarray`
-            Row from catalog being ingested.
+            Row from catalog being converted.
         """
         names = record.schema.getNames()
         for flag in self._flags:
@@ -334,9 +344,9 @@ class IngestIndexManager:
         record : `lsst.afw.table.SimpleRecord`
             Row from indexed catalog to modify.
         row : structured `numpy.array`
-            Row from catalog being ingested.
+            Row from catalog being converted.
         """
-        if self.config.pm_ra_name is None:  # IngestIndexedReferenceConfig.validate ensures all or none
+        if self.config.pm_ra_name is None:  # ConvertReferenceCatalogConfig.validate ensures all or none
             return
         radPerOriginal = np.radians(self.config.pm_scale)/(3600*1000)
         record.set(self.key_map["pm_ra"], row[self.config.pm_ra_name]*radPerOriginal*lsst.geom.radians)
@@ -369,7 +379,7 @@ class IngestIndexManager:
         record : `lsst.afw.table.SimpleRecord`
             Row from indexed catalog to modify.
         row : structured `numpy.array`
-            Row from catalog being ingested.
+            Row from catalog being converted.
         """
         for extra_col in self.config.extra_col_names:
             value = row[extra_col]
@@ -392,7 +402,7 @@ class IngestIndexManager:
         record : `lsst.afw.table.SimpleRecord`
             Row from indexed catalog to modify.
         row : structured `numpy.array`
-            Row from catalog being ingested.
+            Row from catalog being converted.
         """
         record.setCoord(self.computeCoord(row, self.config.ra_name, self.config.dec_name))
 
@@ -402,8 +412,8 @@ class IngestIndexManager:
         self._setExtra(record, row)
 
 
-class IngestGaiaManager(IngestIndexManager):
-    """Special-case ingest manager to deal with Gaia fluxes.
+class ConvertGaiaManager(ConvertRefcatManager):
+    """Special-case convert manager to deal with Gaia fluxes.
     """
     def _getFluxes(self, input):
         result = {}
