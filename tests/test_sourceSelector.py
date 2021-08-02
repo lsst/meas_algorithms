@@ -191,6 +191,19 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.isolated.nChildName = "nChild"
         self.check(((parent == 0) & (nChild == 0)).tolist())
 
+    def testRequireFiniteRaDec(self):
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
+        ra = np.array([np.nan, np.nan, 0, 0, 0], dtype=float)
+        dec = np.array([2, np.nan, 0, 0, np.nan], dtype=float)
+        self.catalog["coord_ra"] = ra
+        self.catalog["coord_dec"] = dec
+        self.config.doRequireFiniteRaDec = True
+        self.config.requireFiniteRaDec.raColName = "coord_ra"
+        self.config.requireFiniteRaDec.decColName = "coord_dec"
+        self.check((np.isfinite(ra) & np.isfinite(dec)).tolist())
+
 
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
     Task = lsst.meas.algorithms.ReferenceSourceSelectorTask
