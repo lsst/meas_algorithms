@@ -21,6 +21,8 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList"]
+
 import numpy as np
 
 import lsst.geom
