@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.SourceDetectionTask
+.. lsst-task-topic:: lsst.meas.algorithms.detection.SourceDetectionTask
 
 ###################
 SourceDetectionTask

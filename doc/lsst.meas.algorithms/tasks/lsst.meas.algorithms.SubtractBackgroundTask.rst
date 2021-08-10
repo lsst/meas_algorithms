@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.SubtractBackgroundTask
+.. lsst-task-topic:: lsst.meas.algorithms.subtractBackground.SubtractBackgroundTask
 
 ######################
 SubtractBackgroundTask

@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.ReserveSourcesTask
+.. lsst-task-topic:: lsst.meas.algorithms.reserveSourcesTask.ReserveSourcesTask
 
 ##################
 ReserveSourcesTask

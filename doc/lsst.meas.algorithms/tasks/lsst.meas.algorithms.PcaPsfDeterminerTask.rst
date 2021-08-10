@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.PcaPsfDeterminerTask
+.. lsst-task-topic:: lsst.meas.algorithms.pcaPsfDeterminer.PcaPsfDeterminerTask
 
 ####################
 PcaPsfDeterminerTask

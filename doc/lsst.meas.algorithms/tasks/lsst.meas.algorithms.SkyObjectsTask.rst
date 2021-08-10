@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.SkyObjectsTask
+.. lsst-task-topic:: lsst.meas.algorithms.skyObjects.SkyObjectsTask
 
 ##############
 SkyObjectsTask

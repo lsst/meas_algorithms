@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.FlaggedSourceSelectorTask
+.. lsst-task-topic:: lsst.meas.algorithms.flaggedSourceSelector.FlaggedSourceSelectorTask
 
 #########################
 FlaggedSourceSelectorTask

@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.DynamicDetectionTask
+.. lsst-task-topic:: lsst.meas.algorithms.dynamicDetection.DynamicDetectionTask
 
 ####################
 DynamicDetectionTask

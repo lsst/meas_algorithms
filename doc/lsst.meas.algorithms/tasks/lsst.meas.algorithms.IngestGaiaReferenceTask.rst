@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.IngestGaiaReferenceTask
+.. lsst-task-topic:: lsst.meas.algorithms.ingestIndexReferenceTask.IngestGaiaReferenceTask
 
 #######################
 IngestGaiaReferenceTask

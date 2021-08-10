@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.LoadReferenceObjectsTask
+.. lsst-task-topic:: lsst.meas.algorithms.loadReferenceObjects.LoadReferenceObjectsTask
 
 ########################
 LoadReferenceObjectsTask

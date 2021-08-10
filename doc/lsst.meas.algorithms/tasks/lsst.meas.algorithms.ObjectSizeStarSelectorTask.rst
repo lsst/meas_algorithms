@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.ObjectSizeStarSelectorTask
+.. lsst-task-topic:: lsst.meas.algorithms.objectSizeStarSelector.ObjectSizeStarSelectorTask
 
 ##########################
 ObjectSizeStarSelectorTask

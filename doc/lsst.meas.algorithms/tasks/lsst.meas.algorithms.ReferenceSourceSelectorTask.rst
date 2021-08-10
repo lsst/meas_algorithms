@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.ReferenceSourceSelectorTask
+.. lsst-task-topic:: lsst.meas.algorithms.sourceSelector.ReferenceSourceSelectorTask
 
 ###########################
 ReferenceSourceSelectorTask
