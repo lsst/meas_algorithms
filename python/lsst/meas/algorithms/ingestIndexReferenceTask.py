@@ -253,6 +253,8 @@ class ConvertReferenceCatalogConfig(pexConfig.Config):
     def setDefaults(self):
         # Newly ingested reference catalogs always have the latest format_version.
         self.dataset_config.format_version = LATEST_FORMAT_VERSION
+        # gen3 refcats are all depth=7
+        self.dataset_config.indexer['HTM'].depth = 7
 
     def validate(self):
         pexConfig.Config.validate(self)
