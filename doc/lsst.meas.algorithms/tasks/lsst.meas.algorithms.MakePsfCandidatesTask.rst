@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.MakePsfCandidatesTask
+.. lsst-task-topic:: lsst.meas.algorithms.makePsfCandidates.MakePsfCandidatesTask
 
 #####################
 MakePsfCandidatesTask

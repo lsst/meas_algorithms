@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.MatcherSourceSelectorTask
+.. lsst-task-topic:: lsst.meas.algorithms.matcherSourceSelector.MatcherSourceSelectorTask
 
 #########################
 MatcherSourceSelectorTask

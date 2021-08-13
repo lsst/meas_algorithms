@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.MeasureApCorrTask
+.. lsst-task-topic:: lsst.meas.algorithms.measureApCorr.MeasureApCorrTask
 
 #################
 MeasureApCorrTask

@@ -53,7 +53,8 @@ class InstallGaussianPsfConfig(pexConfig.Config):
 
 
 class InstallGaussianPsfTask(pipeBase.Task):
-    r"""Install a Gaussian PSF model in an exposure.
+    """Install a Gaussian PSF model in an exposure.
+
     If the exposure already has a PSF model then the new model
     has the same sigma and size (width and height in pixels) of the existing model.
     """

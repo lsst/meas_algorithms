@@ -49,8 +49,9 @@ You can find Jira issues for this module under the `meas_algorithms <https://jir
 
 .. .. _lsst.meas.algorithms-pyapi:
 
-.. Python API reference
-.. ====================
+Python API reference
+====================
 
-.. .. automodapi:: lsst.meas.algorithms
-..    :no-main-docstr:
+.. automodapi:: lsst.meas.algorithms
+   :no-main-docstr:
+   :no-inheritance-diagram:

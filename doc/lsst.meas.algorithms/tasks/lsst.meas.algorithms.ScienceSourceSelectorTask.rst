@@ -1,4 +1,4 @@
-.. lsst-task-topic:: lsst.meas.algorithms.ScienceSourceSelectorTask
+.. lsst-task-topic:: lsst.meas.algorithms.sourceSelector.ScienceSourceSelectorTask
 
 #########################
 ScienceSourceSelectorTask

@@ -22,6 +22,20 @@ Python API summary
 
 .. _lsst.meas.algorithms.installGaussianPsf.InstallGaussianPsfTask-examples:
 
+Retargetable subtasks
+=====================
+
+.. lsst-task-config-subtasks:: lsst.meas.algorithms.installGaussianPsf.InstallGaussianPsfTask
+
+.. _lsst.meas.algorithms.InstallGaussianPsfTask-configs:
+
+Configuration fields
+====================
+
+.. lsst-task-config-fields:: lsst.meas.algorithms.installGaussianPsf.InstallGaussianPsfTask
+
+.. _lsst.meas.algorithms.InstallGaussianPsfTask-examples:
+
 Examples
 ========
 
