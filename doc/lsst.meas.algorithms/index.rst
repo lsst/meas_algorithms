@@ -41,6 +41,16 @@ Command-line tasks
 .. lsst-cmdlinetasks::
    :root: lsst.meas.algorithms
 
+.. _lsst.meas.algorithms-scripts:
+
+Script reference
+================
+
+.. toctree::
+   :maxdepth: 1
+
+   scripts/convertReferenceCatalog
+
 Contributing
 ============
 
