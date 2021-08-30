@@ -42,16 +42,16 @@ template <typename ExposureT>
 class ExposurePatch {
 public:
     typedef unsigned char FlagT;  ///< Type for flags
-    typedef PTR(ExposurePatch) Ptr;
-    typedef CONST_PTR(ExposurePatch) ConstPtr;
+    typedef std::shared_ptr<ExposurePatch> Ptr;
+    typedef std::shared_ptr<ExposurePatch const> ConstPtr;
 
     /// Constructor
-    ExposurePatch(CONST_PTR(ExposureT) exp,                   ///< Exposure of interest
-                  CONST_PTR(afw::detection::Footprint) foot,  ///< Footprint on exposure
+    ExposurePatch(std::shared_ptr<ExposureT const> exp,                   ///< Exposure of interest
+                  std::shared_ptr<afw::detection::Footprint const> foot,  ///< Footprint on exposure
                   geom::Point2D const& center                 ///< Center of object on exposure
                   )
             : _exp(exp), _foot(foot), _center(center), _fromStandard(), _toStandard() {}
-    ExposurePatch(CONST_PTR(ExposureT) exp,                       ///< Exposure of interest
+    ExposurePatch(std::shared_ptr<ExposureT const> exp,                       ///< Exposure of interest
                   afw::detection::Footprint const& standardFoot,  ///< Footprint on some other exposure
                   geom::Point2D const& standardCenter,            ///< Center on that other exposure
                   afw::geom::SkyWcs const& standardWcs            ///< WCS for that other exposure
@@ -59,7 +59,7 @@ public:
             : _exp(exp) {
         afw::geom::SkyWcs const& expWcs = *exp->getWcs();
         auto const sky = standardWcs.pixelToSky(standardCenter);
-        const_cast<CONST_PTR(afw::detection::Footprint)&>(_foot) =
+        const_cast<std::shared_ptr<afw::detection::Footprint const>&>(_foot) =
                 standardFoot.transform(standardWcs, expWcs, exp->getBBox());
         const_cast<geom::Point2D&>(_center) = expWcs.skyToPixel(sky);
         const_cast<geom::AffineTransform&>(_fromStandard) =
@@ -69,8 +69,8 @@ public:
     }
 
     /// Accessors
-    CONST_PTR(ExposureT) const getExposure() const { return _exp; }
-    CONST_PTR(afw::detection::Footprint) const getFootprint() const { return _foot; }
+    std::shared_ptr<ExposureT const> const getExposure() const { return _exp; }
+    std::shared_ptr<afw::detection::Footprint const> const getFootprint() const { return _foot; }
     geom::Point2D const& getCenter() const { return _center; }
     geom::AffineTransform const& fromStandard() const { return _fromStandard; }
     geom::AffineTransform const& toStandard() const { return _toStandard; }
@@ -79,8 +79,8 @@ public:
     void setCenter(geom::Point2D const& center) { _center = center; }
 
 private:
-    CONST_PTR(ExposureT) const _exp;                   ///< Exposure to be measured
-    CONST_PTR(afw::detection::Footprint) const _foot;  ///< Footprint to be measured
+    std::shared_ptr<ExposureT const> const _exp;                   ///< Exposure to be measured
+    std::shared_ptr<afw::detection::Footprint const> const _foot;  ///< Footprint to be measured
     geom::Point2D _center;                             ///< Center of source on exposure
     geom::AffineTransform const _fromStandard;         ///< Transform from standard WCS
     geom::AffineTransform const _toStandard;           ///< Transform to standard WCS
@@ -88,14 +88,14 @@ private:
 
 /// Factory function for ExposurePatch
 template <typename ExposureT>
-PTR(ExposurePatch<ExposureT>)
-makeExposurePatch(CONST_PTR(ExposureT) exp, CONST_PTR(afw::detection::Footprint) foot,
+std::shared_ptr<ExposurePatch<ExposureT>>
+makeExposurePatch(std::shared_ptr<ExposureT const> exp, std::shared_ptr<afw::detection::Footprint const> foot,
                   geom::Point2D const& center) {
     return std::make_shared<ExposurePatch<ExposureT> >(exp, foot, center);
 }
 template <typename ExposureT>
-PTR(ExposurePatch<ExposureT>)
-makeExposurePatch(CONST_PTR(ExposureT) exp, afw::detection::Footprint const& standardFoot,
+std::shared_ptr<ExposurePatch<ExposureT>>
+makeExposurePatch(std::shared_ptr<ExposureT const> exp, afw::detection::Footprint const& standardFoot,
                   geom::Point2D const& standardCenter, afw::geom::SkyWcs const& standardWcs) {
     return std::make_shared<ExposurePatch<ExposureT> >(exp, standardFoot, standardCenter, standardWcs);
 }

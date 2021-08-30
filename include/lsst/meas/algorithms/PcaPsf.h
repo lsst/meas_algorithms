@@ -42,17 +42,17 @@ public:
      *  @param[in] kernel           Kernel that defines the Psf.
      *  @param[in] averagePosition  Average position of stars used to construct the Psf.
      */
-    explicit PcaPsf(PTR(afw::math::LinearCombinationKernel) kernel,
+    explicit PcaPsf(std::shared_ptr<afw::math::LinearCombinationKernel> kernel,
                     geom::Point2D const& averagePosition = geom::Point2D());
 
     /// Polymorphic deep copy; should usually be unnecessary as Psfs are immutable.x
-    PTR(afw::detection::Psf) clone() const override;
+    std::shared_ptr<afw::detection::Psf> clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    PTR(afw::detection::Psf) resized(int width, int height) const override;
+    std::shared_ptr<afw::detection::Psf> resized(int width, int height) const override;
 
     /// PcaPsf always has a LinearCombinationKernel, so we can override getKernel to make it more useful.
-    PTR(afw::math::LinearCombinationKernel const) getKernel() const;
+    std::shared_ptr<afw::math::LinearCombinationKernel const> getKernel() const;
 
 private:
     // Name used in table persistence; the rest of is implemented by KernelPsf.

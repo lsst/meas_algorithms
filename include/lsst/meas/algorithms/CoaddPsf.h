@@ -95,10 +95,10 @@ public:
             : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
 
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
-    PTR(afw::detection::Psf) clone() const override;
+    std::shared_ptr<afw::detection::Psf> clone() const override;
 
     /// Return a clone with specified kernel dimensions
-    PTR(afw::detection::Psf) resized(int width, int height) const override;
+    std::shared_ptr<afw::detection::Psf> resized(int width, int height) const override;
     /**
      *  @brief Return the average of the positions of the stars that went into this Psf.
      *
@@ -120,7 +120,7 @@ public:
      * @returns     Corresponding Psf.
      * @throws      RangeError  Index of component is out of range.
      */
-    CONST_PTR(afw::detection::Psf) getPsf(int index);
+    std::shared_ptr<afw::detection::Psf const> getPsf(int index);
 
     /**
      * Get the Wcs of the component image at index.
@@ -165,7 +165,7 @@ public:
      * @returns     Corresponding validPolygon.
      * @throws      RangeError  Index of component is out of range.
      */
-    CONST_PTR(afw::geom::polygon::Polygon) getValidPolygon(int index);
+    std::shared_ptr<afw::geom::polygon::Polygon const> getValidPolygon(int index);
 
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).
@@ -182,7 +182,7 @@ public:
     class Factory;
 
 protected:
-    PTR(afw::detection::Psf::Image)
+    std::shared_ptr<afw::detection::Psf::Image>
     doComputeKernelImage(geom::Point2D const& ccdXY, afw::image::Color const& color) const override;
 
     geom::Box2I doComputeBBox(geom::Point2D const& position, afw::image::Color const& color) const override;
@@ -210,7 +210,7 @@ private:
     afw::table::Key<double> _weightKey;
     geom::Point2D _averagePosition;
     std::string _warpingKernelName;  // could be removed if we could get this from _warpingControl (#2949)
-    CONST_PTR(afw::math::WarpingControl) _warpingControl;
+    std::shared_ptr<afw::math::WarpingControl const> _warpingControl;
 };
 
 }  // namespace algorithms

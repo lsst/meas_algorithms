@@ -289,7 +289,7 @@ std::string WarpedPsf::getPythonModule() const { return "lsst.meas.algorithms"; 
 void WarpedPsf::write(OutputArchiveHandle &handle) const {
     static PersistenceHelper const &keys = PersistenceHelper::get();
     afw::table::BaseCatalog catalog = handle.makeCatalog(keys.schema);
-    PTR(afw::table::BaseRecord) record = catalog.addNew();
+    std::shared_ptr<afw::table::BaseRecord> record = catalog.addNew();
 
     record->set(keys.psfIndex, handle.put(_undistortedPsf));
     record->set(keys.transformIndex, handle.put(_distortion));

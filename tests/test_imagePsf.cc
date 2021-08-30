@@ -57,19 +57,19 @@ public:
         _ellipse.scale(radius);
     }
 
-    PTR(Psf) clone() const {
+    std::shared_ptr<Psf> clone() const {
         return std::make_shared<TestGaussianPsf>(*this);
     }
 
-    PTR(Psf) resized(int width, int height) const {
+    std::shared_ptr<Psf> resized(int width, int height) const {
         throw LSST_EXCEPT(lsst::pex::exceptions::LogicError, "Not Implemented");
     }
 
 private:
-    virtual PTR(Image) doComputeKernelImage(
+    virtual std::shared_ptr<Image> doComputeKernelImage(
         lsst::geom::Point2D const & position, Color const & color
     ) const {
-        PTR(Image) result(new Image(_size, _size));
+        std::shared_ptr<Image> result(new Image(_size, _size));
         result->setXY0(-_size / 2, -_size / 2);
         Eigen::Matrix2d cInv = _ellipse.getMatrix().inverse();
         double norm = std::sqrt(cInv.determinant()) / (2.0 * M_PI);

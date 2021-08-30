@@ -55,22 +55,22 @@ PersistableFacade<meas::algorithms::PcaPsf>::dynamicCast(std::shared_ptr<Persist
 namespace meas {
 namespace algorithms {
 
-PcaPsf::PcaPsf(PTR(afw::math::LinearCombinationKernel) kernel, geom::Point2D const& averagePosition)
+PcaPsf::PcaPsf(std::shared_ptr<afw::math::LinearCombinationKernel> kernel, geom::Point2D const& averagePosition)
         : KernelPsf(kernel, averagePosition) {
     if (!kernel) {
         throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "PcaPsf kernel must not be null");
     }
 }
 
-PTR(afw::math::LinearCombinationKernel const) PcaPsf::getKernel() const {
+std::shared_ptr<afw::math::LinearCombinationKernel const> PcaPsf::getKernel() const {
     return std::static_pointer_cast<afw::math::LinearCombinationKernel const>(KernelPsf::getKernel());
 }
 
-PTR(afw::detection::Psf) PcaPsf::clone() const { return std::make_shared<PcaPsf>(*this); }
+std::shared_ptr<afw::detection::Psf> PcaPsf::clone() const { return std::make_shared<PcaPsf>(*this); }
 
-PTR(afw::detection::Psf) PcaPsf::resized(int width, int height) const {
-    PTR(afw::math::LinearCombinationKernel)
-    kern = std::static_pointer_cast<afw::math::LinearCombinationKernel>(getKernel()->resized(width, height));
+std::shared_ptr<afw::detection::Psf> PcaPsf::resized(int width, int height) const {
+    std::shared_ptr<afw::math::LinearCombinationKernel>
+        kern = std::static_pointer_cast<afw::math::LinearCombinationKernel>(getKernel()->resized(width, height));
     return std::make_shared<PcaPsf>(kern, this->getAveragePosition());
 }
 
