@@ -94,6 +94,13 @@ public:
              CoaddPsfControl const& ctrl, std::string const& weightFieldName = "weight")
             : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
 
+    explicit CoaddPsf(afw::table::ExposureCatalog const& catalog,         ///< Unpersisted catalog
+                      afw::geom::SkyWcs const& coaddWcs,                  ///< WCS for the coadd
+                      geom::Point2D const& averagePosition,               ///< Default position for accessors
+                      std::string const& warpingKernelName = "lanczos3",  ///< Warping kernel name
+                      int cacheSize = 10000                               ///< Kernel cache size
+    );
+
     /// Polymorphic deep copy.  Usually unnecessary, as Psfs are immutable.
     std::shared_ptr<afw::detection::Psf> clone() const override;
 
@@ -196,13 +203,6 @@ protected:
     // See afw::table::io::Persistable::write
     void write(OutputArchiveHandle& handle) const override;
 
-    // Used by persistence only
-    explicit CoaddPsf(afw::table::ExposureCatalog const& catalog,         ///< Unpersisted catalog
-                      afw::geom::SkyWcs const& coaddWcs,                  ///< WCS for the coadd
-                      geom::Point2D const& averagePosition,               ///< Default position for accessors
-                      std::string const& warpingKernelName = "lanczos3",  ///< Warping kernel name
-                      int cacheSize = 10000                               ///< Kernel cache size
-    );
 
 private:
     afw::table::ExposureCatalog _catalog;
