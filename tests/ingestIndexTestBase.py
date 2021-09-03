@@ -193,8 +193,6 @@ class ConvertReferenceCatalogTestBase:
     @classmethod
     def setUpClass(cls):
         cls.outPath = tempfile.mkdtemp()
-        cls.testCatPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data",
-                                       "testHtmIndex.fits")
         # arbitrary, but reasonable, amount of proper motion (angle/year)
         # and direction of proper motion
         cls.properMotionAmt = 3.0*lsst.geom.arcseconds

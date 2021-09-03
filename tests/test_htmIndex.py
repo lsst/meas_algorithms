@@ -41,8 +41,6 @@ import lsst.utils
 from ingestIndexTestBase import (makeConvertConfig, ConvertReferenceCatalogTestBase,
                                  make_coord)
 
-REGENERATE_COMPARISON = False  # Regenerate comparison data?
-
 
 class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
     """Test validation of IngestIndexReferenceConfig."""
@@ -170,28 +168,6 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
                 numWithSources += 1
         self.assertGreater(numWithSources, 0)
 
-    def testAgainstPersisted(self):
-        """Test that we can get a specific shard from a pre-persisted refcat.
-        """
-        shardId = 2222
-        dataset_name = IngestIndexedReferenceTask.ConfigClass().dataset_config.ref_dataset_name
-        dataId = self.indexer.makeDataId(shardId, dataset_name)
-        self.assertTrue(self.testButler.datasetExists('ref_cat', dataId))
-        refCat = self.testButler.get('ref_cat', dataId)
-        if REGENERATE_COMPARISON:
-            if os.path.exists(self.testCatPath):
-                os.unlink(self.testCatPath)
-            refCat.writeFits(self.testCatPath)
-            self.fail("New comparison data written; unset REGENERATE_COMPARISON in order to proceed")
-
-        ex1 = refCat.extract('*')
-        testCat = afwTable.SimpleCatalog.readFits(self.testCatPath)
-
-        ex2 = testCat.extract('*')
-        self.assertEqual(set(ex1.keys()), set(ex2.keys()))
-        for key in ex1:
-            np.testing.assert_array_almost_equal(ex1[key], ex2[key], err_msg=f"{key} values not equal")
-
     def testIngestSetsVersion(self):
         """Test that newly ingested catalogs get the correct version number set.
         """
@@ -249,23 +225,6 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         loaderConfig.ref_dataset_name = "myrefcat"
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
         self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
-
-        # TODO: this test is probably irrelevant in gen3, since the name is now the collection.
-        # test that a catalog can be loaded even with a name not used for ingestion
-        butler = dafPersist.Butler(self.testRepoPath)
-        loaderConfig2 = LoadIndexedReferenceObjectsConfig()
-        loaderConfig2.ref_dataset_name = self.testDatasetName
-        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig2)
-        self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
-
-    def testLoadIndexedReferenceConfig(self):
-        """Make sure LoadIndexedReferenceConfig has needed fields."""
-        """
-        Including at least one from the base class LoadReferenceObjectsConfig
-        """
-        config = LoadIndexedReferenceObjectsConfig()
-        self.assertEqual(config.ref_dataset_name, "cal_ref_cat")
-        self.assertEqual(config.defaultFilter, "")
 
     def testLoadSkyCircle(self):
         """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
