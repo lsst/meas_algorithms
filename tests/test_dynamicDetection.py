@@ -80,6 +80,11 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         self.exposure.maskedImage.variance /= factor
         self.check(1.0/np.sqrt(factor))
 
+    def testNoWcs(self):
+        """Check that dynamic detection runs when the exposure wcs is None"""
+        self.exposure.setWcs(None)
+        self.check(1.0)
+
     def testNoSources(self):
         self.config.skyObjects.nSources = self.config.minNumSources - 1
         self.check(1.0)

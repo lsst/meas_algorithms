@@ -10,11 +10,13 @@ from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
 
 from lsst.afw.detection import FootprintSet
+from lsst.afw.geom import makeCdMatrix, makeSkyWcs
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
 
 import lsst.afw.image
 import lsst.afw.math
+import lsst.geom as geom
 
 
 class DynamicDetectionConfig(SourceDetectionConfig):
@@ -81,7 +83,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         Parameters
         ----------
-        exposure : `lsst.afw.image.Exposure`
+        exposureOrig : `lsst.afw.image.Exposure`
             Exposure on which we're detecting sources.
         seed : `int`
             RNG seed to use for finding sky objects.
@@ -101,7 +103,12 @@ class DynamicDetectionTask(SourceDetectionTask):
                 Additive factor to be applied to the background
                 level (`float`).
         """
-        # Make a catalog of sky objects
+        wcsIsNone = exposure.getWcs() is None
+        if wcsIsNone:  # create a dummy WCS as needed by ForcedMeasurementTask
+            self.log.info("WCS for exposure is None.  Setting a dummy WCS for dynamic detection.")
+            exposure.setWcs(makeSkyWcs(crpix=geom.Point2D(0, 0),
+                                       crval=geom.SpherePoint(0, 0, geom.degrees),
+                                       cdMatrix=makeCdMatrix(scale=1e-5*geom.degrees)))
         fp = self.skyObjects.run(exposure.maskedImage.mask, seed)
         skyFootprints = FootprintSet(exposure.getBBox())
         skyFootprints.setFootprints(fp)
@@ -137,6 +144,8 @@ class DynamicDetectionTask(SourceDetectionTask):
         lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
         medianError = np.median(catalog["base_PsfFlux_instFluxErr"][good])
+        if wcsIsNone:
+            exposure.setWcs(None)
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
