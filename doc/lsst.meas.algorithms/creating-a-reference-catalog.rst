@@ -18,7 +18,7 @@ This page uses `Gaia DR2`_ as an example.
 
 .. note::
 
-    If you have an already existing converted reference catalog on disk (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers), you can skip the first few steps, and just :ref:`register and ingest the files <lsst.meas.algorithms-refcat-ingest>` directly, after creating a suitable filaname->htm7-index astropy table file.
+    If you have an already existing converted reference catalog on disk (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers), you can skip the first few steps, and just :ref:`register and ingest the files <lsst.meas.algorithms-refcat-ingest>` directly, after creating a suitable filename to htm7-index astropy table file.
 
 .. _Gaia DR2: https://www.cosmos.esa.int/web/gaia/dr2
 
@@ -31,7 +31,7 @@ Network storage (such as NFS and GPFS) are not recommended for this work, due to
 Ensure that you have sufficient storage capacity.
 For example, the GaiaSource DR2 files take 550 GB of space, and the converted LSST reference catalog takes another 200 GB.
 
-To write the config for the converter, you will need to have a document that describes the columns in the input data, including their units and any caveats that may apply (for example, Gaia DR2 does not supply magnitude errors).
+To write the config for the converter, you will need to have a document that describes the columns in the input data, including their units and any caveats that may apply (for example, Gaia DR2 supplies magnitudes in the Vega system and no magnitude errors, so we convert the native fluxes and errors in e-/s to AB magnitudes with a customized class).
 In this example, we used the `Gaia Source Catalog data model <https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html>`_ document.
 
 If the files are text files of some sort, check that you can read one of them with `astropy.io.ascii.read`, which is what the converter uses to read text files. For example:
@@ -42,7 +42,7 @@ If the files are text files of some sort, check that you can read one of them wi
     data = astropy.io.ascii.read('gaia_source/GaiaSource_1000172165251650944_1000424567594791808.csv.gz', format='csv')
     print(data)
 
-The default Config assumes that the files are readable with ``format="csv"``; you can change that to a different ``format`` if necessary (see `lsst.meas.algorithms.readTextCatalogTask.ReadTextCatalogConfig` for how to configure that file reader).
+The default Config assumes that the files are readable with ``format="csv"``; you can change that to a different ``format`` if necessary (see `~lsst.meas.algorithms.readTextCatalogTask.ReadTextCatalogConfig` for how to configure that file reader, and `~lsst.meas.algorithms.readFitsCatalogTask.ReadFitsCatalogConfig`).
 
 .. _lsst.meas.algorithms-refcat-config:
 
@@ -59,12 +59,13 @@ This is an example configuration that was used to convert the Gaia DR2 catalog (
     # The name of the output reference catalog dataset.
     config.dataset_config.ref_dataset_name = "gaia_dr2"
 
-    # Gaia has a specialized convert manager class.
+    # Gaia has a specialized convert manager class to handle the flux conversion.
     from lsst.meas.algorithms import convertRefcatManager
     config.manager.retarget(convertRefcatManager.ConvertGaiaManager)
 
-    # Ingest the data in parallel with this many processes.
-    config.n_processes = 8
+    # Ingest the data in parallel with this many processes; this is sized to
+    # fill a single node on lsst-devl.
+    config.n_processes = 48
 
     # These define the names of the fields from the gaia_source data model:
     # https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
@@ -88,8 +89,10 @@ This is an example configuration that was used to convert the Gaia DR2 catalog (
     config.epoch_format = "jyear"
     config.epoch_scale = "tcb"
 
-    # NOTE: these names have `_flux` appended to them when the output Schema is created,
-    # while the Gaia-specific class handles the errors.
+    # This is a required config field, and is used to populate the output schema:
+    # we append `_flux` and `_fluxErr` to them in the output schema.
+    # The Gaia-specific convert manager class handles the flux/flux error math,
+    # using the flux fields (that are in e-/s units).
     config.mag_column_list = ["phot_g_mean", "phot_bp_mean", "phot_rp_mean"]
 
     # These fields are brought along unmodified.
@@ -141,7 +144,8 @@ For the example we are using here, these commands would be:
     butler ingest-files -t direct REPO gaia_dr2 refcats gaia/filename_to_htm.ecsv
 
 where REPO is the path to the butler repository that you are ingesting the data into.
-We use the ``direct`` transfer mode here to keep the files in the directory we converted them to. See ``butler ingest-files -h`` for other options.
+We use the ``direct`` transfer mode here to leave the files in the directory they were converted into: ``gaia_dr2/``.
+See ``butler ingest-files -h`` for other options, including ``copy``, ``move`` and ``link`` transfer modes.
 
 These commands should finish in a short amount of time, logging a message about how many files were ingested.
 You can query the ``refcats`` collection to see whether your htm shards appear:
@@ -150,4 +154,4 @@ You can query the ``refcats`` collection to see whether your htm shards appear:
 
     butler query-datasets --collections refcats REPO
 
-For LSST staff using ``lsst-dev``, see the `Reference catalogs policy <https://developer.lsst.io/services/datasets.html#reference-catalogs>`_ in the Developer Guide for additional policy about adding reference catalogs to the common repo.
+For LSST staff using ``lsst-devl``, see the `Reference catalogs policy <https://developer.lsst.io/services/datasets.html#reference-catalogs>`_ in the Developer Guide for additional policy about adding reference catalogs to the common repo.

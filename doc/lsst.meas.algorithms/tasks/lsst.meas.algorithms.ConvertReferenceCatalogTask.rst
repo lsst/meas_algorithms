@@ -41,7 +41,7 @@ Butler datasets
 ===============
 
 ``ConvertReferenceCatalogTask`` does not behave in the same manner as most LSST Tasks.
-When run directly through the `~lsst.meas.algorithms.ConvertReferenceCatalogTask.run` method, ``ConvertReferenceCatalogTask`` reads input from a collection of non-LSST files, and writes to a specified directory.
+When run directly through the `~lsst.meas.algorithms.ConvertReferenceCatalogTask.run` method (e.g. via the :doc:`../scripts/convertReferenceCatalog` commandline interface), ``ConvertReferenceCatalogTask`` reads input from a collection of non-LSST files, and writes to a specified directory.
 Note that configurations for ``ConvertReferenceCatalogTask``, and its subtasks, affect what the output dataset content is.
 
 .. _lsst.meas.algorithms.ConvertReferenceCatalogTask-butler-outputs:
