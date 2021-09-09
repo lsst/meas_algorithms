@@ -51,6 +51,7 @@ def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPm
     However, it can calso be used to reduce boilerplate in other tests.
     """
     config = IngestIndexedReferenceTask.ConfigClass()
+    config.dataset_config.ref_dataset_name = "testRefCat"
     config.pm_scale = 1000.0
     config.parallax_scale = 1e3
     config.ra_name = 'ra_icrs'
@@ -239,7 +240,6 @@ class ConvertReferenceCatalogTestBase:
         IngestIndexedReferenceTask.parseAndRun(args=[cls.input_dir, "--output", cls.testRepoPath,
                                                      cls.skyCatalogFile], config=config)
         cls.defaultDatasetName = config.dataset_config.ref_dataset_name
-        cls.testDatasetName = 'diff_ref_name'
         cls.testButler = dafPersist.Butler(cls.testRepoPath)
         os.symlink(os.path.join(cls.testRepoPath, 'ref_cats', cls.defaultDatasetName),
                    os.path.join(cls.testRepoPath, 'ref_cats', cls.testDatasetName))

@@ -175,6 +175,8 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
             # Test with multiple files and standard config
             config = makeIngestIndexConfig(withRaDecErr=withRaDecErr, withMagErr=True,
                                            withPm=True, withPmErr=True)
+            # Pregenerated gen2 test refcats have the "cal_ref_cat" name.
+            config.dataset_config.ref_dataset_name = "cal_ref_cat"
             # don't use the default depth, to avoid taking the time to create thousands of file locks
             config.dataset_config.indexer.active.depth = self.depth
             IngestIndexedReferenceTask.parseAndRun(

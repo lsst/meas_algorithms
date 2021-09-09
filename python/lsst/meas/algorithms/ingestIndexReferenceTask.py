@@ -108,8 +108,9 @@ class DatasetConfig(pexConfig.Config):
     )
     ref_dataset_name = pexConfig.Field(
         dtype=str,
+        # TODO DM-31817: remove this default value.
         default='cal_ref_cat',
-        doc='String to pass to the butler to retrieve persisted files.',
+        doc="Name of this reference catalog to be used in the butler registry.",
     )
     indexer = IndexerRegistry.makeField(
         default='HTM',
