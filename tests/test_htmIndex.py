@@ -38,7 +38,7 @@ from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferen
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits
 import lsst.utils
 
-from ingestIndexTestBase import (makeIngestIndexConfig, IngestIndexCatalogTestBase,
+from ingestIndexTestBase import (makeConvertConfig, ConvertReferenceCatalogTestBase,
                                  make_coord)
 
 REGENERATE_COMPARISON = False  # Regenerate comparison data?
@@ -47,43 +47,43 @@ REGENERATE_COMPARISON = False  # Regenerate comparison data?
 class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
     """Test validation of IngestIndexReferenceConfig."""
     def testValidateRaDecMag(self):
-        config = makeIngestIndexConfig()
+        config = makeConvertConfig()
         config.validate()
 
         for name in ("ra_name", "dec_name", "mag_column_list"):
             with self.subTest(name=name):
-                config = makeIngestIndexConfig()
+                config = makeConvertConfig()
                 setattr(config, name, None)
                 with self.assertRaises(ValueError):
                     config.validate()
 
     def testValidateRaDecErr(self):
         # check that a basic config validates
-        config = makeIngestIndexConfig(withRaDecErr=True)
+        config = makeConvertConfig(withRaDecErr=True)
         config.validate()
 
         # check that a config with any of these fields missing does not validate
         for name in ("ra_err_name", "dec_err_name", "coord_err_unit"):
             with self.subTest(name=name):
-                config = makeIngestIndexConfig(withRaDecErr=True)
+                config = makeConvertConfig(withRaDecErr=True)
                 setattr(config, name, None)
                 with self.assertRaises(ValueError):
                     config.validate()
 
         # check that coord_err_unit must be an astropy unit
-        config = makeIngestIndexConfig(withRaDecErr=True)
+        config = makeConvertConfig(withRaDecErr=True)
         config.coord_err_unit = "nonsense unit"
         with self.assertRaisesRegex(ValueError, "is not a valid astropy unit string"):
             config.validate()
 
     def testValidateMagErr(self):
-        config = makeIngestIndexConfig(withMagErr=True)
+        config = makeConvertConfig(withMagErr=True)
         config.validate()
 
         # test for missing names
         for name in config.mag_column_list:
             with self.subTest(name=name):
-                config = makeIngestIndexConfig(withMagErr=True)
+                config = makeConvertConfig(withMagErr=True)
                 del config.mag_err_column_map[name]
                 with self.assertRaises(ValueError):
                     config.validate()
@@ -91,7 +91,7 @@ class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
         # test for incorrect names
         for name in config.mag_column_list:
             with self.subTest(name=name):
-                config = makeIngestIndexConfig(withMagErr=True)
+                config = makeConvertConfig(withMagErr=True)
                 config.mag_err_column_map["badName"] = config.mag_err_column_map[name]
                 del config.mag_err_column_map[name]
                 with self.assertRaises(ValueError):
@@ -101,7 +101,7 @@ class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
         basicNames = ["pm_ra_name", "pm_dec_name", "epoch_name", "epoch_format", "epoch_scale"]
 
         for withPmErr in (False, True):
-            config = makeIngestIndexConfig(withPm=True, withPmErr=withPmErr)
+            config = makeConvertConfig(withPm=True, withPmErr=withPmErr)
             config.validate()
             del config
 
@@ -111,7 +111,7 @@ class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
                 names = basicNames
                 for name in names:
                     with self.subTest(name=name, withPmErr=withPmErr):
-                        config = makeIngestIndexConfig(withPm=True, withPmErr=withPmErr)
+                        config = makeConvertConfig(withPm=True, withPmErr=withPmErr)
                         setattr(config, name, None)
                         with self.assertRaises(ValueError):
                             config.validate()
@@ -121,21 +121,47 @@ class IngestIndexTaskValidateTestCase(lsst.utils.tests.TestCase):
         """
         names = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale", "parallax_err_name"]
 
-        config = makeIngestIndexConfig(withParallax=True)
+        config = makeConvertConfig(withParallax=True)
         config.validate()
         del config
 
         for name in names:
             with self.subTest(name=name):
-                config = makeIngestIndexConfig(withParallax=True)
+                config = makeConvertConfig(withParallax=True)
                 setattr(config, name, None)
                 with self.assertRaises(ValueError, msg=name):
                     config.validate()
 
 
-class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.tests.TestCase):
-    """Tests of ingesting and validating an HTM Indexed Reference Catalog.
+class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lsst.utils.tests.TestCase):
+    """Tests of converting, ingesting, loading and validating an HTM Indexed
+    Reference Catalog (gen2 code path).
     """
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.obs_test_dir = lsst.utils.getPackageDir('obs_test')
+        cls.input_dir = os.path.join(cls.obs_test_dir, "data", "input")
+
+        # Run the ingest once to create a butler repo we can compare to
+        config = makeConvertConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
+                                   withParallax=True)
+        # Pregenerated gen2 test refcats have the "cal_ref_cat" name.
+        config.dataset_config.ref_dataset_name = "cal_ref_cat"
+        config.dataset_config.indexer.active.depth = cls.depth
+        config.id_name = 'id'
+        config.pm_scale = 1000.0  # arcsec/yr --> mas/yr
+        config.parallax_scale = 1e3  # arcsec -> milliarcsec
+        # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
+        config.file_reader.format = 'ascii.commented_header'
+        IngestIndexedReferenceTask.parseAndRun(args=[cls.input_dir, "--output", cls.testRepoPath,
+                                                     cls.skyCatalogFile], config=config)
+        cls.testButler = dafPersist.Butler(cls.testRepoPath)
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.testButler
+
     def testSanity(self):
         """Sanity-check that compCats contains some entries with sources."""
         numWithSources = 0
@@ -173,8 +199,8 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
             outputPath = os.path.join(self.outPath, "output_setsVersion"
                                       + "_withRaDecErr" if withRaDecErr else "")
             # Test with multiple files and standard config
-            config = makeIngestIndexConfig(withRaDecErr=withRaDecErr, withMagErr=True,
-                                           withPm=True, withPmErr=True)
+            config = makeConvertConfig(withRaDecErr=withRaDecErr, withMagErr=True,
+                                       withPm=True, withPmErr=True)
             # Pregenerated gen2 test refcats have the "cal_ref_cat" name.
             config.dataset_config.ref_dataset_name = "cal_ref_cat"
             # don't use the default depth, to avoid taking the time to create thousands of file locks
@@ -192,8 +218,8 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
     def testIngestConfigOverrides(self):
         """Test IngestIndexedReferenceTask with different configs.
         """
-        config2 = makeIngestIndexConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
-                                        withParallax=True)
+        config2 = makeConvertConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
+                                    withParallax=True)
         config2.ra_name = "ra"
         config2.dec_name = "dec"
         config2.dataset_config.ref_dataset_name = 'myrefcat'
@@ -224,6 +250,7 @@ class IngestIndexReferenceTaskTestCase(IngestIndexCatalogTestBase, lsst.utils.te
         loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
         self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
 
+        # TODO: this test is probably irrelevant in gen3, since the name is now the collection.
         # test that a catalog can be loaded even with a name not used for ingestion
         butler = dafPersist.Butler(self.testRepoPath)
         loaderConfig2 = LoadIndexedReferenceObjectsConfig()

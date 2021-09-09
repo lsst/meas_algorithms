@@ -103,6 +103,11 @@ class ConvertRefcatManager:
         ----------
         inputFiles : `list`
             A list of file paths to read data from.
+
+        Returns
+        -------
+        output : `dict` [`int`, `str`]
+            The htm ids and the filenames that were written to.
         """
         global COUNTER, FILE_PROGRESS
         self.nInputFiles = len(inputFiles)
@@ -116,7 +121,8 @@ class ConvertRefcatManager:
                 fileLocks[i] = manager.Lock()
             self.log.info("File locks created.")
             with multiprocessing.Pool(self.config.n_processes) as pool:
-                pool.starmap(self._ingestOneFile, zip(inputFiles, itertools.repeat(fileLocks)))
+                result = pool.starmap(self._convertOneFile, zip(inputFiles, itertools.repeat(fileLocks)))
+            return {id: self.filenames[id] for item in result for id in item}
 
     def _convertOneFile(self, filename, fileLocks):
         """Read and process one file, and write its records to the correct
@@ -130,6 +136,11 @@ class ConvertRefcatManager:
         fileLocks : `dict` [`int`, `multiprocessing.Lock`]
             A Lock for each HTM pixel; each pixel gets one file written, and
             we need to block when one process is accessing that file.
+
+        Returns
+        -------
+        pixels, files : `list` [`int`]
+            The pixel ids that were written to.
         """
         global FILE_PROGRESS
         inputData = self.file_reader.run(filename)
@@ -151,6 +162,7 @@ class ConvertRefcatManager:
                               FILE_PROGRESS.value,
                               self.nInputFiles,
                               percent)
+        return pixel_ids
 
     def _doOnePixel(self, inputData, matchedPixels, pixelId, fluxes, coordErr):
         """Process one HTM pixel, appending to an existing catalog or creating
