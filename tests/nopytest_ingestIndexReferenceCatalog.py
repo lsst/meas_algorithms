@@ -33,21 +33,23 @@ import unittest.mock
 
 import numpy as np
 
-import lsst.daf.persistence as dafPersist
-from lsst.meas.algorithms import (IngestIndexedReferenceTask, LoadIndexedReferenceObjectsTask,
+import lsst.daf.butler
+from lsst.daf.butler import DatasetType, DeferredDatasetHandle
+from lsst.daf.butler.script import ingest_files
+from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader,
                                   LoadIndexedReferenceObjectsConfig)
 from lsst.meas.algorithms.htmIndexer import HtmIndexer
 from lsst.meas.algorithms.ingestIndexReferenceTask import addRefCatMetadata
-from lsst.meas.algorithms.ingestIndexManager import IngestIndexManager
+from lsst.meas.algorithms.convertRefcatManager import ConvertRefcatManager
 from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
 import lsst.utils
 
 import ingestIndexTestBase
 
 
-class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogTestBase,
-                                         lsst.utils.tests.TestCase):
-    """Test ingesting a refcat with multiprocessing turned on."""
+class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+                                          lsst.utils.tests.TestCase):
+    """Test converting a refcat with multiprocessing turned on."""
     def testIngestTwoFilesTwoCores(self):
         def runTest(withRaDecErr):
             # Generate a second catalog, with different ids
@@ -56,25 +58,61 @@ class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogT
             inPath2 = tempfile.mkdtemp()
             skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
             # override some field names, and use multiple cores
-            config = ingestIndexTestBase.makeIngestIndexConfig(withRaDecErr=withRaDecErr, withMagErr=True,
-                                                               withPm=True, withPmErr=True)
+            config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=withRaDecErr, withMagErr=True,
+                                                           withPm=True, withPmErr=True)
             # use a very small HTM pixelization depth to ensure there will be collisions when
             # ingesting the files in parallel
-            config.dataset_config.indexer.active.depth = 2
+            depth = 2
+            config.dataset_config.indexer.active.depth = depth
             # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
             config.file_reader.format = 'ascii.commented_header'
             config.n_processes = 2  # use multiple cores for this test only
             config.id_name = 'id'  # Use the ids from the generated catalogs
-            outpath = os.path.join(self.outPath, "output_multifile_parallel",
-                                   "_withRaDecErr" if withRaDecErr else "")
-            IngestIndexedReferenceTask.parseAndRun(
-                args=[self.input_dir, "--output", outpath,
-                      skyCatalogFile1, skyCatalogFile2], config=config)
+            repoPath = os.path.join(self.outPath, "output_multifile_parallel",
+                                    "_withRaDecErr" if withRaDecErr else "_noRaDecErr")
 
-            # Test if we can get back the catalog with a non-standard dataset name
-            butler = dafPersist.Butler(outpath)
+            # Convert the input data files to our HTM indexed format.
+            dataPath = tempfile.mkdtemp()
+            converter = ConvertReferenceCatalogTask(output_dir=dataPath, config=config)
+            converter.run([skyCatalogFile1, skyCatalogFile2])
+
+            # Make a temporary butler to ingest them into.
+            butler = self.makeTemporaryRepo(repoPath, config.dataset_config.indexer.active.depth)
+            dimensions = [f"htm{depth}"]
+            datasetType = DatasetType(config.dataset_config.ref_dataset_name,
+                                      dimensions,
+                                      "SimpleCatalog",
+                                      universe=butler.registry.dimensions,
+                                      isCalibration=False)
+            butler.registry.registerDatasetType(datasetType)
+
+            # Ingest the files into the new butler.
+            run = "testingRun"
+            htmTableFile = os.path.join(dataPath, "filename_to_htm.ecsv")
+            ingest_files(repoPath,
+                         config.dataset_config.ref_dataset_name,
+                         run,
+                         htmTableFile,
+                         transfer="auto")
+
+            # Test if we can get back the catalogs, with a new butler.
+            butler = lsst.daf.butler.Butler(repoPath)
+            datasetRefs = list(butler.registry.queryDatasets(config.dataset_config.ref_dataset_name,
+                                                             collections=[run]).expanded())
+            handlers = []
+            for dataRef in datasetRefs:
+                handlers.append(DeferredDatasetHandle(butler=butler, ref=dataRef, parameters=None))
             loaderConfig = LoadIndexedReferenceObjectsConfig()
-            loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
+            # ReferenceObjectLoader is not a Task, so needs a log object
+            # (otherwise it logs to `root`); only show WARN logs because each
+            # loadRegion (called once per source) in the check below will log
+            # twice to INFO.
+            log = lsst.log.Log.getLogger('ReferenceObjectLoader')
+            log.setLevel(lsst.log.WARN)
+            loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
+                                           handlers,
+                                           loaderConfig,
+                                           log=log)
             self.checkAllRowsInRefcat(loader, skyCatalog1, config)
             self.checkAllRowsInRefcat(loader, skyCatalog2, config)
 
@@ -82,22 +120,23 @@ class TestIngestReferenceCatalogParallel(ingestIndexTestBase.IngestIndexCatalogT
         runTest(withRaDecErr=False)
 
 
-class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
-                             lsst.utils.tests.TestCase):
-    """Unittests of various methods of IngestIndexManager.
+class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+                               lsst.utils.tests.TestCase):
+    """Unittests of various methods of ConvertRefcatManager.
 
     Uses mocks to force particular behavior regarding e.g. catalogs.
     """
     def setUp(self):
         np.random.seed(10)
 
+        tempPath = tempfile.mkdtemp()
         self.log = lsst.log.Log.getLogger("TestIngestIndexManager")
-        self.config = ingestIndexTestBase.makeIngestIndexConfig(withRaDecErr=True)
+        self.config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
-        depth = 2  # very small depth, for as few pixels as possible.
-        self.indexer = HtmIndexer(depth)
-        self.htm = lsst.sphgeom.HtmPixelization(depth)
-        ingester = IngestIndexedReferenceTask(self.config)
+        self.depth = 2  # very small depth, for as few pixels as possible.
+        self.indexer = HtmIndexer(self.depth)
+        self.htm = lsst.sphgeom.HtmPixelization(self.depth)
+        ingester = ConvertReferenceCatalogTask(output_dir=tempPath, config=self.config)
         dtype = [('id', '<f8'), ('ra', '<f8'), ('dec', '<f8'), ('ra_err', '<f8'), ('dec_err', '<f8'),
                  ('a', '<f8'), ('a_err', '<f8')]
         self.schema, self.key_map = ingester.makeSchema(dtype)
@@ -108,15 +147,15 @@ class TestIngestIndexManager(ingestIndexTestBase.IngestIndexCatalogTestBase,
         self.path = tempfile.mkdtemp()
         self.filenames = {x: os.path.join(self.path, "%d.fits" % x) for x in set(self.matchedPixels)}
 
-        self.worker = IngestIndexManager(self.filenames,
-                                         self.config,
-                                         self.fileReader,
-                                         self.indexer,
-                                         self.schema,
-                                         self.key_map,
-                                         self.htm.universe()[0],
-                                         addRefCatMetadata,
-                                         self.log)
+        self.worker = ConvertRefcatManager(self.filenames,
+                                           self.config,
+                                           self.fileReader,
+                                           self.indexer,
+                                           self.schema,
+                                           self.key_map,
+                                           self.htm.universe()[0],
+                                           addRefCatMetadata,
+                                           self.log)
 
     def _createFakeCatalog(self, nOld=5, nNew=0, idStart=42):
         """Create a fake output SimpleCatalog, populated with nOld+nNew elements.

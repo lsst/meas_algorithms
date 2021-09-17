@@ -8,6 +8,7 @@
 _build.*
 config.log
 bin/*.py
+bin/convertReferenceCatalog
 doc/*.tag
 doc/doxygen.conf
 doc/html

@@ -35,7 +35,7 @@ class HtmIndexer:
     depth : `int`
         Depth of the HTM hierarchy to construct.
     """
-    def __init__(self, depth=8):
+    def __init__(self, depth=7):
         self.htm = esutil.htm.HTM(depth)
 
     def getShardIds(self, ctrCoord, radius):

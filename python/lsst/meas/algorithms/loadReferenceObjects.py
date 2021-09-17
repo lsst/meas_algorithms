@@ -70,17 +70,17 @@ def getFormatVersionFromRefCat(refCat):
 
     Returns
     -------
-    version : `int` or `None`
-        Format version integer, or `None` if the catalog has no metadata
+    version : `int`
+        Format verison integer. Returns `0` if the catalog has no metadata
         or the metadata does not include a "REFCAT_FORMAT_VERSION" key.
     """
     md = refCat.getMetadata()
     if md is None:
-        return None
+        return 0
     try:
         return md.getScalar("REFCAT_FORMAT_VERSION")
     except KeyError:
-        return None
+        return 0
 
 
 def convertToNanojansky(catalog, log, doConvert=True):

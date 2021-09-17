@@ -19,10 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["IngestIndexCatalogTestBase", "make_coord", "makeIngestIndexConfig"]
+__all__ = ["ConvertReferenceCatalogTestBase", "make_coord", "makeConvertConfig"]
 
 import math
-import os.path
 import shutil
 import string
 import tempfile
@@ -31,9 +30,9 @@ import numpy as np
 import astropy
 import astropy.units as u
 
-import lsst.daf.persistence as dafPersist
+import lsst.daf.butler
 from lsst.meas.algorithms import IndexerRegistry
-from lsst.meas.algorithms import IngestIndexedReferenceTask
+from lsst.meas.algorithms import ConvertReferenceCatalogConfig
 import lsst.utils
 
 
@@ -42,15 +41,16 @@ def make_coord(ra, dec):
     return lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees)
 
 
-def makeIngestIndexConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
-                          withParallax=False):
-    """Make a config for IngestIndexedReferenceTask
+def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
+                      withParallax=False):
+    """Make a config for ConvertReferenceCatalogTask
 
     This is primarily intended to simplify tests of config validation,
     so fields that are not validated are not set.
     However, it can calso be used to reduce boilerplate in other tests.
     """
-    config = IngestIndexedReferenceTask.ConfigClass()
+    config = ConvertReferenceCatalogConfig()
+    config.dataset_config.ref_dataset_name = "testRefCat"
     config.pm_scale = 1000.0
     config.parallax_scale = 1e3
     config.ra_name = 'ra_icrs'
@@ -85,8 +85,8 @@ def makeIngestIndexConfig(withMagErr=False, withRaDecErr=False, withPm=False, wi
     return config
 
 
-class IngestIndexCatalogTestBase:
-    """Base class for tests involving IngestIndexedReferenceTask
+class ConvertReferenceCatalogTestBase:
+    """Base class for tests involving ConvertReferenceCatalogTask
     """
     @classmethod
     def makeSkyCatalog(cls, outPath, size=1000, idStart=1, seed=123):
@@ -189,16 +189,10 @@ class IngestIndexCatalogTestBase:
         del cls.testDecs
         del cls.searchRadius
         del cls.compCats
-        del cls.testButler
 
     @classmethod
     def setUpClass(cls):
-        cls.obs_test_dir = lsst.utils.getPackageDir('obs_test')
-        cls.input_dir = os.path.join(cls.obs_test_dir, "data", "input")
-
         cls.outPath = tempfile.mkdtemp()
-        cls.testCatPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data",
-                                       "testHtmIndex.fits")
         # arbitrary, but reasonable, amount of proper motion (angle/year)
         # and direction of proper motion
         cls.properMotionAmt = 3.0*lsst.geom.arcseconds
@@ -226,23 +220,32 @@ class IngestIndexCatalogTestBase:
                         cls.compCats[tupl].append(rec['id'])
 
         cls.testRepoPath = cls.outPath+"/test_repo"
-        config = makeIngestIndexConfig(withMagErr=True, withRaDecErr=True, withPm=True, withPmErr=True,
-                                       withParallax=True)
-        # To match on disk test data
-        config.dataset_config.indexer.active.depth = cls.depth
-        config.id_name = 'id'
-        config.pm_scale = 1000.0  # arcsec/yr --> mas/yr
-        config.parallax_scale = 1e3  # arcsec -> milliarcsec
-        # np.savetxt prepends '# ' to the header lines, so use a reader that understands that
-        config.file_reader.format = 'ascii.commented_header'
-        # run the intest once to create a butler repo we can compare to
-        IngestIndexedReferenceTask.parseAndRun(args=[cls.input_dir, "--output", cls.testRepoPath,
-                                                     cls.skyCatalogFile], config=config)
-        cls.defaultDatasetName = config.dataset_config.ref_dataset_name
-        cls.testDatasetName = 'diff_ref_name'
-        cls.testButler = dafPersist.Butler(cls.testRepoPath)
-        os.symlink(os.path.join(cls.testRepoPath, 'ref_cats', cls.defaultDatasetName),
-                   os.path.join(cls.testRepoPath, 'ref_cats', cls.testDatasetName))
+
+    def setUp(self):
+        self.repoPath = tempfile.TemporaryDirectory()  # cleaned up automatically when test ends
+        self.butler = self.makeTemporaryRepo(self.repoPath.name, self.depth)
+
+    @staticmethod
+    def makeTemporaryRepo(rootPath, depth):
+        """Create a temporary butler repository, configured to support a given
+        htm pixel depth, to use for a single test.
+
+        Parameters
+        ----------
+        rootPath : `str`
+            Root path for butler.
+        depth : `int`
+            HTM pixel depth to be used in this test.
+
+        Returns
+        -------
+        butler : `lsst.daf.butler.Butler`
+            The newly created and instantiated butler.
+        """
+        dimensionConfig = lsst.daf.butler.DimensionConfig()
+        dimensionConfig['skypix']['common'] = f'htm{depth}'
+        lsst.daf.butler.Butler.makeRepo(rootPath, dimensionConfig=dimensionConfig)
+        return lsst.daf.butler.Butler(rootPath, writeable=True)
 
     def checkAllRowsInRefcat(self, refObjLoader, skyCatalog, config):
         """Check that every item in ``skyCatalog`` is in the ingested catalog,

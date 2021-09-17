@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2017  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,14 +16,19 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+# TODO DM-31698: post-gen2 removal notes
+# `DatasetConfig`, `ConvertReferenceCatalogBase`, and `ConvertReferenceCatalogConfig`
+# should all be moved to to `convertReferenceCatalog.py` once gen2 butler
+# has been removed.
 
 __all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig",
-           "IngestGaiaReferenceTask"]
+           "ConvertReferenceCatalogBase", "ConvertReferenceCatalogConfig"]
 
+import abc
 import os.path
 
 import astropy.units
@@ -37,7 +42,7 @@ from lsst.daf.base import PropertyList
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 from .loadReferenceObjects import LoadReferenceObjectsTask
-from . import ingestIndexManager
+from . import convertRefcatManager
 
 # The most recent Indexed Reference Catalog on-disk format version.
 LATEST_FORMAT_VERSION = 1
@@ -60,7 +65,7 @@ def addRefCatMetadata(catalog):
 
 
 class IngestReferenceRunner(pipeBase.TaskRunner):
-    """Task runner for the reference catalog ingester
+    """Task runner for the reference catalog ingester (gen2 version).
 
     Data IDs are ignored so the runner should just run the task on the parsed command.
     """
@@ -85,7 +90,7 @@ class IngestReferenceRunner(pipeBase.TaskRunner):
         task = self.TaskClass(config=self.config, log=self.log, butler=butler)
         task.writeConfig(parsedCmd.butler, clobber=self.clobberConfig, doBackup=self.doBackup)
 
-        task.createIndexedCatalog(files)
+        task.run(files)
         if self.doReturnResults:
             return pipeBase.Struct()
 
@@ -103,8 +108,9 @@ class DatasetConfig(pexConfig.Config):
     )
     ref_dataset_name = pexConfig.Field(
         dtype=str,
+        # TODO DM-31817: remove this default value.
         default='cal_ref_cat',
-        doc='String to pass to the butler to retrieve persisted files.',
+        doc="Name of this reference catalog to be used in the butler registry.",
     )
     indexer = IndexerRegistry.makeField(
         default='HTM',
@@ -112,7 +118,7 @@ class DatasetConfig(pexConfig.Config):
     )
 
 
-class IngestIndexedReferenceConfig(pexConfig.Config):
+class ConvertReferenceCatalogConfig(pexConfig.Config):
     dataset_config = pexConfig.ConfigField(
         dtype=DatasetConfig,
         doc="Configuration for reading the ingested data",
@@ -121,6 +127,10 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
         dtype=int,
         doc=("Number of python processes to use when ingesting."),
         default=1
+    )
+    manager = pexConfig.ConfigurableField(
+        target=convertRefcatManager.ConvertRefcatManager,
+        doc="Multiprocessing manager to perform the actual conversion of values, file-by-file."
     )
     file_reader = pexConfig.ConfigurableField(
         target=ReadTextCatalogTask,
@@ -244,6 +254,8 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
     def setDefaults(self):
         # Newly ingested reference catalogs always have the latest format_version.
         self.dataset_config.format_version = LATEST_FORMAT_VERSION
+        # gen3 refcats are all depth=7
+        self.dataset_config.indexer['HTM'].depth = 7
 
     def validate(self):
         pexConfig.Config.validate(self)
@@ -284,8 +296,15 @@ class IngestIndexedReferenceConfig(pexConfig.Config):
                 '"epoch_name" must be specified if "pm_ra/dec_name" or "parallax_name" are specified')
 
 
-class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
-    """Class for producing and loading indexed reference catalogs.
+class IngestIndexedReferenceConfig(ConvertReferenceCatalogConfig):
+    """For gen2 backwards compatibility.
+    """
+    pass
+
+
+class ConvertReferenceCatalogBase(pipeBase.Task, abc.ABC):
+    """Base class for producing and loading indexed reference catalogs,
+    shared between gen2 and gen3.
 
     This implements an indexing scheme based on hierarchical triangular
     mesh (HTM). The term index really means breaking the catalog into
@@ -300,36 +319,17 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
       between RA and Dec, or between PM RA and PM Dec. Support for such
      covariance would have to be added to to the config, including consideration
      of the units in the input catalog.
-
-    Parameters
-    ----------
-    butler : `lsst.daf.persistence.Butler`
-        Data butler for reading and writing catalogs
     """
     canMultiprocess = False
-    ConfigClass = IngestIndexedReferenceConfig
-    RunnerClass = IngestReferenceRunner
-    _DefaultName = 'IngestIndexedReferenceTask'
+    ConfigClass = ConvertReferenceCatalogConfig
 
-    @classmethod
-    def _makeArgumentParser(cls):
-        """Create an argument parser.
-
-        This returns a standard parser with an extra "files" argument.
-        """
-        parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
-        parser.add_argument("files", nargs="+", help="Names of files to index")
-        return parser
-
-    def __init__(self, *args, butler=None, **kwargs):
-        self.butler = butler
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.indexer = IndexerRegistry[self.config.dataset_config.indexer.name](
             self.config.dataset_config.indexer.active)
         self.makeSubtask('file_reader')
-        self.IngestManager = ingestIndexManager.IngestIndexManager
 
-    def createIndexedCatalog(self, inputFiles):
+    def run(self, inputFiles):
         """Index a set of files comprising a reference catalog.
 
         Outputs are persisted in the butler repository.
@@ -339,50 +339,58 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
         inputFiles : `list`
             A list of file paths to read.
         """
+        self._preRun()
         schema, key_map = self._saveMasterSchema(inputFiles[0])
         # create an HTM we can interrogate about pixel ids
         htm = lsst.sphgeom.HtmPixelization(self.indexer.htm.get_depth())
         filenames = self._getButlerFilenames(htm)
-        worker = self.IngestManager(filenames,
-                                    self.config,
-                                    self.file_reader,
-                                    self.indexer,
-                                    schema,
-                                    key_map,
-                                    htm.universe()[0],
-                                    addRefCatMetadata,
-                                    self.log)
-        worker.run(inputFiles)
+        worker = self.config.manager.target(filenames,
+                                            self.config,
+                                            self.file_reader,
+                                            self.indexer,
+                                            schema,
+                                            key_map,
+                                            htm.universe()[0],
+                                            addRefCatMetadata,
+                                            self.log)
+        result = worker.run(inputFiles)
 
-        # write the config that was used to generate the refcat
-        dataId = self.indexer.makeDataId(None, self.config.dataset_config.ref_dataset_name)
-        self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
+        self._persistConfig()
+        self._postRun(result)
 
-    def _saveMasterSchema(self, filename):
-        """Generate and save the master catalog schema.
+    def _preRun(self):
+        """Any setup that has to be performed at the start of ``run``, but that
+        cannot be performed during ``__init__`` (e.g. making directories).
+        """
+        pass
+
+    def _postRun(self, result):
+        """Any tasks that have to happen at the end of ``run``.
 
         Parameters
         ----------
-        filename : `str`
-            An input file to read to get the input dtype.
+        result
+            The result returned from``worker.run()``.
         """
-        arr = self.file_reader.run(filename)
-        schema, key_map = self.makeSchema(arr.dtype)
-        dataId = self.indexer.makeDataId('master_schema',
-                                         self.config.dataset_config.ref_dataset_name)
-
-        catalog = afwTable.SimpleCatalog(schema)
-        addRefCatMetadata(catalog)
-        self.butler.put(catalog, 'ref_cat', dataId=dataId)
-        return schema, key_map
+        pass
 
     def _getButlerFilenames(self, htm):
-        """Get filenames from the butler for each output pixel."""
+        """Get filenames from the butler for each output htm pixel.
+
+        Parameters
+        ----------
+        htm : `lsst.sphgeom.HtmPixelization`
+            The HTM pixelization scheme to be used to build filenames.
+
+        Returns
+        -------
+        filenames : `list [str]`
+            List of filenames to write each HTM pixel to.
+        """
         filenames = {}
         start, end = htm.universe()[0]
         # path manipulation because butler.get() per pixel will take forever
-        dataId = self.indexer.makeDataId(start, self.config.dataset_config.ref_dataset_name)
-        path = self.butler.get('ref_cat_filename', dataId=dataId)[0]
+        path = self._getOnePixelFilename(start)
         base = os.path.join(os.path.dirname(path), "%d"+os.path.splitext(path)[1])
         for pixelId in range(start, end):
             filenames[pixelId] = base % pixelId
@@ -434,10 +442,92 @@ class IngestIndexedReferenceTask(pipeBase.CmdLineTask):
             key_map[col] = addField(col)
         return schema, key_map
 
+    def _saveMasterSchema(self, filename):
+        """Generate and save the master catalog schema.
 
-class IngestGaiaReferenceTask(IngestIndexedReferenceTask):
-    """A special-cased version of the refcat ingester for Gaia DR2.
+        Parameters
+        ----------
+        filename : `str`
+            An input file to read to get the input dtype.
+        """
+        arr = self.file_reader.run(filename)
+        schema, key_map = self.makeSchema(arr.dtype)
+
+        catalog = afwTable.SimpleCatalog(schema)
+        addRefCatMetadata(catalog)
+        self._writeMasterSchema(catalog)
+        return schema, key_map
+
+    @abc.abstractmethod
+    def _getOnePixelFilename(self, start):
+        """Return one example filename to help construct the rest of the
+        per-htm pixel filenames.
+
+        Parameters
+        ----------
+        start : `int`
+            The first HTM index in this HTM pixelization.
+
+        Returns
+        -------
+        filename : `str`
+            Path to a single file that would be written to the output location.
+        """
+        pass
+
+    @abc.abstractmethod
+    def _persistConfig(self):
+        """Write the config that was used to generate the refcat.
+        """
+        pass
+
+    @abc.abstractmethod
+    def _writeMasterSchema(self, catalog):
+        """Butler put the master catalog schema.
+
+        Parameters
+        ----------
+        catalog : `lsst.afw.table.SimpleCatalog`
+            An empty catalog with a fully-defined schema that matches the
+            schema used in each of the HTM pixel files.
+        """
+        pass
+
+
+class IngestIndexedReferenceTask(ConvertReferenceCatalogBase, pipeBase.CmdLineTask):
+    """Class for producing and loading indexed reference catalogs (gen2 version).
+
+    Parameters
+    ----------
+    butler : `lsst.daf.persistence.Butler`
+        Data butler for reading and writing catalogs
     """
-    def __init__(self, *args, **kwargs):
+    RunnerClass = IngestReferenceRunner
+    ConfigClass = IngestIndexedReferenceConfig
+    _DefaultName = 'IngestIndexedReferenceTask'
+
+    @classmethod
+    def _makeArgumentParser(cls):
+        """Create an argument parser.
+
+        This returns a standard parser with an extra "files" argument.
+        """
+        parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
+        parser.add_argument("files", nargs="+", help="Names of files to index")
+        return parser
+
+    def __init__(self, *args, butler=None, **kwargs):
+        self.butler = butler
         super().__init__(*args, **kwargs)
-        self.IngestManager = ingestIndexManager.IngestGaiaManager
+
+    def _persistConfig(self):
+        dataId = self.indexer.makeDataId(None, self.config.dataset_config.ref_dataset_name)
+        self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
+
+    def _getOnePixelFilename(self, start):
+        dataId = self.indexer.makeDataId(start, self.config.dataset_config.ref_dataset_name)
+        return self.butler.get('ref_cat_filename', dataId=dataId)[0]
+
+    def _writeMasterSchema(self, catalog):
+        dataId = self.indexer.makeDataId('master_schema', self.config.dataset_config.ref_dataset_name)
+        self.butler.put(catalog, 'ref_cat', dataId=dataId)
