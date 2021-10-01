@@ -35,7 +35,7 @@ import lsst.afw.fits as afwFits
 import lsst.afw.table as afwTable
 from lsst.geom import Box2I, Point2I, Extent2I, Angle, degrees, SpherePoint
 from lsst.daf.base import PropertyList
-from lsst.daf.butler.core.utils import getFullTypeName
+from lsst.utils.introspection import get_full_type_name
 from lsst.utils import doImport
 
 
@@ -369,7 +369,7 @@ class StampsBase(abc.ABC, Sequence):
             Name of file to write
         """
         self._refresh_metadata()
-        type_name = getFullTypeName(self)
+        type_name = get_full_type_name(self)
         writeFits(filename, self._stamps, self._metadata, type_name, self.use_mask, self.use_variance,
                   self.use_archive)
 
