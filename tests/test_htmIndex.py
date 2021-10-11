@@ -363,10 +363,10 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         config.anyFilterMapsToThis = "g"  # to use a catalog not made for obs_test
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
         with unittest.mock.patch.object(self.testButler, 'get', return_value=refcatData):
-            with lsst.log.UsePythonLogging(), self.assertLogs(level="WARNING") as cm:
+            with self.assertLogs("lsst.LoadIndexedReferenceObjectsTask", level="WARNING") as cm:
                 loader.loadSkyCircle(center, self.searchRadius, epoch=epoch)
             warnLog1 = "Reference catalog pm_ra field is not an Angle; cannot apply proper motion."
-            self.assertEqual(cm.output, [f"WARNING:LoadIndexedReferenceObjectsTask:{warnLog1}"])
+            self.assertEqual(cm.records[0].message, warnLog1)
 
     def testLoadVersion0(self):
         """Test reading a pre-written format_version=0 (Jy flux) catalog.
