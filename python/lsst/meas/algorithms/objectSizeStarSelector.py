@@ -25,9 +25,10 @@ import sys
 
 import numpy
 import warnings
+import logging
 from functools import reduce
 
-from lsst.log import Log
+
 from lsst.pipe.base import Struct
 import lsst.geom
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
@@ -38,7 +39,7 @@ from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 
 afwDisplay.setDefaultMaskTransparency(75)
 
-_LOG = Log.getLogger(__name__)
+_LOG = logging.getLogger(__name__)
 
 
 class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):

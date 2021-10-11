@@ -27,8 +27,8 @@ __all__ = ["splitId", "showSourceSet", "showPsfSpatialCells",
 
 import math
 import numpy
+import logging
 
-import lsst.log
 import lsst.pex.exceptions as pexExcept
 import lsst.daf.base as dafBase
 import lsst.geom
@@ -46,7 +46,7 @@ keptPlots = False                       # Have we arranged to keep spatial plots
 
 afwDisplay.setDefaultMaskTransparency(75)
 
-_LOG = lsst.log.getLogger(__name__)
+_LOG = logging.getLogger(__name__)
 
 
 def splitId(oid, asDict=True):

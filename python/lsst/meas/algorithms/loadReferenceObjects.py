@@ -26,6 +26,7 @@ __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "Loa
 
 import abc
 import itertools
+import logging
 
 import astropy.time
 import astropy.units
@@ -35,7 +36,6 @@ import lsst.geom as geom
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-import lsst.log
 from lsst import sphgeom
 from lsst.daf.base import PropertyList
 from lsst.utils.timer import timeMethod
@@ -91,7 +91,7 @@ def convertToNanojansky(catalog, log, doConvert=True):
     ----------
     catalog : `lsst.afw.table.SimpleCatalog`
         The catalog to convert.
-    log : `lsst.log.Log`
+    log : `lsst.log.Log` or `logging.Logger`
         Log to send messages to.
     doConvert : `bool`, optional
         Return a converted catalog, or just identify the fields that need to be converted?
@@ -275,13 +275,13 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             Handles to load refCats on demand
         config : `lsst.pex.config.configurableField`
             Configuration for the loader.
-        log : `lsst.log.Log` or `None`, optional
-            Logger object used to write out messages. If `None` the default
-            lsst logger will be used.
+        log : `lsst.log.Log`, `logging.Logger` or `None`, optional
+            Logger object used to write out messages. If `None` a default
+            logger will be used.
         """
         self.dataIds = dataIds
         self.refCats = refCats
-        self.log = log or lsst.log.Log.getDefaultLogger()
+        self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
         self.config = config
 
     @staticmethod
@@ -1461,7 +1461,7 @@ def applyProperMotionsImpl(log, catalog, epoch):
 
     Parameters
     ----------
-    log : `lsst.log.Log`
+    log : `lsst.log.Log` or `logging.getLogger`
         Log object to write to.
     catalog : `lsst.afw.table.SimpleCatalog`
         Catalog of positions, containing:
