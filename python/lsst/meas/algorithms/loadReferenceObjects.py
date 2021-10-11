@@ -110,8 +110,8 @@ def convertToNanojansky(catalog, log, doConvert=True):
     """
     # Do not share the AliasMap: for refcats, that gets created when the
     # catalog is read from disk and should not be propagated.
-    mapper = lsst.afw.table.SchemaMapper(catalog.schema, shareAliasMap=False)
-    mapper.addMinimalSchema(lsst.afw.table.SimpleTable.makeMinimalSchema())
+    mapper = afwTable.SchemaMapper(catalog.schema, shareAliasMap=False)
+    mapper.addMinimalSchema(afwTable.SimpleTable.makeMinimalSchema())
     input_fields = []
     output_fields = []
     for field in catalog.schema:
@@ -124,7 +124,7 @@ def convertToNanojansky(catalog, log, doConvert=True):
                 name = oldName.replace('_fluxSigma', '_fluxErr')
             else:
                 name = oldName
-            newField = lsst.afw.table.Field[field.dtype](name, field.field.getDoc(), units)
+            newField = afwTable.Field[field.dtype](name, field.field.getDoc(), units)
             mapper.addMapping(field.getKey(), newField)
             input_fields.append(field.field)
             output_fields.append(newField)
@@ -135,7 +135,7 @@ def convertToNanojansky(catalog, log, doConvert=True):
 
     if doConvert:
         newSchema = mapper.getOutputSchema()
-        output = lsst.afw.table.SimpleCatalog(newSchema)
+        output = afwTable.SimpleCatalog(newSchema)
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9
@@ -236,7 +236,7 @@ class ReferenceObjectLoaderBase:
 
         # Warn/raise for a catalog in an incorrect format, if epoch was specified.
         if ("pm_ra" in catalog.schema
-                and not isinstance(catalog.schema["pm_ra"].asKey(), lsst.afw.table.KeyAngle)):
+                and not isinstance(catalog.schema["pm_ra"].asKey(), afwTable.KeyAngle)):
             if self.config.requireProperMotion:
                 raise RuntimeError("requireProperMotion=True but refcat pm_ra field is not an Angle.")
             else:
