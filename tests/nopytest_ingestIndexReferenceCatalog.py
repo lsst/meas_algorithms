@@ -107,7 +107,7 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
             # (otherwise it logs to `root`); only show WARN logs because each
             # loadRegion (called once per source) in the check below will log
             # twice to INFO.
-            log = lsst.log.Log.getLogger('ReferenceObjectLoader')
+            log = lsst.log.Log.getLogger('lsst.ReferenceObjectLoader')
             log.setLevel(lsst.log.WARN)
             loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
                                            handlers,
@@ -130,7 +130,7 @@ class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBa
         np.random.seed(10)
 
         tempPath = tempfile.mkdtemp()
-        self.log = lsst.log.Log.getLogger("TestIngestIndexManager")
+        self.log = lsst.log.Log.getLogger("lsst.TestIngestIndexManager")
         self.config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
         self.depth = 2  # very small depth, for as few pixels as possible.
