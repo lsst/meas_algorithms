@@ -18,7 +18,7 @@ This page uses `Gaia DR2`_ as an example.
 
 .. note::
 
-    If you have an already existing converted reference catalog on disk (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers), you can skip the first few steps, and just :ref:`register and ingest the files <lsst.meas.algorithms-refcat-ingest>` directly, after creating a suitable filename to htm7-index astropy table file.
+    If you have an already existing converted reference catalog on disk (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers), you can skip the first few steps, and just :ref:`register and ingest the files <lsst.meas.algorithms-refcat-ingest>` directly, after :ref:`creating a suitable filename to htm7-index astropy lookup table <lsst.meas.algorithms-refcat-existing>`.
 
 .. _Gaia DR2: https://www.cosmos.esa.int/web/gaia/dr2
 
@@ -107,7 +107,7 @@ This class special-cases the calculation of the flux and flux errors from the va
 =======================================
 
 :doc:`scripts/convertReferenceCatalog` takes three parameters: output path, configuration file, and quoted input file glob.
-See the commandline reference for more details about these parameters.
+See the command line reference for more details about these parameters.
 
 External catalogs may be split across tens of thousands of files: attempting to specify the full list on the command line is likely to be impossible due to limits imposed by the underlying operating system and shell.
 You must specify the input file list as a quoted glob expression; the converter will expand it before processing.
@@ -128,14 +128,17 @@ Monitor the log file in a new terminal with:
 
     tail -f convert-gaia.log
 
-Check the log ouput after several hours: ``ConvertReferenceCatalogTask`` reports progress in 1% intervals.
+Check the log output after several hours: ``ConvertReferenceCatalogTask`` reports progress in 1% intervals.
 
 .. _lsst.meas.algorithms-refcat-ingest:
 
 4. Ingest the files into the butler
 ===================================
 
-When ``convertReferenceCatalog`` has finished, it will print the two commands you need to run to register the new refcat dataset type and ingest your converted output into it.
+When ``convertReferenceCatalog`` has finished, a new directory (named ``gaia-refcat/`` in the example above) will now exist containing the HTM-indexed files for the input catalog in the LSST format.
+
+Two final steps are now required to register the new refcat dataset type and ingest your converted output into it.
+If using ``convertReferenceCatalog``, these commands will have been printed on the command line when it finished.
 For the example we are using here, these commands would be:
 
 .. prompt:: bash
@@ -155,3 +158,48 @@ You can query the ``refcats`` collection to see whether your htm shards appear:
     butler query-datasets --collections refcats REPO
 
 For LSST staff using ``lsst-devl``, see the `Reference catalogs policy <https://developer.lsst.io/services/datasets.html#reference-catalogs>`_ in the Developer Guide for additional policy about adding reference catalogs to the common repo.
+
+.. _lsst.meas.algorithms-refcat-existing:
+
+5. Ingesting pre-existing gen2 reference catalogs
+=================================================
+
+Already existing reference catalogs (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers) can be directly ingested into a gen3 repo as they are already in the LSST format.
+To ingest already existing HTM-indexed files in the LSST format, first create a suitable filename to htm7-index astropy lookup table, and then follow the steps above to :ref:`ingest the files into the butler <lsst.meas.algorithms-refcat-ingest>`.
+
+This is an example script that creates an ``.ecsv`` lookup table for the ``butler ingest-files`` command, from all of the HTM indexed files in a given directory (`refcat_dir` here). We use the existing Gaia DR2 catalog on lsst-devl in this example:
+
+.. code-block:: python
+
+    """Generate an astropy-readable .ecsv lookup file for `butler ingest-files`, to ingest an existing gen2 refcat.
+    """
+
+    import os
+    import glob
+    import astropy.table
+
+    refcat_dir = "/datasets/refcats/htm/v1/gaia_dr2_20200414"
+    out_dir = "/path/to/my/output/directory"
+
+    out_file = f"{out_dir}/{os.path.basename(refcat_dir)}.ecsv"
+
+    table = astropy.table.Table(names=("filename", "htm7"), dtype=("str", "int"))
+    files = glob.glob(f"{refcat_dir}/[0-9]*.fits")
+
+    for i, file in enumerate(files):
+        # running status, overwriting each print statement as it proceeds
+        print(f"{i}/{len(files)} ({100*i/len(files):0.1f}%)", end="\r")
+
+        # extract file index; add row to table
+        file_index = int(os.path.basename(os.path.splitext(file)[0]))
+        table.add_row((file, file_index))
+
+    table.write(out_file)
+    print(f"Output written to: {out_file}")
+
+Once this script is complete, finish reference catalog ingestion by following the :ref:`file ingestion instructions above <lsst.meas.algorithms-refcat-ingest>`.
+In particular, you need to change the name of the registered dataset type to "gaia_dr2_20200414" (the reference catalog used in the Python code block above), and the filename to the generated .ecsv file ("gaia_dr2_20200414.ecsv" in the Python code block above):
+
+... prompt: bash
+    butler register-dataset-type REPO gaia_dr2_20200414 SimpleCatalog htm7
+    butler ingest-files -t direct REPO gaia_dr2_20200414 refcats gaia_dr2_20200414.ecsv
