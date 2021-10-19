@@ -38,6 +38,7 @@ import lsst.pipe.base as pipeBase
 import lsst.log
 from lsst import sphgeom
 from lsst.daf.base import PropertyList
+from lsst.utils.timer import timeMethod
 
 
 def isOldFluxField(name, units):
@@ -914,7 +915,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         pipeBase.Task.__init__(self, *args, **kwargs)
         self.butler = butler
 
-    @pipeBase.timeMethod
+    @timeMethod
     def loadPixelBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None):
         """Load reference objects that overlap a rectangular pixel region.
 
