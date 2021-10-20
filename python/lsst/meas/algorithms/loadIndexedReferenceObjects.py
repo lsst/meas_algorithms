@@ -28,6 +28,7 @@ from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, Load
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from lsst.utils.timer import timeMethod
 from .indexerRegistry import IndexerRegistry
 
 
@@ -60,7 +61,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         self.ref_dataset_name = self.config.ref_dataset_name
         self.butler = butler
 
-    @pipeBase.timeMethod
+    @timeMethod
     def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None, centroids=False):
         shardIdList, isOnBoundaryList = self.indexer.getShardIds(ctrCoord, radius)
         shards = self.getShards(shardIdList)

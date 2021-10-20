@@ -36,6 +36,7 @@ import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from lsst.utils.timer import timeMethod
 from .subtractBackground import SubtractBackgroundTask
 
 
@@ -200,7 +201,7 @@ class SourceDetectionTask(pipeBase.Task):
         if self.config.doTempWideBackground:
             self.makeSubtask("tempWideBackground")
 
-    @pipeBase.timeMethod
+    @timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """Run source detection and create a SourceCatalog of detections.
 
@@ -635,7 +636,7 @@ class SourceDetectionTask(pipeBase.Task):
                 mask &= ~mask.getPlaneBitMask("DETECTED")
             results.positive = None
 
-    @pipeBase.timeMethod
+    @timeMethod
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
         """Detect footprints on an exposure.
 
