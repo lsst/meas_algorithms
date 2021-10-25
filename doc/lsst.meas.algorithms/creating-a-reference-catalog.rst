@@ -200,6 +200,7 @@ This is an example script that creates an ``.ecsv`` lookup table for the ``butle
 Once this script is complete, finish reference catalog ingestion by following the :ref:`file ingestion instructions above <lsst.meas.algorithms-refcat-ingest>`.
 In particular, you need to change the name of the registered dataset type to "gaia_dr2_20200414" (the reference catalog used in the Python code block above), and the filename to the generated .ecsv file ("gaia_dr2_20200414.ecsv" in the Python code block above):
 
-... prompt: bash
+.. prompt:: bash
+
     butler register-dataset-type REPO gaia_dr2_20200414 SimpleCatalog htm7
     butler ingest-files -t direct REPO gaia_dr2_20200414 refcats gaia_dr2_20200414.ecsv
