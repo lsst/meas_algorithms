@@ -190,6 +190,51 @@ class AccumulatorMeanStackTestCase(lsst.utils.tests.TestCase):
         testing.assert_array_equal(online_masked_image.mask.array,
                                    afw_masked_image.mask.array)
 
+    def test_online_coadd_image(self):
+        """Test online coaddition with regular non-masked images."""
+        exposures, weights = self.make_test_images_to_coadd()
+        coadd_exposure = self.make_coadd_exposure(exposures[0])
+        stats_ctrl = self.make_stats_ctrl()
+        stats_ctrl.setAndMask(0)
+        stats_ctrl.setCalcErrorFromInputVariance(True)
+        mask_map = self.make_mask_map(stats_ctrl)
+
+        stats_flags = afwMath.stringToStatisticsProperty("MEAN")
+        clipped = afwImage.Mask.getPlaneBitMask("CLIPPED")
+
+        masked_image_list = [exp.maskedImage for exp in exposures]
+
+        afw_masked_image = afwMath.statisticsStack(masked_image_list,
+                                                   stats_flags,
+                                                   stats_ctrl,
+                                                   weights,
+                                                   clipped,
+                                                   mask_map)
+
+        # Make the stack with the online accumulator
+        stacker = AccumulatorMeanStack(
+            coadd_exposure.image.array.shape,
+            stats_ctrl.getAndMask(),
+            mask_map=mask_map,
+            no_good_pixels_mask=stats_ctrl.getNoGoodPixelsMask(),
+            calc_error_from_input_variance=stats_ctrl.getCalcErrorFromInputVariance(),
+            compute_n_image=True)
+
+        for exposure, weight in zip(exposures, weights):
+            stacker.add_image(exposure.image, weight=weight)
+
+        stacker.fill_stacked_image(coadd_exposure.image)
+
+        online_image = coadd_exposure.image
+
+        # The unmasked coadd good pixels should match at the <1e-5 level
+        # The masked pixels will not be correct for straight image stacking.
+        good_pixels = np.where(afw_masked_image.mask.array == 0)
+
+        testing.assert_array_almost_equal(online_image.array[good_pixels],
+                                          afw_masked_image.image.array[good_pixels],
+                                          decimal=5)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
