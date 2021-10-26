@@ -97,6 +97,9 @@ class AccumulatorMeanStack(object):
         ----------
         masked_image : `lsst.afw.image.MaskedImage`
             Masked image to add to the stack.
+        weight : `float` or `np.ndarray`, optional
+            Weight to apply for weighted mean.  If an array,
+            must be same size and shape as input masked_image.
         """
         good_pixels = np.where(((masked_image.mask.array & self.bit_mask_value) == 0)
                                & np.isfinite(masked_image.mask.array))
@@ -172,6 +175,41 @@ class AccumulatorMeanStack(object):
 
         bad_pixels = (self.sum_weight <= 0.0)
         stacked_masked_image.mask.array[bad_pixels] |= no_good_pixels_mask
+
+    def add_image(self, image, weight=1.0):
+        """Add an image to the stack.
+
+        No bit-filtering is performed when adding an image.
+
+        Parameters
+        ----------
+        image : `lsst.afw.image.Image`
+            Image to add to the stack.
+        weight : `float` or `np.ndarray`, optional
+            Weight to apply for weighted mean.  If an array,
+            must be same size and shape as input image.
+        """
+        self.sum_weight[:, :] += weight
+        self.sum_wdata[:, :] += weight*image.array[:]
+
+        if self.compute_n_image:
+            self.n_image[:, :] += 1
+
+    def fill_stacked_image(self, stacked_image):
+        """Fill the image after accumulation.
+
+        Parameters
+        ----------
+        stacked_image : `lsst.afw.image.Image`
+            Total image.
+        """
+        with np.warnings.catch_warnings():
+            # Let the NaNs through, this should only happen
+            # if we're stacking with no inputs.
+            np.warnings.simplefilter("ignore")
+
+            # The image plane is sum(weight*data)/sum(weight)
+            stacked_image.array[:, :] = self.sum_wdata/self.sum_weight
 
     @staticmethod
     def stats_ctrl_to_threshold_dict(stats_ctrl):
