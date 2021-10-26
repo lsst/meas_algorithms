@@ -168,7 +168,7 @@ class AccumulatorMeanStack(object):
             stacked_masked_image.mask.array[:, :] = self.or_mask
 
         if self.no_good_pixels_mask is None:
-            mask_dict = stacked_masked_image.maskedImage().getMask().getMaskPlaneDict()
+            mask_dict = stacked_masked_image.mask.getMaskPlaneDict()
             no_good_pixels_mask = 2**(mask_dict['NO_DATA'])
         else:
             no_good_pixels_mask = self.no_good_pixels_mask
