@@ -165,12 +165,16 @@ class AccumulatorMeanStackTestCase(lsst.utils.tests.TestCase):
         mask_threshold_dict = AccumulatorMeanStack.stats_ctrl_to_threshold_dict(stats_ctrl)
 
         # Make the stack with the online accumulator
+
+        # By setting no_good_pixels=None we have the same behavior
+        # as the default from stats_ctrl.getNoGoodPixelsMask(), but
+        # covers the alternate code path.
         stacker = AccumulatorMeanStack(
             coadd_exposure.image.array.shape,
             stats_ctrl.getAndMask(),
             mask_threshold_dict=mask_threshold_dict,
             mask_map=mask_map,
-            no_good_pixels_mask=stats_ctrl.getNoGoodPixelsMask(),
+            no_good_pixels_mask=None,
             calc_error_from_input_variance=stats_ctrl.getCalcErrorFromInputVariance(),
             compute_n_image=True)
 
