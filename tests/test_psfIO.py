@@ -45,7 +45,7 @@ else:
     afwDisplay.setDefaultMaskTransparency(75)
 
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
-Log.getLogger("measurement").setLevel(Log.INFO)
+Log.getLogger("lsst.measurement").setLevel(Log.INFO)
 
 
 def roundTripPsf(key, psf):

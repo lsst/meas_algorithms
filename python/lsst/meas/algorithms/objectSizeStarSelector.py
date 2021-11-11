@@ -27,7 +27,7 @@ import numpy
 import warnings
 from functools import reduce
 
-from lsst.log import Log
+from lsst.utils.logging import getLogger
 from lsst.pipe.base import Struct
 import lsst.geom
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
@@ -37,6 +37,8 @@ import lsst.afw.display as afwDisplay
 from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 
 afwDisplay.setDefaultMaskTransparency(75)
+
+_LOG = getLogger(__name__)
 
 
 class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
@@ -165,7 +167,7 @@ def _assignClusters(yvec, centers):
     minDist = numpy.nan*numpy.ones_like(yvec)
     clusterId = numpy.empty_like(yvec)
     clusterId.dtype = int               # zeros_like(..., dtype=int) isn't in numpy 1.5
-    dbl = Log.getLogger("objectSizeStarSelector._assignClusters")
+    dbl = _LOG.getChild("_assignClusters")
     dbl.setLevel(dbl.INFO)
 
     # Make sure we are logging aall numpy warnings...
@@ -269,7 +271,7 @@ def _improveCluster(yvec, centers, clusterId, nsigma=2.0, nIteration=10, cluster
 def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewidth=0, ltype='-',
          magType="model", clear=True):
 
-    log = Log.getLogger("objectSizeStarSelector.plot")
+    log = _LOG.getChild("plot")
     try:
         import matplotlib.pyplot as plt
     except ImportError as e:

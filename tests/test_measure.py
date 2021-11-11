@@ -36,7 +36,7 @@ import lsst.pex.config as pexConfig
 import lsst.utils.tests
 
 # Change the level to Log.DEBUG or Log.TRACE to see debug messages
-Log.getLogger("measurement").setLevel(Log.INFO)
+Log.getLogger("lsst.measurement").setLevel(Log.INFO)
 
 try:
     type(display)

@@ -40,6 +40,7 @@ capturing stdout to a log file, and using the -n8 option to parallelize it.
 """
 import os.path
 import glob
+import logging
 
 import concurrent.futures
 import itertools
@@ -48,7 +49,11 @@ import lsst.afw.table
 from lsst.meas.algorithms import DatasetConfig
 from lsst.meas.algorithms.loadReferenceObjects import convertToNanojansky, hasNanojanskyFluxUnits
 from lsst.meas.algorithms.ingestIndexReferenceTask import addRefCatMetadata
-import lsst.log
+
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("lsst.convert_refcat_to_nJy")
 
 
 def is_old_schema(config, filename):
@@ -69,9 +74,8 @@ def process_one(filename, write=False, quiet=False):
     quiet : `bool`, optional
         Do not print messages about files read/written or fields found?
     """
-    log = lsst.log.Log()
     if quiet:
-        log.setLevel(lsst.log.WARN)
+        logging.getLogger().setLevel(logging.WARNING)
 
     log.info("Reading: %s", filename)
     catalog = lsst.afw.table.SimpleCatalog.readFits(filename)

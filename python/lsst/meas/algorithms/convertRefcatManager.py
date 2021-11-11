@@ -73,7 +73,7 @@ class ConvertRefcatManager:
         The start and end HTM pixel ids.
     addRefCatMetadata : callable
         A function called to add extra metadata to each output Catalog.
-    log : `lsst.log.Log`
+    log : `lsst.log.Log` or `logging.Logger`
         The log to send messages to.
     """
     _flags = ['photometric', 'resolved', 'variable']

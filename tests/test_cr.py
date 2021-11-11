@@ -35,7 +35,7 @@ import lsst.utils
 import lsst.utils.tests
 
 # Increase the number for more verbose messages
-logUtils.traceSetAt("algorithms.CR", 3)
+logUtils.traceSetAt("lsst.algorithms.CR", 3)
 
 try:
     display

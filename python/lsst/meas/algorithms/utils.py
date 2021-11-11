@@ -27,8 +27,8 @@ __all__ = ["splitId", "showSourceSet", "showPsfSpatialCells",
 
 import math
 import numpy
+import logging
 
-import lsst.log
 import lsst.pex.exceptions as pexExcept
 import lsst.daf.base as dafBase
 import lsst.geom
@@ -45,6 +45,8 @@ from . import subtractPsf, fitKernelParamsToImage
 keptPlots = False                       # Have we arranged to keep spatial plots open?
 
 afwDisplay.setDefaultMaskTransparency(75)
+
+_LOG = logging.getLogger(__name__)
 
 
 def splitId(oid, asDict=True):
@@ -382,7 +384,7 @@ def makeSubplots(fig, nx=2, ny=2, Nx=1, Ny=1, plottingArea=(0.1, 0.1, 0.85, 0.80
         Colour of border around panels
     """
 
-    log = lsst.log.Log.getLogger("utils.makeSubplots")
+    log = _LOG.getChild("makeSubplots")
     try:
         import matplotlib.pyplot as plt
     except ImportError as e:
@@ -474,7 +476,7 @@ def plotPsfSpatialModel(exposure, psf, psfCellSet, showBadCandidates=True, numSa
                         matchKernelAmplitudes=False, keepPlots=True):
     """Plot the PSF spatial model."""
 
-    log = lsst.log.Log.getLogger("utils.plotPsfSpatialModel")
+    log = _LOG.getChild("plotPsfSpatialModel")
     try:
         import matplotlib.pyplot as plt
         import matplotlib as mpl
