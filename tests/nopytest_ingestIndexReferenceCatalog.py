@@ -36,8 +36,7 @@ import numpy as np
 import lsst.daf.butler
 from lsst.daf.butler import DatasetType, DeferredDatasetHandle
 from lsst.daf.butler.script import ingest_files
-from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader,
-                                  LoadIndexedReferenceObjectsConfig)
+from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader)
 from lsst.meas.algorithms.htmIndexer import HtmIndexer
 from lsst.meas.algorithms.ingestIndexReferenceTask import addRefCatMetadata
 from lsst.meas.algorithms.convertRefcatManager import ConvertRefcatManager
@@ -102,13 +101,13 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
             handlers = []
             for dataRef in datasetRefs:
                 handlers.append(DeferredDatasetHandle(butler=butler, ref=dataRef, parameters=None))
-            loaderConfig = LoadIndexedReferenceObjectsConfig()
             # ReferenceObjectLoader is not a Task, so needs a log object
             # (otherwise it logs to `root`); only show WARN logs because each
             # loadRegion (called once per source) in the check below will log
             # twice to INFO.
             log = lsst.log.Log.getLogger('lsst.ReferenceObjectLoader')
             log.setLevel(lsst.log.WARN)
+            loaderConfig = ReferenceObjectLoader.ConfigClass()
             loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
                                            handlers,
                                            loaderConfig,
