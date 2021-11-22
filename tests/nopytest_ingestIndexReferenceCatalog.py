@@ -101,17 +101,11 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
             handlers = []
             for dataRef in datasetRefs:
                 handlers.append(DeferredDatasetHandle(butler=butler, ref=dataRef, parameters=None))
-            # ReferenceObjectLoader is not a Task, so needs a log object
-            # (otherwise it logs to `root`); only show WARN logs because each
-            # loadRegion (called once per source) in the check below will log
-            # twice to INFO.
-            log = lsst.log.Log.getLogger('lsst.ReferenceObjectLoader')
-            log.setLevel(lsst.log.WARN)
             loaderConfig = ReferenceObjectLoader.ConfigClass()
             loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
                                            handlers,
                                            loaderConfig,
-                                           log=log)
+                                           log=self.logger)
             self.checkAllRowsInRefcat(loader, skyCatalog1, config)
             self.checkAllRowsInRefcat(loader, skyCatalog2, config)
 

@@ -503,8 +503,10 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         """
         regionLat = region.getBoundingBox().getLat()
         regionLon = region.getBoundingBox().getLon()
-        self.log.info("Loading reference objects from region bounded by "
+        self.log.info("Loading reference objects from %s in region bounded by "
                       "[%.8f, %.8f], [%.8f, %.8f] RA Dec",
+                      # Name of refcat we're loading from is the datasetType.
+                      self.refCats[0].ref.datasetType.name,
                       regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
                       regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
@@ -959,8 +961,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
-        self.log.info("Loading reference objects using center %s and radius %s deg",
-                      circle.coord, circle.radius.asDegrees())
+        self.log.info("Loading reference objects from %s using center %s and radius %s deg",
+                      self.config.ref_dataset_name, circle.coord, circle.radius.asDegrees())
         loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName=filterName, epoch=epoch,
                                      centroids=True)
         refCat = loadRes.refCat

@@ -21,6 +21,7 @@
 
 __all__ = ["ConvertReferenceCatalogTestBase", "make_coord", "makeConvertConfig"]
 
+import logging
 import math
 import shutil
 import string
@@ -224,6 +225,7 @@ class ConvertReferenceCatalogTestBase:
     def setUp(self):
         self.repoPath = tempfile.TemporaryDirectory()  # cleaned up automatically when test ends
         self.butler = self.makeTemporaryRepo(self.repoPath.name, self.depth)
+        self.logger = logging.getLogger('lsst.ReferenceObjectLoader')
 
     @staticmethod
     def makeTemporaryRepo(rootPath, depth):
@@ -263,7 +265,9 @@ class ConvertReferenceCatalogTestBase:
         """
         for row in skyCatalog:
             center = lsst.geom.SpherePoint(row['ra_icrs'], row['dec_icrs'], lsst.geom.degrees)
-            cat = refObjLoader.loadSkyCircle(center, 2*lsst.geom.arcseconds, filterName='a').refCat
+            with self.assertLogs(self.logger.name, level="INFO") as cm:
+                cat = refObjLoader.loadSkyCircle(center, 2*lsst.geom.arcseconds, filterName='a').refCat
+            self.assertIn("Loading reference objects from testRefCat in region", cm.output[0])
             self.assertGreater(len(cat), 0, "No objects found in loaded catalog.")
             msg = f"input row not found in loaded catalog:\nrow:\n{row}\n{row.dtype}\n\ncatalog:\n{cat[0]}"
             self.assertEqual(row['id'], cat[0]['id'], msg)

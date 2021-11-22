@@ -191,41 +191,6 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         runTest(withRaDecErr=True)
         runTest(withRaDecErr=False)
 
-    def testIngestConfigOverrides(self):
-        """Test IngestIndexedReferenceTask with different configs.
-        """
-        config2 = makeConvertConfig(withRaDecErr=True, withMagErr=True, withPm=True, withPmErr=True,
-                                    withParallax=True)
-        config2.ra_name = "ra"
-        config2.dec_name = "dec"
-        config2.dataset_config.ref_dataset_name = 'myrefcat'
-        # Change the indexing depth to prove we can.
-        # Smaller is better than larger because it makes fewer files.
-        config2.dataset_config.indexer.active.depth = self.depth - 1
-        config2.is_photometric_name = 'is_phot'
-        config2.is_resolved_name = 'is_res'
-        config2.is_variable_name = 'is_var'
-        config2.id_name = 'id'
-        config2.extra_col_names = ['val1', 'val2', 'val3']
-        config2.file_reader.header_lines = 1
-        config2.file_reader.colnames = [
-            'id', 'ra', 'dec', 'ra_err', 'dec_err', 'a', 'a_err', 'b', 'b_err', 'is_phot',
-            'is_res', 'is_var', 'val1', 'val2', 'val3', 'pm_ra', 'pm_dec', 'pm_ra_err',
-            'pm_dec_err', 'parallax', 'parallax_err', 'unixtime',
-        ]
-        config2.file_reader.delimiter = '|'
-        # this also tests changing the delimiter
-        IngestIndexedReferenceTask.parseAndRun(
-            args=[self.input_dir, "--output", self.outPath+"/output_override",
-                  self.skyCatalogFileDelim], config=config2)
-
-        # Test if we can get back the catalog with a non-standard dataset name
-        butler = dafPersist.Butler(self.outPath+"/output_override")
-        loaderConfig = LoadIndexedReferenceObjectsConfig()
-        loaderConfig.ref_dataset_name = "myrefcat"
-        loader = LoadIndexedReferenceObjectsTask(butler=butler, config=loaderConfig)
-        self.checkAllRowsInRefcat(loader, self.skyCatalog, config2)
-
     def testLoadSkyCircle(self):
         """Test LoadIndexedReferenceObjectsTask.loadSkyCircle with default config."""
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
