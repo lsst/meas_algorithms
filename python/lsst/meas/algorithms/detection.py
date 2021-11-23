@@ -443,9 +443,9 @@ class SourceDetectionTask(pipeBase.Task):
         sigma : `float`
             Gaussian sigma used for the convolution.
         """
-        self.metadata.set("doSmooth", doSmooth)
+        self.metadata["doSmooth"] = doSmooth
         sigma = psf.computeShape().getDeterminantRadius()
-        self.metadata.set("sigma", sigma)
+        self.metadata["sigma"] = sigma
 
         if not doSmooth:
             middle = maskedImage.Factory(maskedImage, deep=True)
@@ -454,7 +454,7 @@ class SourceDetectionTask(pipeBase.Task):
         # Smooth using a Gaussian (which is separable, hence fast) of width sigma
         # Make a SingleGaussian (separable) kernel with the 'sigma'
         kWidth = self.calculateKernelSize(sigma)
-        self.metadata.set("smoothingKernelWidth", kWidth)
+        self.metadata["smoothingKernelWidth"] = kWidth
         gaussFunc = afwMath.GaussianFunction1D(sigma)
         gaussKernel = afwMath.SeparableKernel(kWidth, kWidth, gaussFunc, gaussFunc)
 
@@ -551,7 +551,7 @@ class SourceDetectionTask(pipeBase.Task):
                 continue
             if self.config.nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
-                self.metadata.set("nGrow", nGrow)
+                self.metadata["nGrow"] = nGrow
                 if self.config.combinedGrow:
                     fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
                 else:
