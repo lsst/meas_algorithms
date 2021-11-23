@@ -62,10 +62,15 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
         dtype=bool,
         default=False,
     )
+    # Note that the current default is conditioned on the detection thresholds
+    # set in the characterizeImage setDefaults function for the measurePsf
+    # stage.
     signalToNoiseMin = pexConfig.Field(
-        doc="specify the minimum signal-to-noise for good Psf Candidates",
+        doc="specify the minimum signal-to-noise for good Psf Candidates "
+            "(value should take into consideration the detection thresholds "
+            "set for the catalog of interest)",
         dtype=float,
-        default=20.0,
+        default=50.0,
         check=lambda x: x >= 0.0,
     )
     signalToNoiseMax = pexConfig.Field(
