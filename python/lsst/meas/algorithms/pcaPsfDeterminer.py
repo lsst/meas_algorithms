@@ -637,11 +637,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         avgY /= numGoodStars
 
         if metadata is not None:
-            metadata.set("spatialFitChi2", fitChi2)
-            metadata.set("numGoodStars", numGoodStars)
-            metadata.set("numAvailStars", numAvailStars)
-            metadata.set("avgX", avgX)
-            metadata.set("avgY", avgY)
+            metadata["spatialFitChi2"] = fitChi2
+            metadata["numGoodStars"] = numGoodStars
+            metadata["numAvailStars"] = numAvailStars
+            metadata["avgX"] = avgX
+            metadata["avgY"] = avgY
 
         psf = PcaPsf(psf.getKernel(), lsst.geom.Point2D(avgX, avgY))
 
