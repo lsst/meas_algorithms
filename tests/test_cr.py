@@ -27,15 +27,15 @@ import unittest
 import lsst.geom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-import lsst.log.utils as logUtils
 import lsst.meas.algorithms as algorithms
 import lsst.meas.algorithms.testUtils as testUtils
 import lsst.pex.config as pexConfig
 import lsst.utils
+import lsst.utils.logging
 import lsst.utils.tests
 
 # Increase the number for more verbose messages
-logUtils.traceSetAt("lsst.algorithms.CR", 3)
+lsst.utils.logging.trace_set_at("lsst.algorithms.CR", 3)
 
 try:
     display
