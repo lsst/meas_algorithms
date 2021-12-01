@@ -190,10 +190,59 @@ class _FilterCatalog:
         return filteredRefCat
 
 
+class LoadReferenceObjectsConfig(pexConfig.Config):
+    pixelMargin = pexConfig.RangeField(
+        doc="Padding to add to 4 all edges of the bounding box (pixels)",
+        dtype=int,
+        default=250,
+        min=0,
+    )
+    defaultFilter = pexConfig.Field(
+        doc=("Default reference catalog filter to use if filter not specified in exposure;"
+             " if blank then filter must be specified in exposure."),
+        dtype=str,
+        default="",
+        deprecated="defaultFilter is deprecated by RFC-716. Will be removed after v22."
+    )
+    anyFilterMapsToThis = pexConfig.Field(
+        doc=("Always use this reference catalog filter, no matter whether or what filter name is "
+             "supplied to the loader. Effectively a trivial filterMap: map all filter names to this filter."
+             " This can be set for purely-astrometric catalogs (e.g. Gaia DR2) where there is only one "
+             "reasonable choice for every camera filter->refcat mapping, but not for refcats used for "
+             "photometry, which need a filterMap and/or colorterms/transmission corrections."),
+        dtype=str,
+        default=None,
+        optional=True
+    )
+    filterMap = pexConfig.DictField(
+        doc=("Mapping of camera filter name: reference catalog filter name; "
+             "each reference filter must exist in the refcat."
+             " Note that this does not perform any bandpass corrections: it is just a lookup."),
+        keytype=str,
+        itemtype=str,
+        default={},
+    )
+    requireProperMotion = pexConfig.Field(
+        doc="Require that the fields needed to correct proper motion "
+            "(epoch, pm_ra and pm_dec) are present?",
+        dtype=bool,
+        default=False,
+    )
+
+    def validate(self):
+        super().validate()
+        if self.filterMap != {} and self.anyFilterMapsToThis is not None:
+            msg = "`filterMap` and `anyFilterMapsToThis` are mutually exclusive"
+            raise pexConfig.FieldValidationError(LoadReferenceObjectsConfig.anyFilterMapsToThis,
+                                                 self, msg)
+
+
 class ReferenceObjectLoaderBase:
     """Base class for reference object loaders, to facilitate gen2/gen3 code
     sharing.
     """
+    ConfigClass = LoadReferenceObjectsConfig
+
     def applyProperMotions(self, catalog, epoch):
         """Apply proper motion correction to a reference catalog.
 
@@ -454,8 +503,10 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         """
         regionLat = region.getBoundingBox().getLat()
         regionLon = region.getBoundingBox().getLon()
-        self.log.info("Loading reference objects from region bounded by "
+        self.log.info("Loading reference objects from %s in region bounded by "
                       "[%.8f, %.8f], [%.8f, %.8f] RA Dec",
+                      # Name of refcat we're loading from is the datasetType.
+                      self.refCats[0].ref.datasetType.name,
                       regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
                       regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
@@ -851,57 +902,9 @@ def getRefFluxKeys(schema, filterName=None):
     return (fluxKey, fluxErrKey)
 
 
-class LoadReferenceObjectsConfig(pexConfig.Config):
-    pixelMargin = pexConfig.RangeField(
-        doc="Padding to add to 4 all edges of the bounding box (pixels)",
-        dtype=int,
-        default=250,
-        min=0,
-    )
-    defaultFilter = pexConfig.Field(
-        doc=("Default reference catalog filter to use if filter not specified in exposure;"
-             " if blank then filter must be specified in exposure."),
-        dtype=str,
-        default="",
-        deprecated="defaultFilter is deprecated by RFC-716. Will be removed after v22."
-    )
-    anyFilterMapsToThis = pexConfig.Field(
-        doc=("Always use this reference catalog filter, no matter whether or what filter name is "
-             "supplied to the loader. Effectively a trivial filterMap: map all filter names to this filter."
-             " This can be set for purely-astrometric catalogs (e.g. Gaia DR2) where there is only one "
-             "reasonable choice for every camera filter->refcat mapping, but not for refcats used for "
-             "photometry, which need a filterMap and/or colorterms/transmission corrections."),
-        dtype=str,
-        default=None,
-        optional=True
-    )
-    filterMap = pexConfig.DictField(
-        doc=("Mapping of camera filter name: reference catalog filter name; "
-             "each reference filter must exist in the refcat."
-             " Note that this does not perform any bandpass corrections: it is just a lookup."),
-        keytype=str,
-        itemtype=str,
-        default={},
-    )
-    requireProperMotion = pexConfig.Field(
-        doc="Require that the fields needed to correct proper motion "
-            "(epoch, pm_ra and pm_dec) are present?",
-        dtype=bool,
-        default=False,
-    )
-
-    def validate(self):
-        super().validate()
-        if self.filterMap != {} and self.anyFilterMapsToThis is not None:
-            msg = "`filterMap` and `anyFilterMapsToThis` are mutually exclusive"
-            raise pexConfig.FieldValidationError(LoadReferenceObjectsConfig.anyFilterMapsToThis,
-                                                 self, msg)
-
-
 class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metaclass=abc.ABCMeta):
     """Abstract base class to load objects from reference catalogs.
     """
-    ConfigClass = LoadReferenceObjectsConfig
     _DefaultName = "LoadReferenceObjects"
 
     def __init__(self, butler=None, *args, **kwargs):
@@ -958,8 +961,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         circle = self._calculateCircle(bbox, wcs)
 
         # find objects in circle
-        self.log.info("Loading reference objects using center %s and radius %s deg",
-                      circle.coord, circle.radius.asDegrees())
+        self.log.info("Loading reference objects from %s using center %s and radius %s deg",
+                      self.config.ref_dataset_name, circle.coord, circle.radius.asDegrees())
         loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName=filterName, epoch=epoch,
                                      centroids=True)
         refCat = loadRes.refCat
