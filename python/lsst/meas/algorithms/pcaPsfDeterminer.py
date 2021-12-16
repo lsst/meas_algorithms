@@ -77,6 +77,7 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
         doc="number of eigen components for PSF kernel creation",
         dtype=int,
         default=4,
+        check=lambda x: x >= 1
     )
     spatialOrder = pexConfig.Field(
         doc="specify spatial order for PSF kernel creation",
