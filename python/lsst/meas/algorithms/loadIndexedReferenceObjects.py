@@ -62,7 +62,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
         self.butler = butler
 
     @timeMethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None, centroids=False):
+    def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None, centroids=False):
         shardIdList, isOnBoundaryList = self.indexer.getShardIds(ctrCoord, radius)
         shards = self.getShards(shardIdList)
         refCat = self.butler.get('ref_cat',
@@ -100,7 +100,7 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
                                    f" format_version field in config ({self.dataset_config.format_version})")
 
         self._addFluxAliases(refCat.schema)
-        fluxField = getRefFluxField(schema=refCat.schema, filterName=filterName)
+        fluxField = getRefFluxField(refCat.schema, filterName)
 
         if centroids:
             # add and initialize centroid and hasCentroid fields (these are

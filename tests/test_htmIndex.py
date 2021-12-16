@@ -196,7 +196,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
         for tupl, idList in self.compCats.items():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, self.searchRadius, filterName='a')
+            lcat = loader.loadSkyCircle(cent, self.searchRadius, 'a')
             self.assertTrue(lcat.refCat.isContiguous())
             self.assertFalse("camFlux" in lcat.refCat.schema)
             self.assertEqual(Counter(lcat.refCat['id']), Counter(idList))
@@ -224,7 +224,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
             pixel_scale = 2*self.searchRadius/max(bbox.getHeight(), bbox.getWidth())
             cdMatrix = afwGeom.makeCdMatrix(scale=pixel_scale)
             wcs = afwGeom.makeSkyWcs(crval=cent, crpix=ctr_pix, cdMatrix=cdMatrix)
-            result = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a")
+            result = loader.loadPixelBox(bbox, wcs, "a")
             # The following is to ensure the reference catalog coords are
             # getting corrected for proper motion when an epoch is provided.
             # Use an extreme epoch so that differences in corrected coords
@@ -232,7 +232,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
             # do indeed change when the epoch is passed.  It makes no attempt
             # at assessing the correctness of the change.  This is left to the
             # explicit testProperMotion() test below.
-            resultWithEpoch = loader.loadPixelBox(bbox=bbox, wcs=wcs, filterName="a",
+            resultWithEpoch = loader.loadPixelBox(bbox, wcs, "a",
                                                   epoch=astropy.time.Time(30000, format='mjd', scale="tai"))
             self.assertFloatsNotEqual(result.refCat["coord_ra"], resultWithEpoch.refCat["coord_ra"],
                                       rtol=1.0e-4)
@@ -243,19 +243,16 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
             numFound += len(result.refCat)
         self.assertGreater(numFound, 0)
 
-    def testDefaultFilterAndFilterMap(self):
-        """Test defaultFilter and filterMap parameters of LoadIndexedReferenceObjectsConfig."""
+    def testFilterMap(self):
+        """Test filterMap parameters of LoadIndexedReferenceObjectsConfig."""
         config = LoadIndexedReferenceObjectsConfig()
-        config.defaultFilter = "b"
         config.filterMap = {"aprime": "a"}
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
         for tupl, idList in self.compCats.items():
             cent = make_coord(*tupl)
-            lcat = loader.loadSkyCircle(cent, self.searchRadius)
-            self.assertEqual(lcat.fluxField, "camFlux")
+            lcat = loader.loadSkyCircle(cent, self.searchRadius, "a")
+            self.assertEqual(lcat.fluxField, "a_flux")
             if len(idList) > 0:
-                defFluxFieldName = getRefFluxField(lcat.refCat.schema, None)
-                self.assertTrue(defFluxFieldName in lcat.refCat.schema)
                 aprimeFluxFieldName = getRefFluxField(lcat.refCat.schema, "aprime")
                 self.assertTrue(aprimeFluxFieldName in lcat.refCat.schema)
                 break  # just need one test
@@ -264,7 +261,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         """Test proper motion correction"""
         center = make_coord(93.0, -90.0)
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler)
-        references = loader.loadSkyCircle(center, self.searchRadius, filterName='a').refCat
+        references = loader.loadSkyCircle(center, self.searchRadius, 'a').refCat
         original = references.copy(True)
 
         # Zero epoch change --> no proper motion correction (except minor numerical effects)
@@ -311,7 +308,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         with unittest.mock.patch.object(self.testButler, 'get', return_value=refcatData):
             msg = "requireProperMotion=True but refcat pm_ra field is not an Angle"
             with self.assertRaisesRegex(RuntimeError, msg):
-                loader.loadSkyCircle(center, self.searchRadius, epoch=epoch)
+                loader.loadSkyCircle(center, self.searchRadius, "g", epoch=epoch)
 
         # not specifying `epoch` with requireProperMotion=True should raise for any catalog
         config = LoadIndexedReferenceObjectsConfig()
@@ -320,7 +317,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
         msg = "requireProperMotion=True but epoch not provided to loader"
         with self.assertRaisesRegex(RuntimeError, msg):
-            loader.loadSkyCircle(center, self.searchRadius, epoch=None)
+            loader.loadSkyCircle(center, self.searchRadius, "g", epoch=None)
 
         # malformatted catalogs should just warn if we do not require proper motion corrections
         config = LoadIndexedReferenceObjectsConfig()
@@ -329,7 +326,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         loader = LoadIndexedReferenceObjectsTask(butler=self.testButler, config=config)
         with unittest.mock.patch.object(self.testButler, 'get', return_value=refcatData):
             with self.assertLogs("lsst.LoadIndexedReferenceObjectsTask", level="WARNING") as cm:
-                loader.loadSkyCircle(center, self.searchRadius, epoch=epoch)
+                loader.loadSkyCircle(center, self.searchRadius, "g", epoch=epoch)
             warnLog1 = "Reference catalog pm_ra field is not an Angle; cannot apply proper motion."
             self.assertEqual(cm.records[0].message, warnLog1)
 
@@ -340,8 +337,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/version0')
         loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(path))
         self.assertEqual(loader.dataset_config.format_version, 0)
-        result = loader.loadSkyCircle(make_coord(10, 20),
-                                      5*lsst.geom.degrees, filterName='a')
+        result = loader.loadSkyCircle(make_coord(10, 20), 5*lsst.geom.degrees, 'a')
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(os.path.join(path, 'ref_cats/cal_ref_cat/4022.fits'))
         self.assertFloatsEqual(catalog['a_flux']*1e9, result.refCat['a_flux'])
@@ -354,8 +350,7 @@ class ReferenceCatalogIngestAndLoadTestCase(ConvertReferenceCatalogTestBase, lss
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/version1')
         loader = LoadIndexedReferenceObjectsTask(butler=dafPersist.Butler(path))
         self.assertEqual(loader.dataset_config.format_version, 1)
-        result = loader.loadSkyCircle(make_coord(10, 20),
-                                      5*lsst.geom.degrees, filterName='a')
+        result = loader.loadSkyCircle(make_coord(10, 20), 5*lsst.geom.degrees, 'a')
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(os.path.join(path, 'ref_cats/cal_ref_cat/4022.fits'))
         self.assertFloatsEqual(catalog['a_flux'], result.refCat['a_flux'])

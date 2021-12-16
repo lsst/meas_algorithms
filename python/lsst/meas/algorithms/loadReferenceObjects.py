@@ -25,7 +25,6 @@ __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "Loa
            "ReferenceObjectLoader"]
 
 import abc
-import itertools
 import logging
 
 import astropy.time
@@ -197,13 +196,6 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         default=250,
         min=0,
     )
-    defaultFilter = pexConfig.Field(
-        doc=("Default reference catalog filter to use if filter not specified in exposure;"
-             " if blank then filter must be specified in exposure."),
-        dtype=str,
-        default="",
-        deprecated="defaultFilter is deprecated by RFC-716. Will be removed after v22."
-    )
     anyFilterMapsToThis = pexConfig.Field(
         doc=("Always use this reference catalog filter, no matter whether or what filter name is "
              "supplied to the loader. Effectively a trivial filterMap: map all filter names to this filter."
@@ -370,7 +362,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         return innerSkyRegion, outerSkyRegion, innerSphCorners, outerSphCorners
 
-    def loadPixelBox(self, bbox, wcs, filterName=None, epoch=None, photoCalib=None,
+    def loadPixelBox(self, bbox, wcs, filterName, epoch=None, photoCalib=None,
                      bboxToSpherePadding=100):
         """Load reference objects that are within a pixel-based rectangular
         region.
@@ -393,8 +385,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         wcs : `lsst.afw.geom.SkyWcs`
             Wcs object defining the pixel to sky (and inverse) transform for
             the supplied ``bbox``.
-        filterName : `str` or `None`, optional
-            Name of camera filter, or `None` or blank for the default filter.
+        filterName : `str`
+            Name of camera filter.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None`
             to not apply such corrections.
@@ -455,9 +447,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
                 if paddedBbox.contains(geom.Point2D(pixCoords)):
                     filteredRefCat.append(record)
             return filteredRefCat
-        return self.loadRegion(outerSkyRegion, filtFunc=_filterFunction, epoch=epoch, filterName=filterName)
+        return self.loadRegion(outerSkyRegion, filterName, filtFunc=_filterFunction, epoch=epoch)
 
-    def loadRegion(self, region, filtFunc=None, filterName=None, epoch=None):
+    def loadRegion(self, region, filterName, filtFunc=None, epoch=None):
         """Load reference objects within a specified region.
 
         This function loads the DataIds used to construct an instance of this
@@ -480,8 +472,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             reference catalog. If `None`, an internal filter function is used
             which filters according to if a reference object falls within the
             input region.
-        filterName : `str` or `None`, optional
-            Name of camera filter, or `None` or blank for the default filter.
+        filterName : `str`
+            Name of camera filter.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
@@ -563,16 +555,16 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
 
         # Add flux aliases
-        expandedCat = self.addFluxAliases(expandedCat, self.config.defaultFilter, self.config.filterMap)
+        expandedCat = self.addFluxAliases(expandedCat, self.config.filterMap)
 
         # Ensure that the returned reference catalog is continuous in memory
         if not expandedCat.isContiguous():
             expandedCat = expandedCat.copy(deep=True)
 
-        fluxField = getRefFluxField(schema=expandedCat.schema, filterName=filterName)
+        fluxField = getRefFluxField(expandedCat.schema, filterName)
         return pipeBase.Struct(refCat=expandedCat, fluxField=fluxField)
 
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None):
+    def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None):
         """Load reference objects that lie within a circular region on the sky.
 
         This method constructs a circular region from an input center and
@@ -586,8 +578,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             Point defining the center of the circular region.
         radius : `lsst.geom.Angle`
             Defines the angular radius of the circular region.
-        filterName : `str` or `None`, optional
-            Name of camera filter, or `None` or blank for the default filter.
+        filterName : `str`
+            Name of camera filter.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
@@ -601,7 +593,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         centerVector = ctrCoord.getVector()
         sphRadius = sphgeom.Angle(radius.asRadians())
         circularRegion = sphgeom.Circle(centerVector, sphRadius)
-        return self.loadRegion(circularRegion, filterName=filterName, epoch=epoch)
+        return self.loadRegion(circularRegion, filterName, epoch=epoch)
 
     def joinMatchListWithCatalog(self, matchCat, sourceCat):
         """Relink an unpersisted match list to sources and reference objects.
@@ -629,7 +621,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         """
         return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
 
-    def getMetadataBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None,
+    def getMetadataBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None,
                        bboxToSpherePadding=100):
         """Return metadata about the load
 
@@ -642,9 +634,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             Bounding box for the pixels.
         wcs : `lsst.afw.geom.SkyWcs`
             The WCS object associated with ``bbox``.
-        filterName : `str` or `None`, optional
-            Name of the camera filter, or `None` or blank for the default
-            filter.
+        filterName : `str`
+            Name of the camera filter.
         photoCalib : `None`
             Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` or `None`,  optional
@@ -671,7 +662,6 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
                 md.add(f"{box}_{name}_RA", geom.SpherePoint(corner).getRa().asDegrees(), f"{box}_corner")
                 md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
         md.add("SMATCHV", 1, 'SourceMatchVector version number')
-        filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
         md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
@@ -689,9 +679,8 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             ICRS center of the search region.
         radius : `lsst.geom.Angle`
             Radius of the search region.
-        filterName : `str` or `None`
-            Name of the camera filter, or `None` or blank for the default
-            filter.
+        filterName : `str`
+            Name of the camera filter.
         photoCalib : `None`
             Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` or `None`, optional
@@ -707,13 +696,12 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
         md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
         md.add('SMATCHV', 1, 'SourceMatchVector version number')
-        filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
         md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
 
     @staticmethod
-    def addFluxAliases(refCat, defaultFilter, filterReferenceMap):
+    def addFluxAliases(refCat, filterReferenceMap):
         """Add flux columns and aliases for camera to reference mapping.
 
         Creates a new catalog containing the information of the input refCat
@@ -724,8 +712,6 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         ----------
         refCat : `lsst.afw.table.SimpleCatalog`
             Catalog of reference objects
-        defaultFilter : `str`
-            Name of the default reference filter
         filterReferenceMap : `dict` of `str`
             Dictionary with keys corresponding to a filter name and values
             which correspond to the name of the reference filter.
@@ -746,10 +732,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         aliasMap = refCat.schema.getAliasMap()
         if filterReferenceMap is None:
             filterReferenceMap = {}
-        for filterName, refFilterName in itertools.chain([(None, defaultFilter)],
-                                                         filterReferenceMap.items()):
+        for filterName, refFilterName in filterReferenceMap.items():
             if refFilterName:
-                camFluxName = filterName + "_camFlux" if filterName is not None else "camFlux"
+                camFluxName = filterName + "_camFlux"
                 refFluxName = refFilterName + "_flux"
                 if refFluxName not in refCat.schema:
                     raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
@@ -820,26 +805,22 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         return expandedCat
 
 
-def getRefFluxField(schema, filterName=None):
+def getRefFluxField(schema, filterName):
     """Get the name of a flux field from a schema.
 
     return the alias of "anyFilterMapsToThis", if present
-    else if filterName is specified:
+    else:
         return "*filterName*_camFlux" if present
         else return "*filterName*_flux" if present (camera filter name
             matches reference filter name)
-        else throw RuntimeError
-    else:
-        return "camFlux", if present,
         else throw RuntimeError
 
     Parameters
     ----------
     schema : `lsst.afw.table.Schema`
         Reference catalog schema.
-    filterName : `str`, optional
-        Name of camera filter. If not specified, ``defaultFilter`` needs to be
-        set in the refcat loader config.
+    filterName : `str`
+        Name of camera filter.
 
     Returns
     -------
@@ -858,10 +839,7 @@ def getRefFluxField(schema, filterName=None):
     except LookupError:
         pass  # try the filterMap next
 
-    if filterName:
-        fluxFieldList = [filterName + "_camFlux", filterName + "_flux"]
-    else:
-        fluxFieldList = ["camFlux"]
+    fluxFieldList = [filterName + "_camFlux", filterName + "_flux"]
     for fluxField in fluxFieldList:
         if fluxField in schema:
             return fluxField
@@ -869,7 +847,7 @@ def getRefFluxField(schema, filterName=None):
     raise RuntimeError("Could not find flux field(s) %s" % (", ".join(fluxFieldList)))
 
 
-def getRefFluxKeys(schema, filterName=None):
+def getRefFluxKeys(schema, filterName):
     """Return keys for flux and flux error.
 
     Parameters
@@ -919,7 +897,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         self.butler = butler
 
     @timeMethod
-    def loadPixelBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None):
+    def loadPixelBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None):
         """Load reference objects that overlap a rectangular pixel region.
 
         Parameters
@@ -929,10 +907,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         wcs : `lsst.afw.geom.SkyWcs`
             WCS; used to convert pixel positions to sky coordinates
             and vice-versa.
-        filterName : `str` or `None`, optional
-            Name of filter, or `None` or `""` for the default filter.
-            This is used for flux values in case we have flux limits
-            (which are not yet implemented).
+        filterName : `str`
+            Name of filter. This can be used for flux limit comparisons.
         photoCalib : `None`
             Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` or `None`, optional
@@ -963,7 +939,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         # find objects in circle
         self.log.info("Loading reference objects from %s using center %s and radius %s deg",
                       self.config.ref_dataset_name, circle.coord, circle.radius.asDegrees())
-        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName=filterName, epoch=epoch,
+        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName, epoch=epoch,
                                      centroids=True)
         refCat = loadRes.refCat
         numFound = len(refCat)
@@ -981,7 +957,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         return loadRes
 
     @abc.abstractmethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName=None, epoch=None, centroids=False):
+    def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None, centroids=False):
         """Load reference objects that overlap a circular sky region.
 
         Parameters
@@ -990,10 +966,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             ICRS center of search region.
         radius : `lsst.geom.Angle`
             Radius of search region.
-        filterName : `str` or `None`, optional
-            Name of filter, or `None` or `""` for the default filter.
-            This is used for flux values in case we have flux limits
-            (which are not yet implemented).
+        filterName : `str`
+            Name of filter. This can be used for flux limit comparisons.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
@@ -1056,10 +1030,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
     def _addFluxAliases(self, schema):
         """Add aliases for camera filter fluxes to the schema.
 
-        If self.config.defaultFilter then adds these aliases:
-            camFlux:      <defaultFilter>_flux
-            camFluxErr: <defaultFilter>_fluxErr, if the latter exists
-
         For each camFilter: refFilter in self.config.filterMap adds these aliases:
             <camFilter>_camFlux:      <refFilter>_flux
             <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
@@ -1091,13 +1061,12 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             ----------
             filterName : `str` (optional)
                 Camera filter name. The resulting alias name is
-                <filterName>_camFlux, or simply "camFlux" if `filterName`
-                is `None` or `""`.
+                <filterName>_camFlux
             refFilterName : `str`
                 Reference catalog filter name; the field
                 <refFilterName>_flux must exist.
             """
-            camFluxName = filterName + "_camFlux" if filterName is not None else "camFlux"
+            camFluxName = filterName + "_camFlux"
             refFluxName = refFilterName + "_flux"
             if refFluxName not in schema:
                 raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
@@ -1106,9 +1075,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             if refFluxErrName in schema:
                 camFluxErrName = camFluxName + "Err"
                 aliasMap.set(camFluxErrName, refFluxErrName)
-
-        if self.config.defaultFilter:
-            addAliasesForOneFilter(None, self.config.defaultFilter)
 
         for filterName, refFilterName in self.config.filterMap.items():
             addAliasesForOneFilter(filterName, refFilterName)
@@ -1301,7 +1267,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         radius = max(coord.separation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
         return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
 
-    def getMetadataBox(self, bbox, wcs, filterName=None, photoCalib=None, epoch=None):
+    def getMetadataBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None):
         """Return metadata about the load.
 
         This metadata is used for reloading the catalog (e.g., for
@@ -1313,9 +1279,8 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             Pixel bounding box.
         wcs : `lsst.afw.geom.SkyWcs`
             WCS; used to convert pixel positions to sky coordinates.
-        filterName : `str` or `None`, optional
-            Name of camera filter, or `None` or `""` for the default
-            filter.
+        filterName : `str`
+            Name of camera filter.
         photoCalib : `None`
             Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` or `None`, optional
@@ -1343,8 +1308,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         radius : `lsst.geom.Angle`
             Radius of the search region.
         filterName : `str`
-            Name of camera filter, or `None` or `""` for the default
-            filter.
+            Name of camera filter.
         photoCalib : `None`
             Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` (optional)
@@ -1361,7 +1325,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
         md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
         md.add('SMATCHV', 1, 'SourceMatchVector version number')
-        filterName = "UNKNOWN" if filterName is None else str(filterName)
         md.add('FILTER', filterName, 'filter name for photometric data')
         md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
@@ -1448,7 +1411,7 @@ def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
                                      geom.degrees).getVector()
             box.append(coord)
         outerBox = sphgeom.ConvexPolygon(box)
-        refCat = refObjLoader.loadRegion(outerBox, filterName=filterName, epoch=epoch).refCat
+        refCat = refObjLoader.loadRegion(outerBox, filterName, epoch=epoch).refCat
 
     refCat.sort()
     sourceCat.sort()
