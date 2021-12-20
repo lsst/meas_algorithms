@@ -348,12 +348,12 @@ class SourceDetectionTask(pipeBase.Task):
         bgImage = bg.getImageF(self.tempLocalBackground.config.algorithm,
                                self.tempLocalBackground.config.undersampleStyle)
         middle -= bgImage.Factory(bgImage, middle.getBBox())
-        thresholdPos = self.makeThreshold(middle, "positive")
-        thresholdNeg = self.makeThreshold(middle, "negative")
         if self.config.thresholdPolarity != "negative":
-            self.updatePeaks(results.positive, middle, thresholdPos)
+            results.positiveThreshold = self.makeThreshold(middle, "positive")
+            self.updatePeaks(results.positive, middle, results.positiveThreshold)
         if self.config.thresholdPolarity != "positive":
-            self.updatePeaks(results.negative, middle, thresholdNeg)
+            results.negativeThreshold = self.makeThreshold(middle, "negative")
+            self.updatePeaks(results.negative, middle, results.negativeThreshold)
 
     def clearMask(self, mask):
         """Clear the DETECTED and DETECTED_NEGATIVE mask planes
@@ -502,22 +502,23 @@ class SourceDetectionTask(pipeBase.Task):
         factor : `float`
             Multiplier for the configured threshold.
         """
-        results = pipeBase.Struct(positive=None, negative=None, factor=factor)
+        results = pipeBase.Struct(positive=None, negative=None, factor=factor,
+                                  positiveThreshold=None, negativeThreshold=None)
         # Detect the Footprints (peaks may be replaced if doTempLocalBackground)
         if self.config.reEstimateBackground or self.config.thresholdPolarity != "negative":
-            threshold = self.makeThreshold(middle, "positive", factor=factor)
+            results.positiveThreshold = self.makeThreshold(middle, "positive", factor=factor)
             results.positive = afwDet.FootprintSet(
                 middle,
-                threshold,
+                results.positiveThreshold,
                 "DETECTED",
                 self.config.minPixels
             )
             results.positive.setRegion(bbox)
         if self.config.reEstimateBackground or self.config.thresholdPolarity != "positive":
-            threshold = self.makeThreshold(middle, "negative", factor=factor)
+            results.negativeThreshold = self.makeThreshold(middle, "negative", factor=factor)
             results.negative = afwDet.FootprintSet(
                 middle,
-                threshold,
+                results.negativeThreshold,
                 "DETECTED_NEGATIVE",
                 self.config.minPixels
             )
@@ -700,13 +701,76 @@ class SourceDetectionTask(pipeBase.Task):
                 self.applyTempLocalBackground(exposure, middle, results)
             self.finalizeFootprints(maskedImage.mask, results, sigma)
 
+            # Compute the significance of peaks after the peaks have been
+            # finalized and after local background correction/updatePeaks, so
+            # that the significance represents the "final" detection S/N.
+            results.positive = self.setPeakSignificance(middle, results.positive, results.positiveThreshold)
+            results.negative = self.setPeakSignificance(middle, results.negative, results.negativeThreshold,
+                                                        negative=True)
+
             if self.config.reEstimateBackground:
                 self.reEstimateBackground(maskedImage, results.background)
 
             self.clearUnwantedResults(maskedImage.getMask(), results)
+
             self.display(exposure, results, middle)
 
         return results
+
+    def setPeakSignificance(self, exposure, footprints, threshold, negative=False):
+        """Set the significance of each detected peak to the pixel value divided
+        by the appropriate standard-deviation for ``config.thresholdType``.
+
+        Only sets significance for "stdev" and "pixel_stdev" thresholdTypes;
+        we leave it undefined for "value" and "variance" as it does not have a
+        well-defined meaning in those cases.
+
+        Parameters
+        ----------
+        exposure : `lsst.afw.image.Exposure`
+            Exposure that footprints were detected on, likely the convolved,
+            local background-subtracted image.
+        footprints : `lsst.afw.detection.FootprintSet`
+            Footprints detected on the image.
+        threshold : `lsst.afw.detection.Threshold`
+            Threshold used to find footprints.
+        negative : `bool`, optional
+            Are we calculating for negative sources?
+        """
+        if footprints is None or footprints.getFootprints() == []:
+            return footprints
+        polarity = -1 if negative else 1
+
+        # All incoming footprints have the same schema.
+        mapper = afwTable.SchemaMapper(footprints.getFootprints()[0].peaks.schema)
+        mapper.addMinimalSchema(footprints.getFootprints()[0].peaks.schema)
+        mapper.addOutputField("significance", type=float,
+                              doc="Ratio of peak value to configured standard deviation.")
+
+        # Copy the old peaks to the new ones with a significance field.
+        # Do this independent of the threshold type, so we always have a
+        # significance field.
+        newFootprints = afwDet.FootprintSet(footprints)
+        for old, new in zip(footprints.getFootprints(), newFootprints.getFootprints()):
+            newPeaks = afwDet.PeakCatalog(mapper.getOutputSchema())
+            newPeaks.extend(old.peaks, mapper=mapper)
+            new.getPeaks().clear()
+            new.setPeakCatalog(newPeaks)
+
+        # Compute the significance values.
+        if self.config.thresholdType == "pixel_stdev":
+            for footprint in newFootprints.getFootprints():
+                footprint.updatePeakSignificance(exposure.variance, polarity)
+        elif self.config.thresholdType == "stdev":
+            sigma = threshold.getValue() / self.config.thresholdValue
+            for footprint in newFootprints.getFootprints():
+                footprint.updatePeakSignificance(polarity*sigma)
+        else:
+            for footprint in newFootprints.getFootprints():
+                for peak in footprint.peaks:
+                    peak["significance"] = 0
+
+        return newFootprints
 
     def makeThreshold(self, image, thresholdParity, factor=1.0):
         """Make an afw.detection.Threshold object corresponding to the task's

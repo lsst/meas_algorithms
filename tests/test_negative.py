@@ -22,6 +22,7 @@
 import unittest
 
 import lsst.geom
+import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.daf.base as dafBase
 from lsst.meas.algorithms import SourceDetectionTask
@@ -39,10 +40,10 @@ else:
 
 
 class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
-    """A test case for negative objects.
+    """Testing detection and measurement on negative objects.
     """
 
-    def testBasics(self):
+    def _create_exposure(self):
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
         minCounts = 2000
         maxCounts = 20000
@@ -62,6 +63,13 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
         addPoissonNoise = True
         exposure = plantSources(bbox=bbox, kwid=kwid, sky=sky, coordList=coordList,
                                 addPoissonNoise=addPoissonNoise)
+        return exposure, numX, numY
+
+    def test_detection_stdev(self):
+        """Test detection and measurement on an exposure with negative sources
+        for thresholdType="stdev".
+        """
+        exposure, numX, numY = self._create_exposure()
 
         if display:
             disp = afwDisplay.Display(frame=1)
@@ -107,6 +115,38 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
 
         self.assertEqual(nGoodCent, numX*numY)
         self.assertEqual(nGoodShape, numX*numY)
+
+    def test_significance(self):
+        """Test that negative peaks have the right significance for
+        thresholdType='stdev' for the non-convolved, non-local-background case.
+        """
+        exposure, numX, numY = self._create_exposure()
+
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        config = SourceDetectionTask.ConfigClass()
+        config.thresholdPolarity = 'both'
+        # don't modify the image after detection.
+        config.reEstimateBackground = False
+        config.doTempLocalBackground = False
+        detection = SourceDetectionTask(config=config, schema=schema)
+        result = detection.detectFootprints(exposure, doSmooth=False)
+
+        bad = exposure.mask.getPlaneBitMask(config.statsMask)
+        sctrl = afwMath.StatisticsControl()
+        sctrl.setAndMask(bad)
+        stats = afwMath.makeStatistics(exposure.maskedImage, afwMath.STDEVCLIP, sctrl)
+        stddev = stats.getValue(afwMath.STDEVCLIP)
+        # Don't bother checking positive footprints: those are tested more
+        # thoroughly in test_detection.py.
+        for footprint in result.negative.getFootprints():
+            for peak in footprint.peaks:
+                point = lsst.geom.Point2I(peak.getIx(), peak.getIy())
+                value = exposure.image[point]
+                with self.subTest(str(point)):
+                    self.assertFloatsAlmostEqual(peak["significance"],
+                                                 -value/stddev,  # S/N for negative peak
+                                                 rtol=1e-7,
+                                                 msg=str(point))
 
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
         """Make a coordList for makeExposure.
