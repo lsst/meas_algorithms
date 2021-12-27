@@ -104,7 +104,7 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
             loaderConfig = ReferenceObjectLoader.ConfigClass()
             loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
                                            handlers,
-                                           loaderConfig,
+                                           config=loaderConfig,
                                            log=self.logger)
             self.checkAllRowsInRefcat(loader, skyCatalog1, config)
             self.checkAllRowsInRefcat(loader, skyCatalog2, config)

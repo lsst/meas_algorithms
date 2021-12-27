@@ -26,22 +26,22 @@ import unittest
 
 import lsst.afw.table as afwTable
 import lsst.log
-from lsst.meas.algorithms import LoadReferenceObjectsTask, getRefFluxField, getRefFluxKeys
+from lsst.meas.algorithms import ReferenceObjectLoaderBase, getRefFluxField, getRefFluxKeys
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
 import lsst.pex.config
 import lsst.utils.tests
 
 
-class TrivialLoader(LoadReferenceObjectsTask):
-    """Minimal subclass of LoadReferenceObjectsTask to allow instantiation
+class TrivialLoader(ReferenceObjectLoaderBase):
+    """Minimal subclass of ReferenceObjectLoaderBase to allow instantiation
     """
 
     def loadSkyCircle(self, ctrCoord, radius, filterName):
         pass
 
 
-class TestLoadReferenceObjects(lsst.utils.tests.TestCase):
-    """Test case for LoadReferenceObjectsTask abstract base class
+class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
+    """Test case for ReferenceObjectLoaderBase abstract base class.
 
     Only methods with concrete implementations are tested (hence not loadSkyCircle)
     """

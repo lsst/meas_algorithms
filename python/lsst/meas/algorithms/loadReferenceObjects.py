@@ -22,7 +22,7 @@
 #
 
 __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig",
-           "ReferenceObjectLoader"]
+           "ReferenceObjectLoader", "ReferenceObjectLoaderBase"]
 
 import abc
 import logging
@@ -232,8 +232,16 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
 class ReferenceObjectLoaderBase:
     """Base class for reference object loaders, to facilitate gen2/gen3 code
     sharing.
+
+    Parameters
+    ----------
+    config : `lsst.pex.config.Config`
+        Configuration for the loader.
     """
     ConfigClass = LoadReferenceObjectsConfig
+
+    def __init__(self, config=None, *args, **kwargs):
+        self.config = config
 
     def applyProperMotions(self, catalog, epoch):
         """Apply proper motion correction to a reference catalog.
@@ -295,35 +303,31 @@ class ReferenceObjectLoaderBase:
 
 
 class ReferenceObjectLoader(ReferenceObjectLoaderBase):
-    """This class facilitates loading reference catalogs with gen 3 middleware
+    """This class facilitates loading reference catalogs with gen 3 middleware.
 
-    The middleware preflight solver will create a list of datarefs that may
-    possibly overlap a given region. These datarefs are then used to construct
+    The QuantumGraph generation will create a list of datasets that may
+    possibly overlap a given region. These datasets are then used to construct
     and instance of this class. The class instance should then be passed into
     a task which needs reference catalogs. These tasks should then determine
     the exact region of the sky reference catalogs will be loaded for, and
     call a corresponding method to load the reference objects.
-    """
-    def __init__(self, dataIds, refCats, config, log=None):
-        """ Constructs an instance of ReferenceObjectLoader
 
-        Parameters
-        ----------
-        dataIds : iterable of `lsst.daf.butler.DataIds`
-            An iterable object of DataSetRefs which point to reference catalogs
-            in a gen 3 repository.
-        refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
-            Handles to load refCats on demand
-        config : `lsst.pex.config.configurableField`
-            Configuration for the loader.
-        log : `lsst.log.Log`, `logging.Logger` or `None`, optional
-            Logger object used to write out messages. If `None` a default
-            logger will be used.
-        """
+    Parameters
+    ----------
+    dataIds : iterable of `lsst.daf.butler.DataCoordinate`
+        An iterable object of data IDs that point to reference catalogs
+        in a gen 3 repository.
+    refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
+        Handles to load refCats on demand
+    log : `lsst.log.Log`, `logging.Logger` or `None`, optional
+        Logger object used to write out messages. If `None` a default
+        logger will be used.
+    """
+    def __init__(self, dataIds, refCats, log=None, **kwargs):
+        super().__init__(**kwargs)
         self.dataIds = dataIds
         self.refCats = refCats
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
-        self.config = config
 
     @staticmethod
     def _makeBoxRegion(BBox, wcs, BBoxPadding):
