@@ -301,33 +301,165 @@ class ReferenceObjectLoaderBase:
 
         applyProperMotionsImpl(self.log, catalog, epoch)
 
+    @staticmethod
+    def makeMinimalSchema(filterNameList, *, addCentroid=False,
+                          addIsPhotometric=False, addIsResolved=False,
+                          addIsVariable=False, coordErrDim=2,
+                          addProperMotion=False, properMotionErrDim=2,
+                          addParallax=False):
+        """Make a standard schema for reference object catalogs.
 
-class ReferenceObjectLoader(ReferenceObjectLoaderBase):
-    """This class facilitates loading reference catalogs with gen 3 middleware.
+        Parameters
+        ----------
+        filterNameList : `list` of `str`
+            List of filter names. Used to create <filterName>_flux fields.
+        addIsPhotometric : `bool`
+            If True then add field "photometric".
+        addIsResolved : `bool`
+            If True then add field "resolved".
+        addIsVariable : `bool`
+            If True then add field "variable".
+        coordErrDim : `int`
+            Number of coord error fields; must be one of 0, 2, 3:
 
-    The QuantumGraph generation will create a list of datasets that may
-    possibly overlap a given region. These datasets are then used to construct
-    and instance of this class. The class instance should then be passed into
-    a task which needs reference catalogs. These tasks should then determine
-    the exact region of the sky reference catalogs will be loaded for, and
-    call a corresponding method to load the reference objects.
+            - If 2 or 3: add fields "coord_raErr" and "coord_decErr".
+            - If 3: also add field "coord_radecErr".
+        addProperMotion : `bool`
+            If True add fields "epoch", "pm_ra", "pm_dec" and "pm_flag".
+        properMotionErrDim : `int`
+            Number of proper motion error fields; must be one of 0, 2, 3;
+            ignored if addProperMotion false:
+            - If 2 or 3: add fields "pm_raErr" and "pm_decErr".
+            - If 3: also add field "pm_radecErr".
+        addParallax : `bool`
+            If True add fields "epoch", "parallax", "parallaxErr"
+            and "parallax_flag".
 
-    Parameters
-    ----------
-    dataIds : iterable of `lsst.daf.butler.DataCoordinate`
-        An iterable object of data IDs that point to reference catalogs
-        in a gen 3 repository.
-    refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
-        Handles to load refCats on demand
-    log : `lsst.log.Log`, `logging.Logger` or `None`, optional
-        Logger object used to write out messages. If `None` a default
-        logger will be used.
-    """
-    def __init__(self, dataIds, refCats, log=None, **kwargs):
-        super().__init__(**kwargs)
-        self.dataIds = dataIds
-        self.refCats = refCats
-        self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
+        Returns
+        -------
+        schema : `lsst.afw.table.Schema`
+            Schema for reference catalog, an
+            `lsst.afw.table.SimpleCatalog`.
+
+        Notes
+        -----
+        Reference catalogs support additional covariances, such as
+        covariance between RA and proper motion in declination,
+        that are not supported by this method, but can be added after
+        calling this method.
+        """
+        schema = afwTable.SimpleTable.makeMinimalSchema()
+        if addCentroid:
+            afwTable.Point2DKey.addFields(
+                schema,
+                "centroid",
+                "centroid on an exposure, if relevant",
+                "pixel",
+            )
+            schema.addField(
+                field="hasCentroid",
+                type="Flag",
+                doc="is position known?",
+            )
+        for filterName in filterNameList:
+            schema.addField(
+                field="%s_flux" % (filterName,),
+                type=numpy.float64,
+                doc="flux in filter %s" % (filterName,),
+                units="nJy",
+            )
+        for filterName in filterNameList:
+            schema.addField(
+                field="%s_fluxErr" % (filterName,),
+                type=numpy.float64,
+                doc="flux uncertainty in filter %s" % (filterName,),
+                units="nJy",
+            )
+        if addIsPhotometric:
+            schema.addField(
+                field="photometric",
+                type="Flag",
+                doc="set if the object can be used for photometric calibration",
+            )
+        if addIsResolved:
+            schema.addField(
+                field="resolved",
+                type="Flag",
+                doc="set if the object is spatially resolved",
+            )
+        if addIsVariable:
+            schema.addField(
+                field="variable",
+                type="Flag",
+                doc="set if the object has variable brightness",
+            )
+        if coordErrDim not in (0, 2, 3):
+            raise ValueError("coordErrDim={}; must be (0, 2, 3)".format(coordErrDim))
+        if coordErrDim > 0:
+            afwTable.CovarianceMatrix2fKey.addFields(
+                schema=schema,
+                prefix="coord",
+                names=["ra", "dec"],
+                units=["rad", "rad"],
+                diagonalOnly=(coordErrDim == 2),
+            )
+
+        if addProperMotion or addParallax:
+            schema.addField(
+                field="epoch",
+                type=numpy.float64,
+                doc="date of observation (TAI, MJD)",
+                units="day",
+            )
+
+        if addProperMotion:
+            schema.addField(
+                field="pm_ra",
+                type="Angle",
+                doc="proper motion in the right ascension direction = dra/dt * cos(dec)",
+                units="rad/year",
+            )
+            schema.addField(
+                field="pm_dec",
+                type="Angle",
+                doc="proper motion in the declination direction",
+                units="rad/year",
+            )
+            if properMotionErrDim not in (0, 2, 3):
+                raise ValueError("properMotionErrDim={}; must be (0, 2, 3)".format(properMotionErrDim))
+            if properMotionErrDim > 0:
+                afwTable.CovarianceMatrix2fKey.addFields(
+                    schema=schema,
+                    prefix="pm",
+                    names=["ra", "dec"],
+                    units=["rad/year", "rad/year"],
+                    diagonalOnly=(properMotionErrDim == 2),
+                )
+            schema.addField(
+                field="pm_flag",
+                type="Flag",
+                doc="Set if proper motion or proper motion error is bad",
+            )
+
+        if addParallax:
+            schema.addField(
+                field="parallax",
+                type="Angle",
+                doc="parallax",
+                units="rad",
+            )
+            schema.addField(
+                field="parallaxErr",
+                type="Angle",
+                doc="uncertainty in parallax",
+                units="rad",
+            )
+            schema.addField(
+                field="parallax_flag",
+                type="Flag",
+                doc="Set if parallax or parallax error is bad",
+            )
+        return schema
 
     @staticmethod
     def _makeBoxRegion(BBox, wcs, BBoxPadding):
@@ -365,6 +497,169 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         outerSkyRegion = sphgeom.ConvexPolygon(outerSphCorners)
 
         return innerSkyRegion, outerSkyRegion, innerSphCorners, outerSphCorners
+
+    @staticmethod
+    def _calculateCircle(bbox, wcs, pixelMargin):
+        """Compute on-sky center and radius of search region.
+
+        Parameters
+        ----------
+        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
+            Pixel bounding box.
+        wcs : `lsst.afw.geom.SkyWcs`
+            WCS; used to convert pixel positions to sky coordinates.
+        pixelMargin : `int`
+            Padding to add to 4 all edges of the bounding box (pixels).
+
+        Returns
+        -------
+        results : `lsst.pipe.base.Struct`
+            A Struct containing:
+
+            - coord : `lsst.geom.SpherePoint`
+                ICRS center of the search region.
+            - radius : `lsst.geom.Angle`
+                Radius of the search region.
+            - bbox : `lsst.geom.Box2D`
+                Bounding box used to compute the circle.
+        """
+        bbox = geom.Box2D(bbox)  # we modify the box, so use a copy
+        bbox.grow(pixelMargin)
+        coord = wcs.pixelToSky(bbox.getCenter())
+        radius = max(coord.separation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
+        return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
+
+    @staticmethod
+    def getMetadataCircle(coord, radius, filterName, photoCalib=None, epoch=None):
+        """Return metadata about the reference catalog being loaded.
+
+        This metadata is used for reloading the catalog (e.g. for
+        reconstituting a normalized match list).
+
+        Parameters
+        ----------
+        coord : `lsst.geom.SpherePoint`
+            ICRS center of the search region.
+        radius : `lsst.geom.Angle`
+            Radius of the search region.
+        filterName : `str`
+            Name of the camera filter.
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
+        epoch : `astropy.time.Time` or `None`, optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
+
+        Returns
+        -------
+        md : `lsst.daf.base.PropertyList`
+            Metadata about the catalog.
+        """
+        md = PropertyList()
+        md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
+        md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
+        md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
+        md.add('SMATCHV', 1, 'SourceMatchVector version number')
+        md.add('FILTER', filterName, 'filter name for photometric data')
+        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
+        return md
+
+    def getMetadataBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None,
+                       bboxToSpherePadding=100):
+        """Return metadata about the load
+
+        This metadata is used for reloading the catalog (e.g., for
+        reconstituting a normalised match list).
+
+        Parameters
+        ----------
+        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
+            Bounding box for the pixels.
+        wcs : `lsst.afw.geom.SkyWcs`
+            The WCS object associated with ``bbox``.
+        filterName : `str`
+            Name of the camera filter.
+        photoCalib : `None`
+            Deprecated, only included for api compatibility.
+        epoch : `astropy.time.Time` or `None`,  optional
+            Epoch to which to correct proper motion and parallax, or `None` to
+            not apply such corrections.
+        bboxToSpherePadding : `int`, optional
+            Padding in pixels to account for translating a set of corners into
+            a spherical (convex) boundary that is certain to encompass the
+            enitre area covered by the box.
+
+        Returns
+        -------
+        md : `lsst.daf.base.PropertyList`
+            The metadata detailing the search parameters used for this
+            dataset.
+        """
+        circle = self._calculateCircle(bbox, wcs, self.config.pixelMargin)
+        md = self.getMetadataCircle(circle.coord, circle.radius, filterName, epoch=epoch)
+
+        paddedBbox = circle.bbox
+        _, _, innerCorners, outerCorners = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
+        for box, corners in zip(("INNER", "OUTER"), (innerCorners, outerCorners)):
+            for (name, corner) in zip(("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"),
+                                      corners):
+                md.add(f"{box}_{name}_RA", geom.SpherePoint(corner).getRa().asDegrees(), f"{box}_corner")
+                md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
+        return md
+
+    def joinMatchListWithCatalog(self, matchCat, sourceCat):
+        """Relink an unpersisted match list to sources and reference objects.
+
+        A match list is persisted and unpersisted as a catalog of IDs
+        produced by afw.table.packMatches(), with match metadata
+        (as returned by the astrometry tasks) in the catalog's metadata
+        attribute. This method converts such a match catalog into a match
+        list, with links to source records and reference object records.
+
+        Parameters
+        ----------
+        matchCat : `lsst.afw.table.BaseCatalog`
+            Unpersisted packed match list.
+            ``matchCat.table.getMetadata()`` must contain match metadata,
+            as returned by the astrometry tasks.
+        sourceCat : `lsst.afw.table.SourceCatalog`
+            Source catalog. As a side effect, the catalog will be sorted
+            by ID.
+
+        Returns
+        -------
+        matchList : `lsst.afw.table.ReferenceMatchVector`
+            Match list.
+        """
+        return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
+
+
+class ReferenceObjectLoader(ReferenceObjectLoaderBase):
+    """This class facilitates loading reference catalogs with gen 3 middleware.
+
+    The QuantumGraph generation will create a list of datasets that may
+    possibly overlap a given region. These datasets are then used to construct
+    and instance of this class. The class instance should then be passed into
+    a task which needs reference catalogs. These tasks should then determine
+    the exact region of the sky reference catalogs will be loaded for, and
+    call a corresponding method to load the reference objects.
+
+    Parameters
+    ----------
+    dataIds : iterable of `lsst.daf.butler.DataCoordinate`
+        An iterable object of data IDs that point to reference catalogs
+        in a gen 3 repository.
+    refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
+        Handles to load refCats on demand
+    log : `lsst.log.Log`, `logging.Logger` or `None`, optional
+        Logger object used to write out messages. If `None` a default
+        logger will be used.
+    """
+    def __init__(self, dataIds, refCats, log=None, **kwargs):
+        super().__init__(**kwargs)
+        self.dataIds = dataIds
+        self.refCats = refCats
+        self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
 
     def loadPixelBox(self, bbox, wcs, filterName, epoch=None, photoCalib=None,
                      bboxToSpherePadding=100):
@@ -598,111 +893,6 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         sphRadius = sphgeom.Angle(radius.asRadians())
         circularRegion = sphgeom.Circle(centerVector, sphRadius)
         return self.loadRegion(circularRegion, filterName, epoch=epoch)
-
-    def joinMatchListWithCatalog(self, matchCat, sourceCat):
-        """Relink an unpersisted match list to sources and reference objects.
-
-        A match list is persisted and unpersisted as a catalog of IDs
-        produced by afw.table.packMatches(), with match metadata
-        (as returned by the astrometry tasks) in the catalog's metadata
-        attribute. This method converts such a match catalog into a match
-        list, with links to source records and reference object records.
-
-        Parameters
-        ----------
-        matchCat : `lsst.afw.table.BaseCatalog`
-            Unpersisted packed match list.
-            ``matchCat.table.getMetadata()`` must contain match metadata,
-            as returned by the astrometry tasks.
-        sourceCat : `lsst.afw.table.SourceCatalog`
-            Source catalog. As a side effect, the catalog will be sorted
-            by ID.
-
-        Returns
-        -------
-        matchList : `lsst.afw.table.ReferenceMatchVector`
-            Match list.
-        """
-        return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
-
-    def getMetadataBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None,
-                       bboxToSpherePadding=100):
-        """Return metadata about the load
-
-        This metadata is used for reloading the catalog (e.g., for
-        reconstituting a normalised match list.)
-
-        Parameters
-        ----------
-        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
-            Bounding box for the pixels.
-        wcs : `lsst.afw.geom.SkyWcs`
-            The WCS object associated with ``bbox``.
-        filterName : `str`
-            Name of the camera filter.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
-        epoch : `astropy.time.Time` or `None`,  optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
-        bboxToSpherePadding : `int`, optional
-            Padding to account for translating a set of corners into a
-            spherical (convex) boundary that is certain to encompase the
-            enitre area covered by the box.
-
-        Returns
-        -------
-        md : `lsst.daf.base.PropertyList`
-            The metadata detailing the search parameters used for this
-            dataset.
-        """
-        paddedBbox = geom.Box2D(bbox)
-        paddedBbox.grow(self.config.pixelMargin)
-        _, _, innerCorners, outerCorners = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
-        md = PropertyList()
-        for box, corners in zip(("INNER", "OUTER"), (innerCorners, outerCorners)):
-            for (name, corner) in zip(("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"),
-                                      corners):
-                md.add(f"{box}_{name}_RA", geom.SpherePoint(corner).getRa().asDegrees(), f"{box}_corner")
-                md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
-        md.add("SMATCHV", 1, 'SourceMatchVector version number')
-        md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
-        return md
-
-    @staticmethod
-    def getMetadataCircle(coord, radius, filterName, photoCalib=None, epoch=None):
-        """Return metadata about the load.
-
-        This metadata is used for reloading the catalog (e.g. for
-        reconstituting a normalized match list.)
-
-        Parameters
-        ----------
-        coord : `lsst.geom.SpherePoint`
-            ICRS center of the search region.
-        radius : `lsst.geom.Angle`
-            Radius of the search region.
-        filterName : `str`
-            Name of the camera filter.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
-        epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
-
-        Returns
-        -------
-        md : `lsst.daf.base.PropertyList`
-        """
-        md = PropertyList()
-        md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
-        md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
-        md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
-        md.add('SMATCHV', 1, 'SourceMatchVector version number')
-        md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
-        return md
 
     @staticmethod
     def addFluxAliases(refCat, filterReferenceMap):
@@ -938,7 +1128,7 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         is large enough to just include all 4 corners of the bbox.
         Stars that lie outside the bbox are then trimmed from the list.
         """
-        circle = self._calculateCircle(bbox, wcs)
+        circle = self._calculateCircle(bbox, wcs, self.config.pixelMargin)
 
         # find objects in circle
         self.log.info("Loading reference objects from %s using center %s and radius %s deg",
@@ -1082,283 +1272,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
 
         for filterName, refFilterName in self.config.filterMap.items():
             addAliasesForOneFilter(filterName, refFilterName)
-
-    @staticmethod
-    def makeMinimalSchema(filterNameList, *, addCentroid=False,
-                          addIsPhotometric=False, addIsResolved=False,
-                          addIsVariable=False, coordErrDim=2,
-                          addProperMotion=False, properMotionErrDim=2,
-                          addParallax=False):
-        """Make a standard schema for reference object catalogs.
-
-        Parameters
-        ----------
-        filterNameList : `list` of `str`
-            List of filter names. Used to create <filterName>_flux fields.
-        addIsPhotometric : `bool`
-            If True then add field "photometric".
-        addIsResolved : `bool`
-            If True then add field "resolved".
-        addIsVariable : `bool`
-            If True then add field "variable".
-        coordErrDim : `int`
-            Number of coord error fields; must be one of 0, 2, 3:
-
-            - If 2 or 3: add fields "coord_raErr" and "coord_decErr".
-            - If 3: also add field "coord_radecErr".
-        addProperMotion : `bool`
-            If True add fields "epoch", "pm_ra", "pm_dec" and "pm_flag".
-        properMotionErrDim : `int`
-            Number of proper motion error fields; must be one of 0, 2, 3;
-            ignored if addProperMotion false:
-            - If 2 or 3: add fields "pm_raErr" and "pm_decErr".
-            - If 3: also add field "pm_radecErr".
-        addParallax : `bool`
-            If True add fields "epoch", "parallax", "parallaxErr"
-            and "parallax_flag".
-
-        Returns
-        -------
-        schema : `lsst.afw.table.Schema`
-            Schema for reference catalog, an
-            `lsst.afw.table.SimpleCatalog`.
-
-        Notes
-        -----
-        Reference catalogs support additional covariances, such as
-        covariance between RA and proper motion in declination,
-        that are not supported by this method, but can be added after
-        calling this method.
-        """
-        schema = afwTable.SimpleTable.makeMinimalSchema()
-        if addCentroid:
-            afwTable.Point2DKey.addFields(
-                schema,
-                "centroid",
-                "centroid on an exposure, if relevant",
-                "pixel",
-            )
-            schema.addField(
-                field="hasCentroid",
-                type="Flag",
-                doc="is position known?",
-            )
-        for filterName in filterNameList:
-            schema.addField(
-                field="%s_flux" % (filterName,),
-                type=numpy.float64,
-                doc="flux in filter %s" % (filterName,),
-                units="nJy",
-            )
-        for filterName in filterNameList:
-            schema.addField(
-                field="%s_fluxErr" % (filterName,),
-                type=numpy.float64,
-                doc="flux uncertainty in filter %s" % (filterName,),
-                units="nJy",
-            )
-        if addIsPhotometric:
-            schema.addField(
-                field="photometric",
-                type="Flag",
-                doc="set if the object can be used for photometric calibration",
-            )
-        if addIsResolved:
-            schema.addField(
-                field="resolved",
-                type="Flag",
-                doc="set if the object is spatially resolved",
-            )
-        if addIsVariable:
-            schema.addField(
-                field="variable",
-                type="Flag",
-                doc="set if the object has variable brightness",
-            )
-        if coordErrDim not in (0, 2, 3):
-            raise ValueError("coordErrDim={}; must be (0, 2, 3)".format(coordErrDim))
-        if coordErrDim > 0:
-            afwTable.CovarianceMatrix2fKey.addFields(
-                schema=schema,
-                prefix="coord",
-                names=["ra", "dec"],
-                units=["rad", "rad"],
-                diagonalOnly=(coordErrDim == 2),
-            )
-
-        if addProperMotion or addParallax:
-            schema.addField(
-                field="epoch",
-                type=numpy.float64,
-                doc="date of observation (TAI, MJD)",
-                units="day",
-            )
-
-        if addProperMotion:
-            schema.addField(
-                field="pm_ra",
-                type="Angle",
-                doc="proper motion in the right ascension direction = dra/dt * cos(dec)",
-                units="rad/year",
-            )
-            schema.addField(
-                field="pm_dec",
-                type="Angle",
-                doc="proper motion in the declination direction",
-                units="rad/year",
-            )
-            if properMotionErrDim not in (0, 2, 3):
-                raise ValueError("properMotionErrDim={}; must be (0, 2, 3)".format(properMotionErrDim))
-            if properMotionErrDim > 0:
-                afwTable.CovarianceMatrix2fKey.addFields(
-                    schema=schema,
-                    prefix="pm",
-                    names=["ra", "dec"],
-                    units=["rad/year", "rad/year"],
-                    diagonalOnly=(properMotionErrDim == 2),
-                )
-            schema.addField(
-                field="pm_flag",
-                type="Flag",
-                doc="Set if proper motion or proper motion error is bad",
-            )
-
-        if addParallax:
-            schema.addField(
-                field="parallax",
-                type="Angle",
-                doc="parallax",
-                units="rad",
-            )
-            schema.addField(
-                field="parallaxErr",
-                type="Angle",
-                doc="uncertainty in parallax",
-                units="rad",
-            )
-            schema.addField(
-                field="parallax_flag",
-                type="Flag",
-                doc="Set if parallax or parallax error is bad",
-            )
-        return schema
-
-    def _calculateCircle(self, bbox, wcs):
-        """Compute on-sky center and radius of search region.
-
-        Parameters
-        ----------
-        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
-            Pixel bounding box.
-        wcs : `lsst.afw.geom.SkyWcs`
-            WCS; used to convert pixel positions to sky coordinates.
-
-        Returns
-        -------
-        results : `lsst.pipe.base.Struct`
-            A Struct containing:
-
-            - coord : `lsst.geom.SpherePoint`
-                ICRS center of the search region.
-            - radius : `lsst.geom.Angle`
-                Radius of the search region.
-            - bbox : `lsst.geom.Box2D`
-                Bounding box used to compute the circle.
-        """
-        bbox = geom.Box2D(bbox)  # make sure bbox is double and that we have a copy
-        bbox.grow(self.config.pixelMargin)
-        coord = wcs.pixelToSky(bbox.getCenter())
-        radius = max(coord.separation(wcs.pixelToSky(pp)) for pp in bbox.getCorners())
-        return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
-
-    def getMetadataBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None):
-        """Return metadata about the load.
-
-        This metadata is used for reloading the catalog (e.g., for
-        reconstituting a normalised match list.
-
-        Parameters
-        ----------
-        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
-            Pixel bounding box.
-        wcs : `lsst.afw.geom.SkyWcs`
-            WCS; used to convert pixel positions to sky coordinates.
-        filterName : `str`
-            Name of camera filter.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
-        epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax,
-            or None to not apply such corrections.
-
-        Returns
-        -------
-        metadata : `lsst.daf.base.PropertyList`
-            Metadata about the load.
-        """
-        circle = self._calculateCircle(bbox, wcs)
-        return self.getMetadataCircle(circle.coord, circle.radius, filterName, epoch=epoch)
-
-    def getMetadataCircle(self, coord, radius, filterName, photoCalib=None, epoch=None):
-        """Return metadata about the load.
-
-        This metadata is used for reloading the catalog (e.g., for
-        reconstituting a normalised match list.
-
-        Parameters
-        ----------
-        coord : `lsst.geom.SpherePoint`
-            ICRS center of the search region.
-        radius : `lsst.geom.Angle`
-            Radius of the search region.
-        filterName : `str`
-            Name of camera filter.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
-        epoch : `astropy.time.Time` (optional)
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
-
-        Returns
-        -------
-        metadata : lsst.daf.base.PropertyList
-            Metadata about the load
-        """
-        md = PropertyList()
-        md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
-        md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
-        md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
-        md.add('SMATCHV', 1, 'SourceMatchVector version number')
-        md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
-        return md
-
-    def joinMatchListWithCatalog(self, matchCat, sourceCat):
-        """Relink an unpersisted match list to sources and reference
-        objects.
-
-        A match list is persisted and unpersisted as a catalog of IDs
-        produced by afw.table.packMatches(), with match metadata
-        (as returned by the astrometry tasks) in the catalog's metadata
-        attribute. This method converts such a match catalog into a match
-        list, with links to source records and reference object records.
-
-        Parameters
-        ----------
-        matchCat : `lsst.afw.table.BaseCatalog`
-            Unperisted packed match list.
-            ``matchCat.table.getMetadata()`` must contain match metadata,
-            as returned by the astrometry tasks.
-        sourceCat : `lsst.afw.table.SourceCatalog`
-            Source catalog. As a side effect, the catalog will be sorted
-            by ID.
-
-        Returns
-        -------
-        matchList : `lsst.afw.table.ReferenceMatchVector`
-            Match list.
-        """
-        return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
 
 
 def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):

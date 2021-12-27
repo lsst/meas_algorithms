@@ -89,9 +89,9 @@ class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
                 if coordErrDim not in (0, 2, 3) or \
                         (addProperMotion and properMotionErrDim not in (0, 2, 3)):
                     with self.assertRaises(ValueError):
-                        LoadReferenceObjectsTask.makeMinimalSchema(**argDict)
+                        ReferenceObjectLoaderBase.makeMinimalSchema(**argDict)
                 else:
-                    refSchema = LoadReferenceObjectsTask.makeMinimalSchema(**argDict)
+                    refSchema = ReferenceObjectLoaderBase.makeMinimalSchema(**argDict)
                     self.assertTrue("coord_ra" in refSchema)
                     self.assertTrue("coord_dec" in refSchema)
                     for filterName in filterNameList:
@@ -174,29 +174,29 @@ class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
 
     def testCheckFluxUnits(self):
         """Test that we can identify old style fluxes in a schema."""
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
         # the default schema should pass
         self.assertTrue(hasNanojanskyFluxUnits(schema))
         schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_flux', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
@@ -207,7 +207,7 @@ class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
         log = lsst.log.Log()
 
         def make_catalog():
-            schema = LoadReferenceObjectsTask.makeMinimalSchema(['r', 'z'])
+            schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
             schema.addField('bad_flux', doc='old flux units', type=float, units='')
             schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
             refCat = afwTable.SimpleCatalog(schema)
