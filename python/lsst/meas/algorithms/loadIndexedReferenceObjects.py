@@ -25,7 +25,6 @@ __all__ = ["LoadIndexedReferenceObjectsConfig", "LoadIndexedReferenceObjectsTask
 
 from .loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky, getFormatVersionFromRefCat
 from lsst.meas.algorithms import getRefFluxField, LoadReferenceObjectsTask, LoadReferenceObjectsConfig
-import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.utils.timer import timeMethod
@@ -99,26 +98,15 @@ class LoadIndexedReferenceObjectsTask(LoadReferenceObjectsTask):
                 raise RuntimeError(f"Format version in reference catalog ({catVersion}) does not match"
                                    f" format_version field in config ({self.dataset_config.format_version})")
 
-        self._addFluxAliases(refCat.schema)
+        expandedCat = self._remapReferenceCatalogSchema(refCat,
+                                                        anyFilterMapsToThis=self.config.anyFilterMapsToThis,
+                                                        filterMap=self.config.filterMap,
+                                                        centroids=centroids)
         fluxField = getRefFluxField(refCat.schema, filterName)
-
-        if centroids:
-            # add and initialize centroid and hasCentroid fields (these are
-            # added after loading to avoid wasting space in the saved catalogs)
-            # the new fields are automatically initialized to (nan, nan) and
-            # False so no need to set them explicitly
-            mapper = afwTable.SchemaMapper(refCat.schema, True)
-            mapper.addMinimalSchema(refCat.schema, True)
-            mapper.editOutputSchema().addField("centroid_x", type=float)
-            mapper.editOutputSchema().addField("centroid_y", type=float)
-            mapper.editOutputSchema().addField("hasCentroid", type="Flag")
-            expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
-            expandedCat.extend(refCat, mapper=mapper)
-            refCat = expandedCat
 
         # return reference catalog
         return pipeBase.Struct(
-            refCat=refCat,
+            refCat=expandedCat,
             fluxField=fluxField,
         )
 

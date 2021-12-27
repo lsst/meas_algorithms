@@ -462,6 +462,119 @@ class ReferenceObjectLoaderBase:
         return schema
 
     @staticmethod
+    def _remapReferenceCatalogSchema(refCat, *, anyFilterMapsToThis=None,
+                                     filterMap=None, centroids=False):
+        """This function takes in a reference catalog and returns a new catalog
+        with additional columns defined from the remaining function arguments.
+
+        Parameters
+        ----------
+        refCat : `lsst.afw.table.SimpleCatalog`
+            Reference catalog to map to new catalog
+        anyFilterMapsToThis : `str`, optional
+            Always use this reference catalog filter.
+            Mutually exclusive with `filterMap`
+        filterMap : `dict` [`str`,`str`], optional
+            Mapping of camera filter name: reference catalog filter name.
+        centroids : `bool`, optional
+            Add centroid fields to the loaded Schema. ``loadPixelBox`` expects
+            these fields to exist.
+
+        Returns
+        -------
+        expandedCat : `lsst.afw.table.SimpleCatalog`
+            Deep copy of input reference catalog with additional columns added
+        """
+        if anyFilterMapsToThis or filterMap:
+            ReferenceObjectLoaderBase._addFluxAliases(refCat.schema, anyFilterMapsToThis, filterMap)
+
+        mapper = afwTable.SchemaMapper(refCat.schema, True)
+        mapper.addMinimalSchema(refCat.schema, True)
+        mapper.editOutputSchema().disconnectAliases()
+
+        if centroids:
+            # Add and initialize centroid and hasCentroid fields (these are
+            # added after loading to avoid wasting space in the saved catalogs).
+            # The new fields are automatically initialized to (nan, nan) and
+            # False so no need to set them explicitly.
+            mapper.editOutputSchema().addField("centroid_x", type=float, doReplace=True)
+            mapper.editOutputSchema().addField("centroid_y", type=float, doReplace=True)
+            mapper.editOutputSchema().addField("hasCentroid", type="Flag", doReplace=True)
+            mapper.editOutputSchema().getAliasMap().set("slot_Centroid", "centroid")
+
+        expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
+        expandedCat.setMetadata(refCat.getMetadata())
+        expandedCat.extend(refCat, mapper=mapper)
+
+        return expandedCat
+
+    @staticmethod
+    def _addFluxAliases(schema, anyFilterMapsToThis=None, filterMap=None):
+        """Add aliases for camera filter fluxes to the schema.
+
+        For each camFilter: refFilter in filterMap, adds these aliases:
+            <camFilter>_camFlux:      <refFilter>_flux
+            <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
+        or sets `anyFilterMapsToThis` in the schema.
+
+        Parameters
+        ----------
+        schema : `lsst.afw.table.Schema`
+            Schema for reference catalog.
+        anyFilterMapsToThis : `str`, optional
+            Always use this reference catalog filter.
+            Mutually exclusive with `filterMap`.
+        filterMap : `dict` [`str`,`str`], optional
+            Mapping of camera filter name: reference catalog filter name.
+            Mutually exclusive with `anyFilterMapsToThis`.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if any required reference flux field is missing from the
+            schema.
+        """
+        # Fail on any truthy value for either of these.
+        if anyFilterMapsToThis and filterMap:
+            raise ValueError("anyFilterMapsToThis and filterMap are mutually exclusive!")
+
+        aliasMap = schema.getAliasMap()
+
+        if anyFilterMapsToThis is not None:
+            refFluxName = anyFilterMapsToThis + "_flux"
+            if refFluxName not in schema:
+                msg = f"Unknown reference filter for anyFilterMapsToThis='{refFluxName}'"
+                raise RuntimeError(msg)
+            aliasMap.set("anyFilterMapsToThis", refFluxName)
+            return  # this is mutually exclusive with filterMap
+
+        def addAliasesForOneFilter(filterName, refFilterName):
+            """Add aliases for a single filter
+
+            Parameters
+            ----------
+            filterName : `str` (optional)
+                Camera filter name. The resulting alias name is
+                <filterName>_camFlux
+            refFilterName : `str`
+                Reference catalog filter name; the field
+                <refFilterName>_flux must exist.
+            """
+            camFluxName = filterName + "_camFlux"
+            refFluxName = refFilterName + "_flux"
+            if refFluxName not in schema:
+                raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
+            aliasMap.set(camFluxName, refFluxName)
+            refFluxErrName = refFluxName + "Err"
+            if refFluxErrName in schema:
+                camFluxErrName = camFluxName + "Err"
+                aliasMap.set(camFluxErrName, refFluxErrName)
+
+        if filterMap is not None:
+            for filterName, refFilterName in filterMap.items():
+                addAliasesForOneFilter(filterName, refFilterName)
+
+    @staticmethod
     def _makeBoxRegion(BBox, wcs, BBoxPadding):
         outerLocalBBox = geom.Box2D(BBox)
         innerLocalBBox = geom.Box2D(BBox)
@@ -731,7 +844,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             # Add columns to the pre-filtered reference catalog relating their
             # coordinates to equivalent pixel positions for the wcs provided
             # and use to populate those columns.
-            refCat = self.remapReferenceCatalogSchema(refCat, position=True)
+            refCat = self._remapReferenceCatalogSchema(refCat, centroids=True)
             afwTable.updateRefCentroids(wcs, refCat)
             # No need to filter the catalog if it is entirely contained in the
             # region defined by the inner sky region.
@@ -851,10 +964,9 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
             self.log.warning("See RFC-575 for more details.")
             refCat = convertToNanojansky(refCat, self.log)
 
-        expandedCat = self.remapReferenceCatalogSchema(refCat, position=True)
-
-        # Add flux aliases
-        expandedCat = self.addFluxAliases(expandedCat, self.config.filterMap)
+        expandedCat = self._remapReferenceCatalogSchema(refCat,
+                                                        anyFilterMapsToThis=self.config.anyFilterMapsToThis,
+                                                        filterMap=self.config.filterMap)
 
         # Ensure that the returned reference catalog is continuous in memory
         if not expandedCat.isContiguous():
@@ -893,110 +1005,6 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         sphRadius = sphgeom.Angle(radius.asRadians())
         circularRegion = sphgeom.Circle(centerVector, sphRadius)
         return self.loadRegion(circularRegion, filterName, epoch=epoch)
-
-    @staticmethod
-    def addFluxAliases(refCat, filterReferenceMap):
-        """Add flux columns and aliases for camera to reference mapping.
-
-        Creates a new catalog containing the information of the input refCat
-        as well as added flux columns and aliases between camera and reference
-        fluxes.
-
-        Parameters
-        ----------
-        refCat : `lsst.afw.table.SimpleCatalog`
-            Catalog of reference objects
-        filterReferenceMap : `dict` of `str`
-            Dictionary with keys corresponding to a filter name and values
-            which correspond to the name of the reference filter.
-
-        Returns
-        -------
-        refCat : `lsst.afw.table.SimpleCatalog`
-            Reference catalog with columns added to track reference filters.
-
-        Raises
-        ------
-        `RuntimeError`
-            If the specified reference filter name is not specifed as a
-            key in the reference filter map.
-        """
-        refCat = ReferenceObjectLoader.remapReferenceCatalogSchema(refCat,
-                                                                   filterNameList=filterReferenceMap.keys())
-        aliasMap = refCat.schema.getAliasMap()
-        if filterReferenceMap is None:
-            filterReferenceMap = {}
-        for filterName, refFilterName in filterReferenceMap.items():
-            if refFilterName:
-                camFluxName = filterName + "_camFlux"
-                refFluxName = refFilterName + "_flux"
-                if refFluxName not in refCat.schema:
-                    raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
-                aliasMap.set(camFluxName, refFluxName)
-
-                refFluxErrName = refFluxName + "Err"
-                camFluxErrName = camFluxName + "Err"
-                aliasMap.set(camFluxErrName, refFluxErrName)
-
-        return refCat
-
-    @staticmethod
-    def remapReferenceCatalogSchema(refCat, *, filterNameList=None, position=False, photometric=False):
-        """This function takes in a reference catalog and creates a new catalog with additional
-        columns defined the remaining function arguments.
-
-        Parameters
-        ----------
-        refCat : `lsst.afw.table.SimpleCatalog`
-            Reference catalog to map to new catalog
-
-        Returns
-        -------
-        expandedCat : `lsst.afw.table.SimpleCatalog`
-            Deep copy of input reference catalog with additional columns added
-        """
-        mapper = afwTable.SchemaMapper(refCat.schema, True)
-        mapper.addMinimalSchema(refCat.schema, True)
-        mapper.editOutputSchema().disconnectAliases()
-        if filterNameList:
-            for filterName in filterNameList:
-                mapper.editOutputSchema().addField(f"{filterName}_flux",
-                                                   type=numpy.float64,
-                                                   doc=f"flux in filter {filterName}",
-                                                   units="Jy"
-                                                   )
-                mapper.editOutputSchema().addField(f"{filterName}_fluxErr",
-                                                   type=numpy.float64,
-                                                   doc=f"flux uncertanty in filter {filterName}",
-                                                   units="Jy"
-                                                   )
-
-        if position:
-            mapper.editOutputSchema().addField("centroid_x", type=float, doReplace=True)
-            mapper.editOutputSchema().addField("centroid_y", type=float, doReplace=True)
-            mapper.editOutputSchema().addField("hasCentroid", type="Flag", doReplace=True)
-            mapper.editOutputSchema().getAliasMap().set("slot_Centroid", "centroid")
-
-        if photometric:
-            mapper.editOutputSchema().addField("photometric",
-                                               type="Flag",
-                                               doc="set if the object can be used for photometric"
-                                                   "calibration",
-                                               )
-            mapper.editOutputSchema().addField("resolved",
-                                               type="Flag",
-                                               doc="set if the object is spatially resolved"
-                                               )
-            mapper.editOutputSchema().addField("variable",
-                                               type="Flag",
-                                               doc="set if the object has variable brightness"
-                                               )
-
-        expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
-        expandedCat.setMetadata(refCat.getMetadata())
-        expandedCat.extend(refCat, mapper=mapper)
-
-        return expandedCat
 
 
 def getRefFluxField(schema, filterName):
@@ -1220,58 +1228,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
             if bbox.contains(point):
                 retStarCat.append(star)
         return retStarCat
-
-    def _addFluxAliases(self, schema):
-        """Add aliases for camera filter fluxes to the schema.
-
-        For each camFilter: refFilter in self.config.filterMap adds these aliases:
-            <camFilter>_camFlux:      <refFilter>_flux
-            <camFilter>_camFluxErr: <refFilter>_fluxErr, if the latter exists
-
-        Parameters
-        ----------
-        schema : `lsst.afw.table.Schema`
-            Schema for reference catalog.
-
-        Raises
-        ------
-        RuntimeError
-            If any reference flux field is missing from the schema.
-        """
-        aliasMap = schema.getAliasMap()
-
-        if self.config.anyFilterMapsToThis is not None:
-            refFluxName = self.config.anyFilterMapsToThis + "_flux"
-            if refFluxName not in schema:
-                msg = f"Unknown reference filter for anyFilterMapsToThis='{refFluxName}'"
-                raise RuntimeError(msg)
-            aliasMap.set("anyFilterMapsToThis", refFluxName)
-            return  # this is mutually exclusive with filterMap
-
-        def addAliasesForOneFilter(filterName, refFilterName):
-            """Add aliases for a single filter
-
-            Parameters
-            ----------
-            filterName : `str` (optional)
-                Camera filter name. The resulting alias name is
-                <filterName>_camFlux
-            refFilterName : `str`
-                Reference catalog filter name; the field
-                <refFilterName>_flux must exist.
-            """
-            camFluxName = filterName + "_camFlux"
-            refFluxName = refFilterName + "_flux"
-            if refFluxName not in schema:
-                raise RuntimeError("Unknown reference filter %s" % (refFluxName,))
-            aliasMap.set(camFluxName, refFluxName)
-            refFluxErrName = refFluxName + "Err"
-            if refFluxErrName in schema:
-                camFluxErrName = camFluxName + "Err"
-                aliasMap.set(camFluxErrName, refFluxErrName)
-
-        for filterName, refFilterName in self.config.filterMap.items():
-            addAliasesForOneFilter(filterName, refFilterName)
 
 
 def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):

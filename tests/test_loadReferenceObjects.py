@@ -127,7 +127,9 @@ class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
             config.filterMap = filterMap
             loader = TrivialLoader(config=config)
             refSchema = TrivialLoader.makeMinimalSchema(filterNameList="r")
-            loader._addFluxAliases(refSchema)
+            loader._addFluxAliases(refSchema,
+                                   anyFilterMapsToThis=config.anyFilterMapsToThis,
+                                   filterMap=config.filterMap)
 
             self.assertIn("r_flux", refSchema)
             self.assertIn("r_fluxErr", refSchema)
@@ -165,12 +167,16 @@ class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
         config.anyFilterMapsToThis = "gg"
         loader = TrivialLoader(config=config)
         refSchema = TrivialLoader.makeMinimalSchema(filterNameList=["gg"])
-        loader._addFluxAliases(refSchema)
+        loader._addFluxAliases(refSchema,
+                               anyFilterMapsToThis=config.anyFilterMapsToThis,
+                               filterMap=config.filterMap)
         self.assertEqual(getRefFluxField(refSchema, "r"), "gg_flux")
         # raise if "gg" is not in the refcat filter list
         with self.assertRaises(RuntimeError):
             refSchema = TrivialLoader.makeMinimalSchema(filterNameList=["rr"])
-            refSchema = loader._addFluxAliases(refSchema)
+            refSchema = loader._addFluxAliases(refSchema,
+                                               anyFilterMapsToThis=config.anyFilterMapsToThis,
+                                               filterMap=config.filterMap)
 
     def testCheckFluxUnits(self):
         """Test that we can identify old style fluxes in a schema."""
