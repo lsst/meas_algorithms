@@ -774,7 +774,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         self.refCats = refCats
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
 
-    def loadPixelBox(self, bbox, wcs, filterName, epoch=None, photoCalib=None,
+    def loadPixelBox(self, bbox, wcs, filterName, epoch=None,
                      bboxToSpherePadding=100):
         """Load reference objects that are within a pixel-based rectangular
         region.
@@ -802,8 +802,6 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None`
             to not apply such corrections.
-        photoCalib : `None`
-            Deprecated and ignored, only included for api compatibility.
         bboxToSpherePadding : `int`, optional
             Padding to account for translating a set of corners into a
             spherical (convex) boundary that is certain to encompase the
