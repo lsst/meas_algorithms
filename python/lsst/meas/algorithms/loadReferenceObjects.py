@@ -1081,7 +1081,7 @@ def getRefFluxKeys(schema, filterName):
 
 
 class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metaclass=abc.ABCMeta):
-    """Abstract base class to load objects from reference catalogs.
+    """Abstract gen2 base class to load objects from reference catalogs.
     """
     _DefaultName = "LoadReferenceObjects"
 
