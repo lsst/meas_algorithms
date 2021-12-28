@@ -643,7 +643,7 @@ class ReferenceObjectLoaderBase:
         return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
 
     @staticmethod
-    def getMetadataCircle(coord, radius, filterName, photoCalib=None, epoch=None):
+    def getMetadataCircle(coord, radius, filterName, epoch=None):
         """Return metadata about the reference catalog being loaded.
 
         This metadata is used for reloading the catalog (e.g. for
@@ -657,8 +657,6 @@ class ReferenceObjectLoaderBase:
             Radius of the search region.
         filterName : `str`
             Name of the camera filter.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
@@ -677,7 +675,7 @@ class ReferenceObjectLoaderBase:
         md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
         return md
 
-    def getMetadataBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None,
+    def getMetadataBox(self, bbox, wcs, filterName, epoch=None,
                        bboxToSpherePadding=100):
         """Return metadata about the load
 
@@ -692,8 +690,6 @@ class ReferenceObjectLoaderBase:
             The WCS object associated with ``bbox``.
         filterName : `str`
             Name of the camera filter.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
         epoch : `astropy.time.Time` or `None`,  optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
