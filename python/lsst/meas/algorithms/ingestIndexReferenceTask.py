@@ -41,7 +41,7 @@ import lsst.afw.table as afwTable
 from lsst.daf.base import PropertyList
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
-from .loadReferenceObjects import LoadReferenceObjectsTask
+from .loadReferenceObjects import ReferenceObjectLoaderBase
 from . import convertRefcatManager
 
 # The most recent Indexed Reference Catalog on-disk format version.
@@ -414,7 +414,7 @@ class ConvertReferenceCatalogBase(pipeBase.Task, abc.ABC):
             - A map of catalog keys to use in filling the record
         """
         # make a schema with the standard fields
-        schema = LoadReferenceObjectsTask.makeMinimalSchema(
+        schema = ReferenceObjectLoaderBase.makeMinimalSchema(
             filterNameList=self.config.mag_column_list,
             addCentroid=False,
             addIsPhotometric=bool(self.config.is_photometric_name),
