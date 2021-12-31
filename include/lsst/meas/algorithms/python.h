@@ -66,8 +66,6 @@ public:
     template<typename... Args>
     ImagePsfTrampoline<Base>(Args... args) : PsfTrampoline<Base>(args...) {}
 
-    ImagePsfTrampoline<Base>() : PsfTrampoline<Base>() {}
-
     double doComputeApertureFlux(
          double radius, geom::Point2D const& position,
          afw::image::Color const& color
