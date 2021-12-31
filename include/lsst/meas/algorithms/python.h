@@ -63,8 +63,7 @@ public:
      * @tparam Args  Variadic type specification
      * @param ...args  Arguments to forward to the Base class constructor.
      */
-    template<typename... Args>
-    ImagePsfTrampoline<Base>(Args... args) : PsfTrampoline<Base>(args...) {}
+    ImagePsfTrampoline<Base>(bool arg=false) : PsfTrampoline<Base>(arg) {}
 
     double doComputeApertureFlux(
          double radius, geom::Point2D const& position,
