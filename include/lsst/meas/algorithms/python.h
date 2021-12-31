@@ -64,7 +64,7 @@ public:
      * @param ...args  Arguments to forward to the Base class constructor.
      */
 
-    ImagePsfTrampoline<Base>() : PsfTrampoline<Base>() {}
+    ImagePsfTrampoline() : PsfTrampoline<Base>() {}
 
     double doComputeApertureFlux(
          double radius, geom::Point2D const& position,
