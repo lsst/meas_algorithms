@@ -39,7 +39,8 @@ namespace algorithms {
  */
 class ImagePsf : public afw::table::io::PersistableFacade<ImagePsf>, public afw::detection::Psf {
 protected:
-    explicit ImagePsf(bool isFixed = false) : afw::detection::Psf(isFixed) {}
+    explicit ImagePsf(bool isFixed) : afw::detection::Psf(isFixed) {}
+    explicit ImagePsf() : afw::detection::Psf(false) {}
 
     virtual double doComputeApertureFlux(double radius, geom::Point2D const& position,
                                          afw::image::Color const& color) const;
