@@ -22,6 +22,7 @@
 import os
 import unittest
 import math
+import warnings
 
 import lsst.geom
 import lsst.afw.detection as afwDetection
@@ -351,7 +352,9 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         schema.addField("centroid_x", type=float)
         schema.addField("centroid_y", type=float)
         schema.addField("centroid_flag", type='Flag')
-        sfm_config = measBase.SingleFrameMeasurementConfig()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="ignoreSlotPluginChecks", category=FutureWarning)
+            sfm_config = measBase.SingleFrameMeasurementConfig(ignoreSlotPluginChecks=True)
         sfm_config.doReplaceWithNoise = False
         sfm_config.plugins = ["base_CircularApertureFlux", "base_PsfFlux"]
         sfm_config.slots.centroid = "centroid"
