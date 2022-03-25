@@ -76,7 +76,8 @@ class ReadTextCatalogTask(pipeBase.Task):
         """
         kwargs = {}
         if self.config.colnames:
-            kwargs['names'] = self.config.colnames
+            # Wrap in list() to avoid transferring a pex_config proxy object.
+            kwargs['names'] = list(self.config.colnames)
             # if we specify the column names, then we need to just ignore the header lines.
             kwargs['data_start'] = self.config.header_lines
         else:
