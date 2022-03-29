@@ -70,6 +70,7 @@ from .makePsfCandidates import *
 from .stamps import *
 from .brightStarStamps import *
 from .accumulator_mean_stack import *
+from .scaleVariance import *
 
 from .version import *
 
