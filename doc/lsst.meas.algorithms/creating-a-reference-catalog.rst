@@ -136,17 +136,19 @@ Check the log output after several hours: ``ConvertReferenceCatalogTask`` report
 ===================================
 
 When ``convertReferenceCatalog`` has finished, a new directory (named ``gaia-refcat/`` in the example above) will now exist containing the HTM-indexed files for the input catalog in the LSST format.
+Our convention for reference catalogs is described in `DMTN-167 <https://dmtn-167.lsst.io/#reference-catalogs>`_ and is used in the commands listed below. 
 
-Two final steps are now required to register the new refcat dataset type and ingest your converted output into it.
+Three final steps are now required to register the new refcat dataset type, ingest your converted output into a RUN collection, and CHAIN that collection to the primary ``refcats`` collection.
 If using ``convertReferenceCatalog``, these commands will have been printed on the command line when it finished.
 For the example we are using here, these commands would be:
 
 .. prompt:: bash
 
     butler register-dataset-type REPO gaia_dr2 SimpleCatalog htm7
-    butler ingest-files -t direct REPO gaia_dr2 refcats gaia/filename_to_htm.ecsv
+    butler ingest-files -t direct REPO gaia_dr2 refcats/DM-NNNNN gaia/filename_to_htm.ecsv
+    butler collection-chain REPO --mode extend refcats refcats/DM-NNNNN
 
-where REPO is the path to the butler repository that you are ingesting the data into.
+where ``REPO`` is the path to the butler repository that you are ingesting the data into, and ``DM-NNNNN`` is the ticket you are tracking this refcat ingest on.
 We use the ``direct`` transfer mode here to leave the files in the directory they were converted into: ``gaia_dr2/``.
 See ``butler ingest-files -h`` for other options, including ``copy``, ``move`` and ``link`` transfer modes.
 
@@ -163,6 +165,10 @@ For LSST staff using ``lsst-devl``, see the `Reference catalogs policy <https://
 
 5. Ingesting pre-existing gen2 reference catalogs
 =================================================
+
+.. note::
+
+    The ``.ecsv`` files described here have already been created for the reference catalogs used in ``/repo/main`` on lsst-devl, in the ``/datasets/refcats/htm/v1`` directory.
 
 Already existing reference catalogs (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers) can be directly ingested into a gen3 repo as they are already in the LSST format.
 To ingest already existing HTM-indexed files in the LSST format, first create a suitable filename to htm7-index astropy lookup table, and then follow the steps above to :ref:`ingest the files into the butler <lsst.meas.algorithms-refcat-ingest>`.
@@ -203,4 +209,5 @@ In particular, you need to change the name of the registered dataset type to "ga
 .. prompt:: bash
 
     butler register-dataset-type REPO gaia_dr2_20200414 SimpleCatalog htm7
-    butler ingest-files -t direct REPO gaia_dr2_20200414 refcats gaia_dr2_20200414.ecsv
+    butler ingest-files -t direct REPO gaia_dr2_20200414 refcats/DM-NNNNN gaia_dr2_20200414.ecsv
+    butler collection-chain REPO --mode extend refcats refcats/DM-NNNNN
