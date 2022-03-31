@@ -139,12 +139,15 @@ def run_convert(outputDir, configFile, fileglob):
     converter.run(files)
     with open(os.path.join(outputDir, "convertReferenceCatalogConfig.py"), "w") as outfile:
         converter.config.saveToStream(outfile)
-    msg = ("Completed refcat conversion."
-           " Ingest the resulting files with the following commands,"
-           " substituting the path to your butler repo for REPO:"
+    msg = ("Completed refcat conversion.\n\n"
+           "Ingest the resulting files with the following commands, substituting the path\n"
+           "to your butler repo for `REPO`, and the ticket number you are tracking this\n"
+           "ingest on for `DM-NNNNN`:\n"
            f"\n    butler register-dataset-type REPO {config.dataset_config.ref_dataset_name} "
            "SimpleCatalog htm7"
-           f"\n    butler ingest-files -t direct REPO gaia_dr2 refcats {converter.ingest_table_file}")
+           "\n    butler ingest-files -t direct REPO gaia_dr2 refcats/DM-NNNNN "
+           f"{converter.ingest_table_file}"
+           "\n    butler collection-chain REPO --mode extend refcats refcats/DM-NNNNN")
     print(msg)
 
 
