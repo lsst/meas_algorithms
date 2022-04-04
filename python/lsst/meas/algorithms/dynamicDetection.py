@@ -212,8 +212,9 @@ class DynamicDetectionTask(SourceDetectionTask):
                                                                                      "DETECTED_NEGATIVE"])
 
         with self.tempWideBackgroundContext(exposure):
-            # Could potentially smooth with a wider kernel than the PSF in order to better pick up the
-            # wings of stars and galaxies, but for now sticking with the PSF as that's more simple.
+            # Could potentially smooth with a wider kernel than the PSF in
+            # order to better pick up the wings of stars and galaxies, but for
+            # now sticking with the PSF as that's more simple.
             psf = self.getPsf(exposure, sigma=sigma)
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
             middle = convolveResults.middle
@@ -250,12 +251,14 @@ class DynamicDetectionTask(SourceDetectionTask):
         self.display(exposure, results, middle)
 
         if self.config.doBackgroundTweak:
-            # Re-do the background tweak after any temporary backgrounds have been restored
+            # Re-do the background tweak after any temporary backgrounds have
+            # been restored.
             #
-            # But we want to keep any large-scale background (e.g., scattered light from bright stars)
-            # from being selected for sky objects in the calculation, so do another detection pass without
-            # either the local or wide temporary background subtraction; the DETECTED pixels will mark
-            # the area to ignore.
+            # But we want to keep any large-scale background (e.g., scattered
+            # light from bright stars) from being selected for sky objects in
+            # the calculation, so do another detection pass without either the
+            # local or wide temporary background subtraction; the DETECTED
+            # pixels will mark the area to ignore.
             originalMask = maskedImage.mask.array.copy()
             try:
                 self.clearMask(exposure.mask)
