@@ -30,7 +30,14 @@ from lsst.meas.algorithms import SourceDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
 
-display = False
+# To plot in ds9, `setup display_ds9` first, and open a ds9 window.
+# import lsstDebug
+# def DebugInfo(name):
+#     debug = lsstDebug.getInfo(name)
+#     if name == "lsst.meas.algorithms.detection":
+#         debug.display = 2
+#     return debug
+# lsstDebug.Info = DebugInfo
 
 
 class DetectionTestCase(lsst.utils.tests.TestCase):

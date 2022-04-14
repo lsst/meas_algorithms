@@ -316,6 +316,9 @@ class SourceDetectionTask(pipeBase.Task):
             disp1 = afwDisplay.Display(frame=1)
             disp1.mtv(convolvedImage, title="PSF smoothed")
 
+        disp2 = afwDisplay.Display(frame=2)
+        disp2.mtv(afwImage.ImageF(np.sqrt(exposure.variance.array)), title="stddev")
+
     def applyTempLocalBackground(self, exposure, middle, results):
         """Apply a temporary local background subtraction
 
@@ -738,6 +741,7 @@ class SourceDetectionTask(pipeBase.Task):
 
         threshold = afwDet.createThreshold(thresholdValue*factor, thresholdType, parity)
         threshold.setIncludeMultiplier(self.config.includeThresholdMultiplier)
+        self.log.debug("Detection threshold: %s", threshold)
         return threshold
 
     def updatePeaks(self, fpSet, image, threshold):
