@@ -21,6 +21,7 @@
 import os.path
 import tempfile
 import unittest
+import glob
 
 import numpy as np
 from smatch.matcher import sphdist
@@ -28,9 +29,12 @@ import astropy.time
 
 import lsst.daf.butler
 import lsst.afw.geom as afwGeom
+import lsst.afw.table as afwTable
 from lsst.daf.butler import DatasetType, DeferredDatasetHandle
 from lsst.daf.butler.script import ingest_files
 from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader)
+from lsst.meas.algorithms.testUtils import MockReferenceObjectLoaderFromFiles
+from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits
 import lsst.utils
 import lsst.geom
 
@@ -258,6 +262,55 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         # Clear this to clean up the temporary directory.
         cls.repoTempDir.cleanup()
         del cls.repoTempDir
+
+
+class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
+    """Test cases for reading version 0 and version 1 catalogs."""
+    def testLoadVersion0(self):
+        """Test reading a pre-written format_version=0 (Jy flux) catalog.
+        It should be converted to have nJy fluxes.
+        """
+        path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'data',
+            'version0',
+            'ref_cats',
+            'cal_ref_cat'
+        )
+
+        filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
+
+        loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
+        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20), 5*lsst.geom.degrees, 'a')
+
+        self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
+        catalog = afwTable.SimpleCatalog.readFits(filenames[0])
+        self.assertFloatsEqual(catalog['a_flux']*1e9, result.refCat['a_flux'])
+        self.assertFloatsEqual(catalog['a_fluxSigma']*1e9, result.refCat['a_fluxErr'])
+        self.assertFloatsEqual(catalog['b_flux']*1e9, result.refCat['b_flux'])
+        self.assertFloatsEqual(catalog['b_fluxSigma']*1e9, result.refCat['b_fluxErr'])
+
+    def testLoadVersion1(self):
+        """Test reading a format_version=1 catalog (fluxes unchanged)."""
+        path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'data',
+            'version1',
+            'ref_cats',
+            'cal_ref_cat'
+        )
+
+        filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
+
+        loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
+        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20), 5*lsst.geom.degrees, 'a')
+
+        self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
+        catalog = afwTable.SimpleCatalog.readFits(filenames[0])
+        self.assertFloatsEqual(catalog['a_flux'], result.refCat['a_flux'])
+        self.assertFloatsEqual(catalog['a_fluxErr'], result.refCat['a_fluxErr'])
+        self.assertFloatsEqual(catalog['b_flux'], result.refCat['b_flux'])
+        self.assertFloatsEqual(catalog['b_fluxErr'], result.refCat['b_fluxErr'])
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

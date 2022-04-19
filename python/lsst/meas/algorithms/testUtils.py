@@ -21,14 +21,20 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList"]
+__all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList",
+           "MockReferenceObjectLoaderFromFiles"]
 
 import numpy as np
+import esutil
 
 import lsst.geom
 import lsst.afw.image as afwImage
+from lsst import sphgeom
 from . import SingleGaussianPsf
 from . import Defect
+
+from . import ReferenceObjectLoader
+import lsst.afw.table as afwTable
 
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
@@ -178,3 +184,129 @@ def makeDefectList():
                   ]
 
     return defectList
+
+
+class MockRefcatDataId:
+    """Mock reference catalog dataId.
+
+    The reference catalog dataId is only used to retrieve a region property.
+
+    Parameters
+    ----------
+    pixelization : `lsst.sphgeom.Pixelization`
+        Pixelization object.
+    index : `int`
+        Pixel index number.
+    """
+    def __init__(self, pixelization, index):
+        self._region = pixelization.pixel(index)
+
+    @property
+    def region(self):
+        return self._region
+
+
+class MockRefcatDeferredDatasetHandle:
+    """Mock reference catalog dataset handle.
+
+    The mock handle needs a get() and a name for logging.
+
+    Parameters
+    ----------
+    catalog : `lsst.afw.table.SourceCatalog`
+        Reference catalog.
+    name : `str`
+        Name of reference catalog.
+    """
+    def __init__(self, catalog, name):
+        self._catalog = catalog
+        self._name = name
+
+    def get(self):
+        return self._catalog
+
+    class MockRef:
+        def __init__(self, name):
+            self._name = name
+
+        class MockDatasetType:
+            def __init__(self, name):
+                self._name = name
+
+            @property
+            def name(self):
+                return self._name
+
+        @property
+        def datasetType(self):
+            return self.MockDatasetType(self._name)
+
+    @property
+    def ref(self):
+        return self.MockRef(self._name)
+
+
+class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
+    """A simple mock of ReferenceObjectLoader.
+
+    This mock ReferenceObjectLoader uses a set of files on disk to create
+    mock dataIds and data reference handles that can be accessed
+    without a butler. The files must be afw catalog files in the reference
+    catalog format, sharded with HTM pixelization.
+
+    Parameters
+    ----------
+    filenames : `list` [`str`]
+        Names of files to use.
+    config : `lsst.meas.astrom.LoadReferenceObjectsConfig`, optional
+        Configuration object if necessary to override defaults.
+    htmLevel : `int`, optional
+        HTM level to use for the loader.
+    """
+    def __init__(self, filenames, name='cal_ref_cat', config=None, htmLevel=4):
+        dataIds, refCats = self._createDataIdsAndRefcats(filenames, htmLevel, name)
+
+        super().__init__(dataIds, refCats, config=config)
+
+    def _createDataIdsAndRefcats(self, filenames, htmLevel, name):
+        """Create mock dataIds and refcat handles.
+
+        Parameters
+        ----------
+        filenames : `list` [`str`]
+            Names of files to use.
+        htmLevel : `int`
+            HTM level to use for the loader.
+        name : `str`
+            Name of reference catalog (for logging).
+
+        Returns
+        -------
+        dataIds : `list` [`MockRefcatDataId`]
+            List of mock dataIds.
+        refCats : `list` [`MockRefcatDeferredDatasetHandle`]
+            List of mock deferred dataset handles.
+
+        Raises
+        ------
+        RuntimeError if any file contains sources that cover more than one HTM
+            pixel at level ``htmLevel``.
+        """
+        pixelization = sphgeom.HtmPixelization(htmLevel)
+        htm = esutil.htm.HTM(htmLevel)
+
+        dataIds = []
+        refCats = []
+
+        for filename in filenames:
+            cat = afwTable.BaseCatalog.readFits(filename)
+
+            ids = htm.lookup_id(np.rad2deg(cat['coord_ra']), np.rad2deg(cat['coord_dec']))
+
+            if len(np.unique(ids)) != 1:
+                raise RuntimeError(f"File {filename} contains more than one pixel at level {htmLevel}")
+
+            dataIds.append(MockRefcatDataId(pixelization, ids[0]))
+            refCats.append(MockRefcatDeferredDatasetHandle(cat, name))
+
+        return dataIds, refCats
