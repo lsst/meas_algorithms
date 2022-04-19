@@ -21,14 +21,20 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList"]
+__all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList",
+           "MockLoadReferenceObjects"]
 
 import numpy as np
+from smatch.matcher import Matcher
 
 import lsst.geom
 import lsst.afw.image as afwImage
 from . import SingleGaussianPsf
 from . import Defect
+
+from . import ReferenceObjectLoader, LoadReferenceObjectsConfig
+from lsst.pipe.base import Struct
+import lsst.afw.table as afwTable
 
 
 def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
@@ -178,3 +184,116 @@ def makeDefectList():
                   ]
 
     return defectList
+
+
+class MockLoadReferenceObjects(ReferenceObjectLoader):
+    """A simple mock of LoadReferenceObjects for tests.
+
+    This class will read in files and return subsets to mock the behavior
+    of LoadReferenceObjects for tests.
+
+    Parameters
+    ----------
+    filenames : `list` [`str`]
+        Names of files to load.
+    config : `lsst.meas.astrom.LoadReferenceObjectsConfig`
+        Configuration object if necessary to override defaults.
+    convert : `bool`
+        Convert from old refcat format?
+    """
+    def __init__(self, filenames, config=None, convert=False):
+        self._cat = self._loadFiles(filenames, convert=convert)
+        self.config = config
+        if self.config is None:
+            self.config = LoadReferenceObjectsConfig()
+
+    def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None):
+        with Matcher(ctrCoord.getLongitude().asDegrees(), ctrCoord.getLatitude().asDegrees()) as matcher:
+            idx = matcher.query_radius(
+                np.rad2deg(self._cat['coord_ra']),
+                np.rad2deg(self._cat['coord_dec']),
+                radius.asDegrees()
+            )
+        sel = np.zeros(len(self._cat), dtype=bool)
+        sel[idx[0]] = True
+        cat = self._cat[sel].copy(deep=True)
+
+        return Struct(refCat=cat, fluxField=f'{filterName}_flux')
+
+    def loadRegion(self, region, filterName, filtFunc=None, epoch=None):
+        return Struct(refCat=self._cat, fluxField=f'{filterName}_flux')
+
+    def loadPixelBox(self, bbox, wcs, filterName, epoch=None,
+                     bboxToSpherePadding=100):
+        cat = self._cat.copy(deep=True)
+        x, y = wcs.skyToPixelArray(cat['coord_ra'], cat['coord_dec'])
+        cat['centroid_x'] = x
+        cat['centroid_y'] = y
+        cat['hasCentroid'] = np.ones(len(cat), dtype=bool)
+        paddedBbox = lsst.geom.Box2D(bbox)
+        paddedBbox.grow(self.config.pixelMargin)
+        innerSkyRegion, _, _, _ = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
+        included = innerSkyRegion.contains(lon=cat['coord_ra'], lat=cat['coord_dec'])
+
+        cat = cat[included].copy(deep=True)
+
+        return Struct(refCat=cat, fluxField=f'{filterName}_flux')
+
+    def _loadFiles(self, filenames, convert=False):
+        """Load files and optionally convert format.
+
+        Parameters
+        ----------
+        filenames : `list` [`str`]
+            File names to load.
+        convert : `bool`
+            Convert from old format?
+        """
+        inCat = afwTable.SourceCatalog.readFits(filenames[0])
+        inSchema = inCat.schema
+
+        filternames = ['u', 'g', 'r', 'i', 'z']
+
+        mapper = afwTable.SchemaMapper(inSchema)
+        mapper.addMinimalSchema(afwTable.SourceTable.makeMinimalSchema())
+        for filtername in filternames:
+            mapper.addMapping(inSchema[f'{filtername}_flux'].asKey())
+            if convert:
+                mapper.addMapping(inSchema[f'{filtername}_fluxSigma'].asKey(),
+                                  f'{filtername}_fluxErr')
+            else:
+                mapper.addMapping(inSchema[f'{filtername}_fluxErr'].asKey())
+
+        mapper.addMapping(inSchema['photometric'].asKey())
+        mapper.addMapping(inSchema['resolved'].asKey())
+
+        # Add centroid columns for getPixelBox
+        mapper.editOutputSchema().addField("centroid_x", type=float, doReplace=True)
+        mapper.editOutputSchema().addField("centroid_y", type=float, doReplace=True)
+        mapper.editOutputSchema().addField("hasCentroid", type="Flag", doReplace=True)
+        mapper.editOutputSchema().getAliasMap().set("slot_Centroid", "centroid")
+
+        schema = mapper.getOutputSchema()
+
+        cat = afwTable.SourceCatalog(schema)
+
+        for filename in filenames:
+            inCat = afwTable.SourceCatalog.readFits(filename)
+
+            cat.reserve(len(inCat))
+            cat.extend(inCat, mapper=mapper)
+
+        # Make contiguous
+        cat = cat.copy(deep=True)
+
+        if convert:
+            # Convert from old units to nJy
+            for filtername in filternames:
+                cat[f'{filtername}_flux'] *= 1e9
+                cat[f'{filtername}_fluxErr'] *= 1e9
+
+        cat['centroid_x'][:] = 0.0
+        cat['centroid_y'][:] = 0.0
+        cat['hasCentroid'] = np.zeros(len(cat), dtype=bool)
+
+        return cat
