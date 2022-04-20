@@ -805,9 +805,15 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Returns
         -------
-        referenceCatalog : `lsst.afw.table.SimpleCatalog`
-            Catalog containing reference objects inside the specified bounding
-            box (padded by self.config.pixelMargin).
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``refCat``
+                Catalog containing reference objects inside the specified
+                bounding box (padded by self.config.pixelMargin).
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
 
         Raises
         ------
@@ -886,9 +892,15 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Returns
         -------
-        referenceCatalog : `lsst.afw.table.SourceCatalog`
-            Catalog containing reference objects which intersect the input region,
-            filtered by the specified filter function.
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``refCat``
+                Catalog containing reference objects which intersect the
+                input region, filtered by the specified filter function.
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
 
         Raises
         ------
@@ -991,9 +1003,15 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Returns
         -------
-        referenceCatalog : `lsst.afw.table.SourceCatalog`
-            Catalog containing reference objects inside the specified search
-            circle.
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``refCat``
+                Catalog containing reference objects inside the specified
+                search circle.
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
         """
         centerVector = ctrCoord.getVector()
         sphRadius = sphgeom.Angle(radius.asRadians())
