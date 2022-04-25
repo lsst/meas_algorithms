@@ -44,7 +44,8 @@ class TestMain(lsst.utils.tests.TestCase):
         """Test that main configures the task and calls run() with the correct
         file list.
         """
-        outpath = tempfile.mkdtemp()
+        outdir = tempfile.TemporaryDirectory()
+        outpath = outdir.name
         args = ["convertReferenceCatalog",
                 outpath,
                 os.path.join(self.inpath, "mock_config.py"),
@@ -54,12 +55,15 @@ class TestMain(lsst.utils.tests.TestCase):
             convertReferenceCatalog.main()
             # Test with sets because the glob can come out in any order.
             self.assertEqual(set(run.call_args.args[0]), set(self.expected_files))
+        # This is necessary to avoid a ResourceWarning.
+        outdir.cleanup()
 
     def test_main_args_bad_config(self):
         """Test that a bad config file produces a useful error, i.e. that
         main() validates the config.
         """
-        outpath = tempfile.mkdtemp()
+        outdir = tempfile.TemporaryDirectory()
+        outpath = outdir.name
         args = ["convertReferenceCatalog",
                 outpath,
                 os.path.join(self.inpath, "bad_config.py"),
@@ -67,12 +71,15 @@ class TestMain(lsst.utils.tests.TestCase):
         with self.assertRaisesRegex(FieldValidationError, "Field 'ra_name' failed validation"), \
                 unittest.mock.patch.object(sys, "argv", args):
             convertReferenceCatalog.main()
+        # This is necessary to avoid a ResourceWarning.
+        outdir.cleanup()
 
     def test_main_args_expanded_glob(self):
         """Test that an un-quoted glob (i.e. list of files) fails with a
         useful error.
         """
-        outpath = tempfile.mkdtemp()
+        outdir = tempfile.TemporaryDirectory()
+        outpath = outdir.name
         args = ["convertReferenceCatalog",
                 outpath,
                 os.path.join(self.inpath, "mock_config.py"),
@@ -82,6 +89,8 @@ class TestMain(lsst.utils.tests.TestCase):
         with self.assertRaisesRegex(RuntimeError, msg), \
                 unittest.mock.patch.object(sys, "argv", args):
             convertReferenceCatalog.main()
+        # This is necessary to avoid a ResourceWarning.
+        outdir.cleanup()
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

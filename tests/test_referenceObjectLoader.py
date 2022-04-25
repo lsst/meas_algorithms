@@ -256,13 +256,6 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
                 filterName='a'
             )
 
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        # Clear this to clean up the temporary directory.
-        cls.repoTempDir.cleanup()
-        del cls.repoTempDir
-
 
 class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
     """Test cases for reading version 0 and version 1 catalogs."""
