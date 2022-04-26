@@ -135,6 +135,7 @@ def convertToNanojansky(catalog, log, doConvert=True):
     if doConvert:
         newSchema = mapper.getOutputSchema()
         output = afwTable.SimpleCatalog(newSchema)
+        output.reserve(len(catalog))
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9
@@ -758,7 +759,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
     dataIds : iterable of `lsst.daf.butler.DataCoordinate`
         An iterable object of data IDs that point to reference catalogs
         in a gen 3 repository.
-    refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
+    refCats : iterable of `lsst.daf.butler.DeferredDatasetHandle`
         Handles to load refCats on demand
     log : `lsst.log.Log`, `logging.Logger` or `None`, optional
         Logger object used to write out messages. If `None` a default
