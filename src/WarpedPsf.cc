@@ -148,6 +148,52 @@ std::shared_ptr<afw::detection::Psf::Image> warpAffine(afw::detection::Psf::Imag
     return ret;
 }
 
+// A helper struct for logic and intermediate results used by both
+// doComputeKernelImage and doComputeBBox.
+//
+// This linearizes the transform from destination to source coordinates, then
+// computes both a source position that corresponds to a rounded version of the
+// destination position and a transform from source to destination that also
+// undoes the rounding.
+struct PreparedTransforms {
+
+    static PreparedTransforms compute(
+        afw::detection::Psf const & src_psf,
+        afw::geom::TransformPoint2ToPoint2 const & distortion,
+        geom::PointD const & dest_position
+    ) {
+        // Linearize the transform from destination coordinates to source
+        // coordinates to avoid expensive WCS calls.
+        geom::AffineTransform dest_to_src = afw::geom::linearizeTransform(
+            *distortion.inverted(),
+            dest_position
+        );
+        // Instead of calling computeKernelImage on the source PSFs, we want to
+        // call computeImage with the source coordinate version of an
+        // integer-valued destination coordinate; that gives the lower-level PSF
+        // model the responsibility of doing the shifting from integer to
+        // fractional source coordinates, and it may be able to do a better job of
+        // that than we could do here (by e.g. using an internal analytic or
+        // oversampled model).  So here's that integer-valued destination position
+        // and the corresponding source position.
+        geom::Point2D rounded_dest_position(
+            std::round(dest_position.getX()),
+            std::round(dest_position.getY())
+        );
+        auto src_position = dest_to_src(rounded_dest_position);
+        // Now we want to warp by the inverse of src_to_dest, but we want the
+        // image to be centered at (0, 0), not rounded_dest_position, so we
+        // compose that trivial shift with the dest_to_src transform.
+        auto src_to_dest = geom::AffineTransform(dest_to_src.inverted());
+        auto unround = geom::AffineTransform(-geom::Extent2D(rounded_dest_position));
+        auto src_to_dest_unrounded = unround * src_to_dest;
+        return PreparedTransforms{src_position, src_to_dest_unrounded};
+    }
+
+    geom::Point2D src_position;
+    geom::AffineTransform src_to_dest_unrounded;
+};
+
 }  // namespace
 
 WarpedPsf::WarpedPsf(std::shared_ptr<afw::detection::Psf const> undistortedPsf,
@@ -201,14 +247,13 @@ std::shared_ptr<afw::detection::Psf> WarpedPsf::resized(int width, int height) c
 
 std::shared_ptr<afw::detection::Psf::Image> WarpedPsf::doComputeKernelImage(
         geom::Point2D const &position, afw::image::Color const &color) const {
-    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->inverted(), position);
-    geom::Point2D tp = t(position);
-
-    std::shared_ptr<Image> im = _undistortedPsf->computeKernelImage(tp, color);
-
-    // Go to the warped coordinate system with 'p' at the origin
-    auto srcToDest = geom::AffineTransform(t.inverted().getLinear());
-    std::shared_ptr<afw::detection::Psf::Psf::Image> ret = warpAffine(*im, srcToDest, *_warpingControl);
+    auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
+    std::shared_ptr<Image> src_im = _undistortedPsf->computeImage(prepared_transforms.src_position, color);
+    std::shared_ptr<afw::detection::Psf::Psf::Image> ret = warpAffine(
+        *src_im,
+        prepared_transforms.src_to_dest_unrounded,
+        *_warpingControl
+    );
 
     double normFactor = 1.0;
     //
@@ -230,12 +275,9 @@ std::shared_ptr<afw::detection::Psf::Image> WarpedPsf::doComputeKernelImage(
 }
 
 geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::Color const &color) const {
-    geom::AffineTransform t = afw::geom::linearizeTransform(*_distortion->inverted(), position);
-    geom::Point2D tp = t(position);
-    geom::Box2I bboxUndistorted = _undistortedPsf->computeBBox(tp, color);
-    geom::Box2I ret =
-            computeBBoxFromTransform(bboxUndistorted, geom::AffineTransform(t.inverted().getLinear()));
-    return ret;
+    auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
+    auto src_bbox = _undistortedPsf->computeImageBBox(prepared_transforms.src_position, color);
+    return computeBBoxFromTransform(src_bbox, prepared_transforms.src_to_dest_unrounded);
 }
 
 namespace {
