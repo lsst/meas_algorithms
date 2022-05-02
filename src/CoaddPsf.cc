@@ -198,6 +198,8 @@ geom::Box2I getOverallBBox(std::vector<std::shared_ptr<afw::image::Image<double>
 
 // Read all the images from the Image Vector and add them to image
 
+namespace {
+
 void addToImage(std::shared_ptr<afw::image::Image<double>> image,
                 std::vector<std::shared_ptr<afw::image::Image<double>>> const &imgVector,
                 std::vector<double> const &weightVector) {
@@ -220,6 +222,8 @@ void addToImage(std::shared_ptr<afw::image::Image<double>> image,
         targetSubImage.scaledPlus(weight / sum, cSubImage);
     }
 }
+
+} // anonymous
 
 geom::Box2I CoaddPsf::doComputeBBox(geom::Point2D const &ccdXY, afw::image::Color const &color) const {
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
@@ -244,7 +248,7 @@ geom::Box2I CoaddPsf::doComputeBBox(geom::Point2D const &ccdXY, afw::image::Colo
 
 std::shared_ptr<afw::detection::Psf::Image>
 CoaddPsf::doComputeKernelImage(geom::Point2D const &ccdXY, afw::image::Color const &color) const {
-    // Get the subset of expoures which contain our coordinate within their validPolygons.
+    // Get the subset of exposures which contain our coordinate within their validPolygons.
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
