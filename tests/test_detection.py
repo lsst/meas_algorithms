@@ -26,17 +26,27 @@ import numpy as np
 import lsst.geom
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
+import lsst.afw.math as afwMath
 from lsst.meas.algorithms import SourceDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
 
-display = False
+# To plot in ds9, `setup display_ds9` first, and open a ds9 window.
+# import lsstDebug
+# def DebugInfo(name):
+#     debug = lsstDebug.getInfo(name)
+#     if name == "lsst.meas.algorithms.detection":
+#         debug.display = 2
+#     return debug
+# lsstDebug.Info = DebugInfo
 
 
-class DetectionTestCase(lsst.utils.tests.TestCase):
-    """Test the aperture correction."""
+class SourceDetectionTaskTestCase(lsst.utils.tests.TestCase):
 
-    def testBasics(self):
+    def _create_exposure(self):
+        """Return a simulated exposure (and relevant parameters) with Gaussian
+        stars.
+        """
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
         minCounts = 5000
         maxCounts = 50000
@@ -56,25 +66,103 @@ class DetectionTestCase(lsst.utils.tests.TestCase):
         addPoissonNoise = True
         exposure = plantSources(bbox=bbox, kwid=kwid, sky=sky, coordList=coordList,
                                 addPoissonNoise=addPoissonNoise)
-
         schema = afwTable.SourceTable.makeMinimalSchema()
-        config = SourceDetectionTask.ConfigClass()
-        config.reEstimateBackground = False
-        task = SourceDetectionTask(config=config, schema=schema)
-        for doSmooth in (False, True):
-            taskSigma = 2.2
-            res = task.detectFootprints(exposure, doSmooth=doSmooth, sigma=taskSigma)
-            self.assertEqual(res.numPos, numX * numY)
-            self.assertEqual(res.numNeg, 0)
-            self.assertEqual(task.metadata.getScalar("sigma"), taskSigma)
-            self.assertEqual(task.metadata.getScalar("doSmooth"), doSmooth)
-            self.assertEqual(task.metadata.getScalar("nGrow"), int(taskSigma * config.nSigmaToGrow + 0.5))
 
-            res = task.detectFootprints(exposure, doSmooth=doSmooth, sigma=None)
-            taskSigma = task.metadata.getScalar("sigma")
-            self.assertLess(abs(taskSigma - starSigma), 0.1)
-            self.assertEqual(res.numPos, numX * numY)
-            self.assertEqual(res.numNeg, 0)
+        return exposure, schema, numX, numY, starSigma
+
+    def _check_detectFootprints(self, exposure, numX, numY, starSigma, task, config, doSmooth=False):
+        """Run detectFootprints and check that the output is reasonable,
+        for either value of doSmooth.
+        """
+        taskSigma = 2.2
+        res = task.detectFootprints(exposure, doSmooth=doSmooth, sigma=taskSigma)
+        self.assertEqual(res.numPos, numX * numY)
+        self.assertEqual(res.numNeg, 0)
+        self.assertEqual(task.metadata.getScalar("sigma"), taskSigma)
+        self.assertEqual(task.metadata.getScalar("doSmooth"), doSmooth)
+        self.assertEqual(task.metadata.getScalar("nGrow"), int(taskSigma * config.nSigmaToGrow + 0.5))
+
+        res = task.detectFootprints(exposure, doSmooth=doSmooth, sigma=None)
+        taskSigma = task.metadata.getScalar("sigma")
+        self.assertLess(abs(taskSigma - starSigma), 0.1)
+        self.assertEqual(res.numPos, numX * numY)
+        self.assertEqual(res.numNeg, 0)
+        return res
+
+    def test_stdev(self):
+        """Test that sources are detected on a simulated image with
+        thresholdType='stdev'.
+        """
+        exposure, schema, numX, numY, starSigma = self._create_exposure()
+
+        config = SourceDetectionTask.ConfigClass()
+        # don't modify the image after detection.
+        config.reEstimateBackground = False
+        config.thresholdType = "stdev"
+        task = SourceDetectionTask(config=config, schema=schema)
+
+        self._check_detectFootprints(exposure, numX, numY, starSigma, task, config, doSmooth=True)
+        self._check_detectFootprints(exposure, numX, numY, starSigma, task, config, doSmooth=False)
+
+    def test_significance_stdev(self):
+        """Check the non-smoothed, non-background updated peak significance
+        values with thresholdType="stddev".
+        """
+        exposure, schema, numX, numY, starSigma = self._create_exposure()
+
+        config = SourceDetectionTask.ConfigClass()
+        # don't modify the image after detection.
+        config.reEstimateBackground = False
+        config.doTempLocalBackground = False
+        config.thresholdType = "stdev"
+        task = SourceDetectionTask(config=config, schema=schema)
+
+        result = self._check_detectFootprints(exposure, numX, numY, starSigma, task, config, doSmooth=False)
+
+        bad = exposure.mask.getPlaneBitMask(config.statsMask)
+        sctrl = afwMath.StatisticsControl()
+        sctrl.setAndMask(bad)
+        stats = afwMath.makeStatistics(exposure.maskedImage, afwMath.STDEVCLIP, sctrl)
+        stddev = stats.getValue(afwMath.STDEVCLIP)
+        for footprint in result.positive.getFootprints():
+            for peak in footprint.peaks:
+                point = lsst.geom.Point2I(peak.getIx(), peak.getIy())
+                value = exposure.image[point]
+                with self.subTest(str(point)):
+                    self.assertFloatsAlmostEqual(peak["significance"],
+                                                 value/stddev,
+                                                 rtol=1e-7,
+                                                 msg=str(point))
+
+    def test_pixel_stdev(self):
+        """Test that sources are detected on a simulated image with
+        thresholdType='pixel_stdev', and that they have the right significance.
+        """
+        exposure, schema, numX, numY, starSigma = self._create_exposure()
+
+        config = SourceDetectionTask.ConfigClass()
+        config.thresholdType = "pixel_stdev"
+        config.reEstimateBackground = False
+        # TempLocalBackground changes the peak value of the faintest peak,
+        # so disable it for this test so that we can calculate an expected
+        # answer without having to try to deal with backgrounds.
+        config.doTempLocalBackground = False
+        task = SourceDetectionTask(config=config, schema=schema)
+        # Don't smooth, so that we can directly calculate the s/n from the exposure.
+        result = task.detectFootprints(exposure, doSmooth=False)
+        self.assertEqual(result.numPos, numX * numY)
+        self.assertEqual(result.numNeg, 0)
+        # Significance values for `pixel_stdev` should match image/sqrt(variance).
+        for footprint in result.positive.getFootprints():
+            for peak in footprint.peaks:
+                point = lsst.geom.Point2I(peak.getIx(), peak.getIy())
+                value = exposure.image[point]
+                stddev = np.sqrt(exposure.variance[point])
+                with self.subTest(str(point)):
+                    self.assertFloatsAlmostEqual(peak["significance"],
+                                                 value/stddev,
+                                                 rtol=1e-7,
+                                                 msg=str(point))
 
     def makeCoordList(self, bbox, numX, numY, minCounts, maxCounts, sigma):
         """Make a coordList for plantSources."""
@@ -107,6 +195,7 @@ class DetectionTestCase(lsst.utils.tests.TestCase):
         original.variance.set(1.0)
 
         def checkExposure(original, doTempLocalBackground, doTempWideBackground):
+            """Check that the original exposure is unmodified."""
             config = SourceDetectionTask.ConfigClass()
             config.reEstimateBackground = False
             config.thresholdType = "pixel_stdev"
