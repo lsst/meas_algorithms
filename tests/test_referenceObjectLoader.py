@@ -109,10 +109,8 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
 
     def test_loadSkyCircle(self):
         """Test the loadSkyCircle routine."""
-        loaderConfig = ReferenceObjectLoader.ConfigClass()
         loader = ReferenceObjectLoader([dataRef.dataId for dataRef in self.datasetRefs],
-                                       self.handles,
-                                       config=loaderConfig)
+                                       self.handles)
         center = lsst.geom.SpherePoint(180.0*lsst.geom.degrees, 0.0*lsst.geom.degrees)
         cat = loader.loadSkyCircle(
             center,

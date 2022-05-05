@@ -765,8 +765,10 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
         Logger object used to write out messages. If `None` a default
         logger will be used.
     """
-    def __init__(self, dataIds, refCats, log=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, dataIds, refCats, log=None, config=None, **kwargs):
+        if config is None:
+            config = self.ConfigClass()
+        super().__init__(config=config, **kwargs)
         self.dataIds = dataIds
         self.refCats = refCats
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
