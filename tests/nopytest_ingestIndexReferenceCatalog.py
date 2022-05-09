@@ -52,9 +52,11 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
     def testIngestTwoFilesTwoCores(self):
         def runTest(withRaDecErr):
             # Generate a second catalog, with different ids
-            inPath1 = tempfile.mkdtemp()
+            inTempDir1 = tempfile.TemporaryDirectory()
+            inPath1 = inTempDir1.name
             skyCatalogFile1, _, skyCatalog1 = self.makeSkyCatalog(inPath1, idStart=25, seed=123)
-            inPath2 = tempfile.mkdtemp()
+            inTempDir2 = tempfile.TemporaryDirectory()
+            inPath2 = inTempDir2.name
             skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
             # override some field names, and use multiple cores
             config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=withRaDecErr, withMagErr=True,
@@ -71,7 +73,8 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
                                     "_withRaDecErr" if withRaDecErr else "_noRaDecErr")
 
             # Convert the input data files to our HTM indexed format.
-            dataPath = tempfile.mkdtemp()
+            dataTempDir = tempfile.TemporaryDirectory()
+            dataPath = dataTempDir.name
             converter = ConvertReferenceCatalogTask(output_dir=dataPath, config=config)
             converter.run([skyCatalogFile1, skyCatalogFile2])
 
@@ -109,6 +112,10 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
             self.checkAllRowsInRefcat(loader, skyCatalog1, config)
             self.checkAllRowsInRefcat(loader, skyCatalog2, config)
 
+            inTempDir1.cleanup()
+            inTempDir2.cleanup()
+            dataTempDir.cleanup()
+
         runTest(withRaDecErr=True)
         runTest(withRaDecErr=False)
 
@@ -122,7 +129,8 @@ class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBa
     def setUp(self):
         np.random.seed(10)
 
-        tempPath = tempfile.mkdtemp()
+        self.tempDir = tempfile.TemporaryDirectory()
+        tempPath = self.tempDir.name
         self.log = lsst.log.Log.getLogger("lsst.TestIngestIndexManager")
         self.config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
@@ -137,8 +145,9 @@ class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBa
 
         self.fakeInput = self.makeSkyCatalog(outPath=None, size=5, idStart=6543)
         self.matchedPixels = np.array([1, 1, 2, 2, 3])
-        self.path = tempfile.mkdtemp()
-        self.filenames = {x: os.path.join(self.path, "%d.fits" % x) for x in set(self.matchedPixels)}
+        self.tempDir2 = tempfile.TemporaryDirectory()
+        tempPath = self.tempDir2.name
+        self.filenames = {x: os.path.join(tempPath, "%d.fits" % x) for x in set(self.matchedPixels)}
 
         self.worker = ConvertRefcatManager(self.filenames,
                                            self.config,
@@ -232,6 +241,10 @@ class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBa
         np.testing.assert_equal(newcat[:len(catalog)]['id'], catalog['id'])
         self.assertFloatsEqual(newcat[:len(catalog)]['coord_ra'], catalog['coord_ra'])
         self.assertFloatsEqual(newcat[:len(catalog)]['coord_dec'], catalog['coord_dec'])
+
+    def tearDown(self):
+        self.tempDir.cleanup()
+        self.tempDir2.cleanup()
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

@@ -135,6 +135,7 @@ def convertToNanojansky(catalog, log, doConvert=True):
     if doConvert:
         newSchema = mapper.getOutputSchema()
         output = afwTable.SimpleCatalog(newSchema)
+        output.reserve(len(catalog))
         output.extend(catalog, mapper=mapper)
         for field in output_fields:
             output[field.getName()] *= 1e9
@@ -758,14 +759,16 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
     dataIds : iterable of `lsst.daf.butler.DataCoordinate`
         An iterable object of data IDs that point to reference catalogs
         in a gen 3 repository.
-    refCats : iterable of `lsst.daf.butler.DeferedDatasetHandle`
+    refCats : iterable of `lsst.daf.butler.DeferredDatasetHandle`
         Handles to load refCats on demand
     log : `lsst.log.Log`, `logging.Logger` or `None`, optional
         Logger object used to write out messages. If `None` a default
         logger will be used.
     """
-    def __init__(self, dataIds, refCats, log=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, dataIds, refCats, log=None, config=None, **kwargs):
+        if config is None:
+            config = self.ConfigClass()
+        super().__init__(config=config, **kwargs)
         self.dataIds = dataIds
         self.refCats = refCats
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
@@ -805,9 +808,15 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Returns
         -------
-        referenceCatalog : `lsst.afw.table.SimpleCatalog`
-            Catalog containing reference objects inside the specified bounding
-            box (padded by self.config.pixelMargin).
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``refCat``
+                Catalog containing reference objects inside the specified
+                bounding box (padded by self.config.pixelMargin).
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
 
         Raises
         ------
@@ -886,9 +895,15 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Returns
         -------
-        referenceCatalog : `lsst.afw.table.SourceCatalog`
-            Catalog containing reference objects which intersect the input region,
-            filtered by the specified filter function.
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``refCat``
+                Catalog containing reference objects which intersect the
+                input region, filtered by the specified filter function.
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
 
         Raises
         ------
@@ -991,9 +1006,15 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         Returns
         -------
-        referenceCatalog : `lsst.afw.table.SourceCatalog`
-            Catalog containing reference objects inside the specified search
-            circle.
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``refCat``
+                Catalog containing reference objects inside the specified
+                search circle.
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
         """
         centerVector = ctrCoord.getVector()
         sphRadius = sphgeom.Angle(radius.asRadians())

@@ -23,7 +23,6 @@ __all__ = ["ConvertReferenceCatalogTestBase", "make_coord", "makeConvertConfig"]
 
 import logging
 import math
-import shutil
 import string
 import tempfile
 
@@ -178,10 +177,7 @@ class ConvertReferenceCatalogTestBase:
 
     @classmethod
     def tearDownClass(cls):
-        try:
-            shutil.rmtree(cls.outPath)
-        except Exception:
-            print("WARNING: failed to remove temporary dir %r" % (cls.outPath,))
+        cls.outDir.cleanup()
         del cls.outPath
         del cls.skyCatalogFile
         del cls.skyCatalogFileDelim
@@ -193,7 +189,8 @@ class ConvertReferenceCatalogTestBase:
 
     @classmethod
     def setUpClass(cls):
-        cls.outPath = tempfile.mkdtemp()
+        cls.outDir = tempfile.TemporaryDirectory()
+        cls.outPath = cls.outDir.name
         # arbitrary, but reasonable, amount of proper motion (angle/year)
         # and direction of proper motion
         cls.properMotionAmt = 3.0*lsst.geom.arcseconds
@@ -226,6 +223,9 @@ class ConvertReferenceCatalogTestBase:
         self.repoPath = tempfile.TemporaryDirectory()  # cleaned up automatically when test ends
         self.butler = self.makeTemporaryRepo(self.repoPath.name, self.depth)
         self.logger = logging.getLogger('lsst.ReferenceObjectLoader')
+
+    def tearDown(self):
+        self.repoPath.cleanup()
 
     @staticmethod
     def makeTemporaryRepo(rootPath, depth):

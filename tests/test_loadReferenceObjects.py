@@ -31,6 +31,8 @@ from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, co
 import lsst.pex.config
 import lsst.utils.tests
 
+from ingestIndexTestBase import makeConvertConfig
+
 
 class TrivialLoader(ReferenceObjectLoaderBase):
     """Minimal subclass of ReferenceObjectLoaderBase to allow instantiation
@@ -40,7 +42,7 @@ class TrivialLoader(ReferenceObjectLoaderBase):
         pass
 
 
-class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
+class ReferenceObjectLoaderBaseTestCase(lsst.utils.tests.TestCase):
     """Test case for ReferenceObjectLoaderBase abstract base class.
 
     Only methods with concrete implementations are tested (hence not loadSkyCircle)
@@ -233,6 +235,95 @@ class TestReferenceObjectLoaderBase(lsst.utils.tests.TestCase):
         oldRefCat = make_catalog()
         newRefCat = convertToNanojansky(oldRefCat, log, doConvert=False)
         self.assertIsNone(newRefCat)
+
+
+class ConvertReferenceCatalogConfigValidateTestCase(lsst.utils.tests.TestCase):
+    """Test validation of ConvertReferenceCatalogConfig."""
+    def testValidateRaDecMag(self):
+        config = makeConvertConfig()
+        config.validate()
+
+        for name in ("ra_name", "dec_name", "mag_column_list"):
+            with self.subTest(name=name):
+                config = makeConvertConfig()
+                setattr(config, name, None)
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+    def testValidateRaDecErr(self):
+        # check that a basic config validates
+        config = makeConvertConfig(withRaDecErr=True)
+        config.validate()
+
+        # check that a config with any of these fields missing does not validate
+        for name in ("ra_err_name", "dec_err_name", "coord_err_unit"):
+            with self.subTest(name=name):
+                config = makeConvertConfig(withRaDecErr=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+        # check that coord_err_unit must be an astropy unit
+        config = makeConvertConfig(withRaDecErr=True)
+        config.coord_err_unit = "nonsense unit"
+        with self.assertRaisesRegex(ValueError, "is not a valid astropy unit string"):
+            config.validate()
+
+    def testValidateMagErr(self):
+        config = makeConvertConfig(withMagErr=True)
+        config.validate()
+
+        # test for missing names
+        for name in config.mag_column_list:
+            with self.subTest(name=name):
+                config = makeConvertConfig(withMagErr=True)
+                del config.mag_err_column_map[name]
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+        # test for incorrect names
+        for name in config.mag_column_list:
+            with self.subTest(name=name):
+                config = makeConvertConfig(withMagErr=True)
+                config.mag_err_column_map["badName"] = config.mag_err_column_map[name]
+                del config.mag_err_column_map[name]
+                with self.assertRaises(ValueError):
+                    config.validate()
+
+    def testValidatePm(self):
+        basicNames = ["pm_ra_name", "pm_dec_name", "epoch_name", "epoch_format", "epoch_scale"]
+
+        for withPmErr in (False, True):
+            config = makeConvertConfig(withPm=True, withPmErr=withPmErr)
+            config.validate()
+            del config
+
+            if withPmErr:
+                names = basicNames + ["pm_ra_err_name", "pm_dec_err_name"]
+            else:
+                names = basicNames
+                for name in names:
+                    with self.subTest(name=name, withPmErr=withPmErr):
+                        config = makeConvertConfig(withPm=True, withPmErr=withPmErr)
+                        setattr(config, name, None)
+                        with self.assertRaises(ValueError):
+                            config.validate()
+
+    def testValidateParallax(self):
+        """Validation should fail if any parallax-related fields are missing.
+        """
+        names = ["parallax_name", "epoch_name", "epoch_format", "epoch_scale", "parallax_err_name"]
+
+        config = makeConvertConfig(withParallax=True)
+        config.validate()
+        del config
+
+        for name in names:
+            with self.subTest(name=name):
+                config = makeConvertConfig(withParallax=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError, msg=name):
+                    config.validate()
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
