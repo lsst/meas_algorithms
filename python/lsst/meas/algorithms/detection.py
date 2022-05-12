@@ -410,7 +410,7 @@ class SourceDetectionTask(pipeBase.Task):
             psf = exposure.getPsf()
             if psf is None:
                 raise RuntimeError("Unable to determine PSF to use for detection: no sigma provided")
-            sigma = psf.computeShape().getDeterminantRadius()
+            sigma = psf.computeShape(psf.getAveragePosition()).getDeterminantRadius()
         size = self.calculateKernelSize(sigma)
         psf = afwDet.GaussianPsf(size, size, sigma)
         return psf
@@ -447,7 +447,7 @@ class SourceDetectionTask(pipeBase.Task):
             Gaussian sigma used for the convolution.
         """
         self.metadata["doSmooth"] = doSmooth
-        sigma = psf.computeShape().getDeterminantRadius()
+        sigma = psf.computeShape(psf.getAveragePosition()).getDeterminantRadius()
         self.metadata["sigma"] = sigma
 
         if not doSmooth:

@@ -75,8 +75,8 @@ class InstallGaussianPsfTask(pipeBase.Task):
         """
         if exposure.hasPsf():
             psfModel = exposure.getPsf()
-            psfSigma = psfModel.computeShape().getDeterminantRadius()
-            width, height = psfModel.computeImage().getDimensions()
+            psfSigma = psfModel.computeShape(psfModel.getAveragePosition()).getDeterminantRadius()
+            width, height = psfModel.computeImage(psfModel.getAveragePosition()).getDimensions()
         else:
             psfSigma = self.config.fwhm / FwhmPerSigma
             width = height = self.config.width
