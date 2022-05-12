@@ -95,7 +95,7 @@ private:
 
 void checkShape(int size, Quadrupole const & ellipse, double tol) {
     TestGaussianPsf psf(size, ellipse);
-    Quadrupole shape = psf.computeShape();
+    Quadrupole shape = psf.computeShape(psf.getAveragePosition());
     BOOST_CHECK_CLOSE(ellipse.getIxx(), shape.getIxx(), tol);
     BOOST_CHECK_CLOSE(ellipse.getIyy(), shape.getIyy(), tol);
     BOOST_CHECK_CLOSE(ellipse.getIxy(), shape.getIxy(), tol);

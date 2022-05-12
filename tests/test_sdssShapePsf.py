@@ -159,8 +159,8 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
         """Test that overlapping portions of kernel images are identical
         """
         # warning: computeKernelImage modifies kernel parameters if spatially varying
-        im1 = psf1.computeKernelImage()
-        im2 = psf2.computeKernelImage()
+        im1 = psf1.computeKernelImage(psf1.getAveragePosition())
+        im2 = psf2.computeKernelImage(psf2.getAveragePosition())
         bboxIntersection = im1.getBBox()
         bboxIntersection.clip(im2.getBBox())
         im1Intersection = afwImage.ImageD(im1, bboxIntersection)

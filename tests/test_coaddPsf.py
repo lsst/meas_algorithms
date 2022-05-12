@@ -366,7 +366,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         with self.assertRaises(pexExceptions.InvalidParameterError):
             coaddPsf.computeKernelImage(naiveAvgPos)
         # important test is that this doesn't throw:
-        coaddPsf.computeKernelImage()
+        coaddPsf.computeKernelImage(coaddPsf.getAveragePosition())
 
     def testValidPolygonPsf(self):
         """Demonstrate that we can use the validPolygon on Exposures in the CoaddPsf."""
