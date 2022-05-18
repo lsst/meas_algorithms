@@ -51,5 +51,6 @@ Examples
      # This particular exposure had no PSF model to begin with, so the new PSF model
      # uses the config's FWHM. However, measured FWHM is based on the truncated
      # PSF image, so it does not exactly match the input
-     measFwhm = exposure.getPsf().computeShape().getDeterminantRadius() * FwhmPerSigma
+     center = exposure.getBBox().getCenter()
+     measFwhm = exposure.getPsf().computeShape(center).getDeterminantRadius() * FwhmPerSigma
      assert abs(measFwhm - task.config.fwhm) < 1e-3

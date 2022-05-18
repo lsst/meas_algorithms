@@ -43,10 +43,10 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
                 task.run(exposure=exposure)
                 self.assertTrue(exposure.hasPsf())
                 psf = exposure.getPsf()
-                psfIm = psf.computeImage()
+                psfIm = psf.computeImage(psf.getAveragePosition())
                 self.assertEqual(psfIm.getWidth(), width)
                 self.assertEqual(psfIm.getHeight(), width)
-                measFwhm = psf.computeShape().getDeterminantRadius()*FwhmPerSigma
+                measFwhm = psf.computeShape(psf.getAveragePosition()).getDeterminantRadius()*FwhmPerSigma
                 self.assertAlmostEqual(measFwhm, fwhm, delta=1e-3)
 
     def testMatchDoubleGaussianPsf(self):
@@ -66,10 +66,11 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
             task.run(exposure=exposure)
             self.assertTrue(exposure.hasPsf())
             psf = exposure.getPsf()
-            psfIm = psf.computeImage()
+            psfIm = psf.computeImage(psf.getAveragePosition())
             self.assertEqual(psfIm.getWidth(), desWidth)
             self.assertEqual(psfIm.getHeight(), desHeight)
-            self.assertAlmostEqual(psf.computeShape().getDeterminantRadius(), innerSigma, delta=0.1)
+            self.assertAlmostEqual(psf.computeShape(psf.getAveragePosition()).getDeterminantRadius(),
+                                   innerSigma, delta=0.1)
 
     def testMatchSingleGaussianPsf(self):
         """Test InstallGaussianPsfTask when the input exposure has a single Gaussian PSF."""
@@ -86,7 +87,7 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
             task.run(exposure=exposure)
             self.assertTrue(exposure.hasPsf())
             psf = exposure.getPsf()
-            psfIm = psf.computeImage()
+            psfIm = psf.computeImage(psf.getAveragePosition())
             self.assertEqual(psfIm.getWidth(), desWidth)
             self.assertEqual(psfIm.getHeight(), desHeight)
             self.assertAlmostEqual(psf.computeShape().getDeterminantRadius(), desSigma, delta=1e-3)

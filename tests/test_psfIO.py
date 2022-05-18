@@ -83,7 +83,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
 
             sigma = 3 + 0.01*(y - self.mi.getHeight()/2)
             psf = roundTripPsf(3, algorithms.DoubleGaussianPsf(self.ksize, self.ksize, sigma, 1, 0.1))
-            im = psf.computeImage().convertF()
+            im = psf.computeImage(psf.getAveragePosition()).convertF()
             im *= flux
             x0y0 = lsst.geom.PointI(x - self.ksize//2, y - self.ksize//2)
             smi = self.mi.getImage().Factory(self.mi.getImage(),

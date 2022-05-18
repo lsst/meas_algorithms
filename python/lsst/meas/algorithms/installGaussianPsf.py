@@ -56,7 +56,8 @@ class InstallGaussianPsfTask(pipeBase.Task):
     """Install a Gaussian PSF model in an exposure.
 
     If the exposure already has a PSF model then the new model
-    has the same sigma and size (width and height in pixels) of the existing model.
+    has the same sigma and size (width and height in pixels) of the existing
+    model.
     """
     ConfigClass = InstallGaussianPsfConfig
     _DefaultName = "installSimplePsfModel"
@@ -64,8 +65,8 @@ class InstallGaussianPsfTask(pipeBase.Task):
     def run(self, exposure):
         """Set exposure's PSF to a simple PSF model
 
-        The sigma and width of the new simple PSF model matches the sigma and width of the current model,
-        if any, else the config parameters are used.
+        The sigma and width of the new simple PSF model matches the sigma and
+        width of the current model, if any, else the config parameters are used.
 
         Parameters
         ----------
@@ -74,8 +75,8 @@ class InstallGaussianPsfTask(pipeBase.Task):
         """
         if exposure.hasPsf():
             psfModel = exposure.getPsf()
-            psfSigma = psfModel.computeShape().getDeterminantRadius()
-            width, height = psfModel.computeImage().getDimensions()
+            psfSigma = psfModel.computeShape(psfModel.getAveragePosition()).getDeterminantRadius()
+            width, height = psfModel.computeImage(psfModel.getAveragePosition()).getDimensions()
         else:
             psfSigma = self.config.fwhm / FwhmPerSigma
             width = height = self.config.width

@@ -90,11 +90,11 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
     def testImage(self):
         self.assertImagesEqual(
             self.img,
-            self.psf.computeImage()
+            self.psf.computeImage(self.psf.getAveragePosition())
         )
         self.assertImagesEqual(
             self.img,
-            self.psf.computeKernelImage()
+            self.psf.computeKernelImage(self.psf.getAveragePosition())
         )
 
     def testBBox(self):
@@ -113,16 +113,16 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
         for clone in [clone1, clone2]:
             self.assertIsNot(clone, self.psf)
             self.assertImagesEqual(
-                clone.computeImage(),
-                self.psf.computeImage()
+                clone.computeImage(clone.getAveragePosition()),
+                self.psf.computeImage(self.psf.getAveragePosition())
             )
             self.assertEqual(
                 clone.computeApertureFlux(0.5),
                 self.psf.computeApertureFlux(0.5)
             )
             self.assertEqual(
-                clone.computeShape(),
-                self.psf.computeShape()
+                clone.computeShape(clone.getAveragePosition()),
+                self.psf.computeShape(self.psf.getAveragePosition())
             )
 
     def testPersistence(self):
