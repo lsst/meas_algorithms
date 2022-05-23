@@ -50,14 +50,6 @@ namespace algorithms {
 
 namespace {
 
-inline double min4(double a, double b, double c, double d) {
-    return std::min(std::min(a, b), std::min(c, d));
-}
-
-inline double max4(double a, double b, double c, double d) {
-    return std::max(std::max(a, b), std::max(c, d));
-}
-
 // TODO: make this routine externally callable and more generic using templates
 //  (also useful in e.g. math/offsetImage.cc)
 std::shared_ptr<afw::detection::Psf::Image> zeroPadImage(afw::detection::Psf::Image const &im, int xPad,
@@ -75,8 +67,6 @@ std::shared_ptr<afw::detection::Psf::Image> zeroPadImage(afw::detection::Psf::Im
 }
 
 geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransform const &t) {
-    static const int dst_padding = 0;
-
     // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
     // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
     // from JWST).  Anything beyond that is probably a bug elsewhere in the code, and
@@ -87,29 +77,25 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
         throw LSST_EXCEPT(pex::exceptions::RangeError, "Unexpectedly large transform passed to WarpedPsf");
     }
 
-    // min/max coordinate values in input image
-    int in_xlo = bbox.getMinX();
-    int in_xhi = bbox.getMinX() + bbox.getWidth() - 1;
-    int in_ylo = bbox.getMinY();
-    int in_yhi = bbox.getMinY() + bbox.getHeight() - 1;
+    // Floating point version of input bbox (expanded to include entire pixels).
+    geom::Box2D in_box_fp(bbox);
+    // Floating point version of output bbox (to be populated as bbox of
+    // transformed points.
+    geom::Box2D out_box_fp;
+    auto const in_corners = in_box_fp.getCorners();
+    for (auto const & in_corner : in_corners) {
+        auto out_corner = t(in_corner);
+        out_box_fp.include(out_corner);
+    }
 
-    // corners of output image
-    geom::Point2D c00 = t(geom::Point2D(in_xlo, in_ylo));
-    geom::Point2D c01 = t(geom::Point2D(in_xlo, in_yhi));
-    geom::Point2D c10 = t(geom::Point2D(in_xhi, in_ylo));
-    geom::Point2D c11 = t(geom::Point2D(in_xhi, in_yhi));
-
-    //
-    // bounding box for output image
-    //
-    int out_xlo = floor(min4(c00.getX(), c01.getX(), c10.getX(), c11.getX())) - dst_padding;
-    int out_ylo = floor(min4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) - dst_padding;
-    int out_xhi = ceil(max4(c00.getX(), c01.getX(), c10.getX(), c11.getX())) + dst_padding;
-    int out_yhi = ceil(max4(c00.getY(), c01.getY(), c10.getY(), c11.getY())) + dst_padding;
-
-    geom::Box2I ret = geom::Box2I(geom::Point2I(out_xlo, out_ylo),
-                                  geom::Extent2I(out_xhi - out_xlo + 1, out_yhi - out_ylo + 1));
-    return ret;
+    // We want to guarantee that the output bbox has odd dimensions, so instead
+    // of using the Box2I converting constructor directly, we round the center
+    // point of the floating point box and dilate by its half-dimensions.
+    geom::Extent2I out_half_dims = geom::ceil(0.5*out_box_fp.getDimensions());
+    geom::Box2I out_box;
+    geom::Point2I out_center(out_box_fp.getCenter());
+    out_box.include(out_center);
+    return out_box.dilatedBy(out_half_dims);
 }
 
 /**
