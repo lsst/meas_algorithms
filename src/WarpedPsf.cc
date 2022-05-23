@@ -91,7 +91,7 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
     // We want to guarantee that the output bbox has odd dimensions, so instead
     // of using the Box2I converting constructor directly, we round the center
     // point of the floating point box and dilate by its half-dimensions.
-    geom::Extent2I out_half_dims = geom::ceil(0.5*out_box_fp.getDimensions());
+    geom::Extent2I out_half_dims = geom::floor(0.5*out_box_fp.getDimensions());
     geom::Box2I out_box;
     geom::Point2I out_center(out_box_fp.getCenter());
     out_box.include(out_center);
