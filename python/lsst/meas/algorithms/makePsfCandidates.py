@@ -36,7 +36,7 @@ class MakePsfCandidatesConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
         doc="size of the kernel to create",
         dtype=int,
-        default=21,
+        default=25,
     )
     borderWidth = pexConfig.Field(
         doc="number of pixels to ignore around the edge of PSF candidate postage stamps",
