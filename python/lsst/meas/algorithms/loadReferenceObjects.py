@@ -26,6 +26,8 @@ __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "Loa
 
 import abc
 import logging
+import warnings
+from deprecated.sphinx import deprecated
 
 import astropy.time
 import astropy.units
@@ -40,6 +42,7 @@ from lsst.daf.base import PropertyList
 from lsst.utils.timer import timeMethod
 
 
+# TODO DM-34793: remove this function
 def isOldFluxField(name, units):
     """Return True if this name/units combination corresponds to an
     "old-style" reference catalog flux field.
@@ -51,6 +54,7 @@ def isOldFluxField(name, units):
     return (isFlux or isFluxSigma or isFluxErr) and unitsCheck
 
 
+# TODO DM-34793: remove this function
 def hasNanojanskyFluxUnits(schema):
     """Return True if the units of all flux and fluxErr are correct (nJy).
     """
@@ -74,15 +78,23 @@ def getFormatVersionFromRefCat(refCat):
         Format verison integer. Returns `0` if the catalog has no metadata
         or the metadata does not include a "REFCAT_FORMAT_VERSION" key.
     """
+    # TODO DM-34793: change to "Version 0 refcats are no longer supported: refcat fluxes must have nJy units."
+    # TODO DM-34793: and raise an exception instead of returning 0.
+    deprecation_msg = "Support for version 0 refcats (pre-nJy fluxes) will be removed after v25."
     md = refCat.getMetadata()
     if md is None:
+        warnings.warn(deprecation_msg)
         return 0
     try:
         return md.getScalar("REFCAT_FORMAT_VERSION")
     except KeyError:
+        warnings.warn(deprecation_msg)
         return 0
 
 
+# TODO DM-34793: remove this function
+@deprecated(reason="Support for version 0 refcats (pre-nJy fluxes) will be removed after v25.",
+            version="v24.0", category=FutureWarning)
 def convertToNanojansky(catalog, log, doConvert=True):
     """Convert fluxes in a catalog from jansky to nanojansky.
 
@@ -965,6 +977,7 @@ class ReferenceObjectLoader(ReferenceObjectLoaderBase):
 
         self.applyProperMotions(refCat, epoch)
 
+        # TODO DM-34793: remove this entire if block.
         # Verify the schema is in the correct units and has the correct version; automatically convert
         # it with a warning if this is not the case.
         if not hasNanojanskyFluxUnits(refCat.schema) or not getFormatVersionFromRefCat(refCat) >= 1:
