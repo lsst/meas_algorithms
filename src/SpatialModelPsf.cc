@@ -677,9 +677,6 @@ std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
 }
 
 /************************************************************************************************************/
-/**
- * Fit spatial kernel using approximate fluxes for candidates, and solving a linear system of equations
- */
 namespace {
 /// A class to calculate the A and b matrices used to estimate the PSF's spatial structure
 ///
@@ -872,6 +869,9 @@ public:
 
 }  // namespace
 
+/**
+ * Fit spatial kernel using approximate fluxes for candidates, and solving a linear system of equations
+ */
 template <typename PixelT>
 std::pair<bool, double> fitSpatialKernelFromPsfCandidates(
         afw::math::Kernel* kernel,                  ///< the Kernel to fit
