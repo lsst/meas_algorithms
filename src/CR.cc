@@ -50,9 +50,9 @@
 #include "lsst/meas/algorithms/CR.h"
 #include "lsst/meas/algorithms/Interp.h"
 
-/**
- * @todo These should go into afw --- actually, there're already there, but
- * in an anon namespace
+/*
+ * TODO: These should go into afw --- actually, there're already there, but
+ * in an anon namespace (DM-35750).
  */
 namespace lsst {
 namespace afw {
