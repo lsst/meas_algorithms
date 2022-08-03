@@ -26,7 +26,7 @@ import unittest
 
 import lsst.afw.table as afwTable
 import lsst.log
-from lsst.meas.algorithms import ReferenceObjectLoaderBase, getRefFluxField, getRefFluxKeys
+from lsst.meas.algorithms import ReferenceObjectLoader, getRefFluxField, getRefFluxKeys
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
 import lsst.pex.config
 import lsst.utils.tests
@@ -34,22 +34,10 @@ import lsst.utils.tests
 from ingestIndexTestBase import makeConvertConfig
 
 
-class TrivialLoader(ReferenceObjectLoaderBase):
-    """Minimal subclass of ReferenceObjectLoaderBase to allow instantiation
-    """
-
-    def loadSkyCircle(self, ctrCoord, radius, filterName):
-        pass
-
-
-class ReferenceObjectLoaderBaseTestCase(lsst.utils.tests.TestCase):
-    """Test case for ReferenceObjectLoaderBase abstract base class.
-
-    Only methods with concrete implementations are tested (hence not loadSkyCircle)
-    """
-
+class ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
+    """Test generic parts of loader, but not the actual catalog loading."""
     def testFilterMapVsAnyFilterMapsToThis(self):
-        config = TrivialLoader.ConfigClass()
+        config = ReferenceObjectLoader.ConfigClass()
         # check that a filterMap-only config passes validation
         config.filterMap = {"b": "a"}
         try:
@@ -91,9 +79,9 @@ class ReferenceObjectLoaderBaseTestCase(lsst.utils.tests.TestCase):
                 if coordErrDim not in (0, 2, 3) or \
                         (addProperMotion and properMotionErrDim not in (0, 2, 3)):
                     with self.assertRaises(ValueError):
-                        ReferenceObjectLoaderBase.makeMinimalSchema(**argDict)
+                        ReferenceObjectLoader.makeMinimalSchema(**argDict)
                 else:
-                    refSchema = ReferenceObjectLoaderBase.makeMinimalSchema(**argDict)
+                    refSchema = ReferenceObjectLoader.makeMinimalSchema(**argDict)
                     self.assertTrue("coord_ra" in refSchema)
                     self.assertTrue("coord_dec" in refSchema)
                     for filterName in filterNameList:
@@ -125,10 +113,10 @@ class ReferenceObjectLoaderBaseTestCase(lsst.utils.tests.TestCase):
     def testFilterAliasMap(self):
         """Make a schema with filter aliases."""
         for filterMap in ({}, {"camr": "r"}):
-            config = TrivialLoader.ConfigClass()
+            config = ReferenceObjectLoader.ConfigClass()
             config.filterMap = filterMap
-            loader = TrivialLoader(config=config)
-            refSchema = TrivialLoader.makeMinimalSchema(filterNameList="r")
+            loader = ReferenceObjectLoader(None, None, config=config)
+            refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList="r")
             loader._addFluxAliases(refSchema,
                                    anyFilterMapsToThis=config.anyFilterMapsToThis,
                                    filterMap=config.filterMap)
@@ -165,46 +153,46 @@ class ReferenceObjectLoaderBaseTestCase(lsst.utils.tests.TestCase):
 
     def testAnyFilterMapsToThisAlias(self):
         # test anyFilterMapsToThis
-        config = TrivialLoader.ConfigClass()
+        config = ReferenceObjectLoader.ConfigClass()
         config.anyFilterMapsToThis = "gg"
-        loader = TrivialLoader(config=config)
-        refSchema = TrivialLoader.makeMinimalSchema(filterNameList=["gg"])
+        loader = ReferenceObjectLoader(None, None, config=config)
+        refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["gg"])
         loader._addFluxAliases(refSchema,
                                anyFilterMapsToThis=config.anyFilterMapsToThis,
                                filterMap=config.filterMap)
         self.assertEqual(getRefFluxField(refSchema, "r"), "gg_flux")
         # raise if "gg" is not in the refcat filter list
         with self.assertRaises(RuntimeError):
-            refSchema = TrivialLoader.makeMinimalSchema(filterNameList=["rr"])
+            refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["rr"])
             refSchema = loader._addFluxAliases(refSchema,
                                                anyFilterMapsToThis=config.anyFilterMapsToThis,
                                                filterMap=config.filterMap)
 
     def testCheckFluxUnits(self):
         """Test that we can identify old style fluxes in a schema."""
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
         # the default schema should pass
         self.assertTrue(hasNanojanskyFluxUnits(schema))
         schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_flux', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
         schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
         self.assertFalse(hasNanojanskyFluxUnits(schema))
 
@@ -215,7 +203,7 @@ class ReferenceObjectLoaderBaseTestCase(lsst.utils.tests.TestCase):
         log = lsst.log.Log()
 
         def make_catalog():
-            schema = ReferenceObjectLoaderBase.makeMinimalSchema(['r', 'z'])
+            schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
             schema.addField('bad_flux', doc='old flux units', type=float, units='')
             schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
             refCat = afwTable.SimpleCatalog(schema)
