@@ -25,8 +25,7 @@
 # should all be moved to to `convertReferenceCatalog.py` once gen2 butler
 # has been removed.
 
-__all__ = ["IngestIndexedReferenceConfig", "IngestIndexedReferenceTask", "DatasetConfig",
-           "ConvertReferenceCatalogBase", "ConvertReferenceCatalogConfig"]
+__all__ = ["DatasetConfig", "ConvertReferenceCatalogBase", "ConvertReferenceCatalogConfig"]
 
 import abc
 import os.path
@@ -41,7 +40,7 @@ import lsst.afw.table as afwTable
 from lsst.daf.base import PropertyList
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
-from .loadReferenceObjects import ReferenceObjectLoaderBase
+from .loadReferenceObjects import ReferenceObjectLoader
 from . import convertRefcatManager
 
 # The most recent Indexed Reference Catalog on-disk format version.
@@ -283,7 +282,7 @@ class ConvertReferenceCatalogConfig(pexConfig.Config):
             result = astropy.units.Unit(self.coord_err_unit, parse_strict='silent')
             if isinstance(result, astropy.units.UnrecognizedUnit):
                 msg = f"{self.coord_err_unit} is not a valid astropy unit string."
-                raise pexConfig.FieldValidationError(IngestIndexedReferenceConfig.coord_err_unit, self, msg)
+                raise pexConfig.FieldValidationError(ConvertReferenceCatalogConfig.coord_err_unit, self, msg)
 
         assertAllOrNone("epoch_name", "epoch_format", "epoch_scale")
         assertAllOrNone("pm_ra_name", "pm_dec_name")
@@ -294,12 +293,6 @@ class ConvertReferenceCatalogConfig(pexConfig.Config):
         if (self.pm_ra_name or self.parallax_name) and not self.epoch_name:
             raise ValueError(
                 '"epoch_name" must be specified if "pm_ra/dec_name" or "parallax_name" are specified')
-
-
-class IngestIndexedReferenceConfig(ConvertReferenceCatalogConfig):
-    """For gen2 backwards compatibility.
-    """
-    pass
 
 
 class ConvertReferenceCatalogBase(pipeBase.Task, abc.ABC):
@@ -414,7 +407,7 @@ class ConvertReferenceCatalogBase(pipeBase.Task, abc.ABC):
             - A map of catalog keys to use in filling the record
         """
         # make a schema with the standard fields
-        schema = ReferenceObjectLoaderBase.makeMinimalSchema(
+        schema = ReferenceObjectLoader.makeMinimalSchema(
             filterNameList=self.config.mag_column_list,
             addCentroid=False,
             addIsPhotometric=bool(self.config.is_photometric_name),
@@ -492,42 +485,3 @@ class ConvertReferenceCatalogBase(pipeBase.Task, abc.ABC):
             schema used in each of the HTM pixel files.
         """
         pass
-
-
-class IngestIndexedReferenceTask(ConvertReferenceCatalogBase, pipeBase.CmdLineTask):
-    """Class for producing and loading indexed reference catalogs (gen2 version).
-
-    Parameters
-    ----------
-    butler : `lsst.daf.persistence.Butler`
-        Data butler for reading and writing catalogs
-    """
-    RunnerClass = IngestReferenceRunner
-    ConfigClass = IngestIndexedReferenceConfig
-    _DefaultName = 'IngestIndexedReferenceTask'
-
-    @classmethod
-    def _makeArgumentParser(cls):
-        """Create an argument parser.
-
-        This returns a standard parser with an extra "files" argument.
-        """
-        parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
-        parser.add_argument("files", nargs="+", help="Names of files to index")
-        return parser
-
-    def __init__(self, *args, butler=None, **kwargs):
-        self.butler = butler
-        super().__init__(*args, **kwargs)
-
-    def _persistConfig(self):
-        dataId = self.indexer.makeDataId(None, self.config.dataset_config.ref_dataset_name)
-        self.butler.put(self.config.dataset_config, 'ref_cat_config', dataId=dataId)
-
-    def _getOnePixelFilename(self, start):
-        dataId = self.indexer.makeDataId(start, self.config.dataset_config.ref_dataset_name)
-        return self.butler.get('ref_cat_filename', dataId=dataId)[0]
-
-    def _writeMasterSchema(self, catalog):
-        dataId = self.indexer.makeDataId('master_schema', self.config.dataset_config.ref_dataset_name)
-        self.butler.put(catalog, 'ref_cat', dataId=dataId)

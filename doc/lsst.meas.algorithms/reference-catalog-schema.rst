@@ -1,38 +1,10 @@
-.. lsst-task-topic:: lsst.meas.algorithms.loadReferenceObjects.LoadReferenceObjectsTask
+.. _reference-catalog-schema:
 
-########################
-LoadReferenceObjectsTask
-########################
+#########################################
+LSST reference catalog schema description
+#########################################
 
-Implementations must subclass this class, override the loadSkyCircle method, and will typically override the value of ConfigClass with a task-specific config class.
-
-``LoadReferenceObjectsTask`` acts as an abstract base class for tasks that load objects from a reference catalog in a particluar region of sky.
-
-.. _lsst.meas.algorithms.LoadReferenceObjectsTask-api:
-
-Python API summary
-==================
-
-.. lsst-task-api-summary:: lsst.meas.algorithms.LoadReferenceObjectsTask
-
-.. _lsst.meas.algorithms.LoadReferenceObjectsTask-subtasks:
-
-Retargetable subtasks
-=====================
-
-.. lsst-task-config-subtasks:: lsst.meas.algorithms.LoadReferenceObjectsTask
-
-.. _lsst.meas.algorithms.LoadReferenceObjectsTask-configs:
-
-Configuration fields
-====================
-
-.. lsst-task-config-fields:: lsst.meas.algorithms.LoadReferenceObjectsTask
-
-.. _lsst.meas.algorithms.LoadReferenceObjectsTask-indepth:
-
-In Depth
-========
+The reference catalogs for use with LSST Data Management Science Pipelines have the following schema:
 
 Catalog Schema
 --------------

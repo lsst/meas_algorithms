@@ -39,7 +39,6 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst import sphgeom
 from lsst.daf.base import PropertyList
-from lsst.utils.timer import timeMethod
 
 
 # TODO DM-34793: remove this function
@@ -233,6 +232,13 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         dtype=bool,
         default=False,
     )
+    ref_dataset_name = pexConfig.Field(
+        doc="Deprecated; do not use. Added for easier transition from LoadIndexedReferenceObjectsConfig to "
+            "LoadReferenceObjectsConfig",
+        dtype=str,
+        default='',
+        deprecated='This field is not used. It will be removed after v25.',
+    )
 
     def validate(self):
         super().validate()
@@ -242,19 +248,39 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
                                                  self, msg)
 
 
-class ReferenceObjectLoaderBase:
-    """Base class for reference object loaders, to facilitate gen2/gen3 code
-    sharing.
+class ReferenceObjectLoader:
+    """This class facilitates loading reference catalogs.
+
+    The QuantumGraph generation will create a list of datasets that may
+    possibly overlap a given region. These datasets are then used to construct
+    an instance of this class. The class instance should then be passed into
+    a task which needs reference catalogs. These tasks should then determine
+    the exact region of the sky reference catalogs will be loaded for, and
+    call a corresponding method to load the reference objects.
 
     Parameters
     ----------
-    config : `lsst.pex.config.Config`
-        Configuration for the loader.
+    dataIds : iterable of `lsst.daf.butler.DataCoordinate`
+        An iterable object of data IDs that point to reference catalogs.
+    refCats : iterable of `lsst.daf.butler.DeferredDatasetHandle`
+        Handles to load refCats on demand.
+    log : `lsst.log.Log`, `logging.Logger` or `None`, optional
+        Logger object used to write out messages. If `None` a default
+        logger will be used.
     """
     ConfigClass = LoadReferenceObjectsConfig
 
-    def __init__(self, config=None, *args, **kwargs):
+    def __init__(self, dataIds, refCats, log=None, config=None, **kwargs):
+        if kwargs:
+            warnings.warn("Instantiating ReferenceObjectLoader with additional kwargs is deprecated "
+                          "and will be removed after v25.0", FutureWarning, stacklevel=2)
+
+        if config is None:
+            config = self.ConfigClass()
         self.config = config
+        self.dataIds = dataIds
+        self.refCats = refCats
+        self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
 
     def applyProperMotions(self, catalog, epoch):
         """Apply proper motion correction to a reference catalog.
@@ -499,7 +525,7 @@ class ReferenceObjectLoaderBase:
             Deep copy of input reference catalog with additional columns added
         """
         if anyFilterMapsToThis or filterMap:
-            ReferenceObjectLoaderBase._addFluxAliases(refCat.schema, anyFilterMapsToThis, filterMap)
+            ReferenceObjectLoader._addFluxAliases(refCat.schema, anyFilterMapsToThis, filterMap)
 
         mapper = afwTable.SchemaMapper(refCat.schema, True)
         mapper.addMinimalSchema(refCat.schema, True)
@@ -754,36 +780,6 @@ class ReferenceObjectLoaderBase:
             Match list.
         """
         return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
-
-
-class ReferenceObjectLoader(ReferenceObjectLoaderBase):
-    """This class facilitates loading reference catalogs with gen 3 middleware.
-
-    The QuantumGraph generation will create a list of datasets that may
-    possibly overlap a given region. These datasets are then used to construct
-    and instance of this class. The class instance should then be passed into
-    a task which needs reference catalogs. These tasks should then determine
-    the exact region of the sky reference catalogs will be loaded for, and
-    call a corresponding method to load the reference objects.
-
-    Parameters
-    ----------
-    dataIds : iterable of `lsst.daf.butler.DataCoordinate`
-        An iterable object of data IDs that point to reference catalogs
-        in a gen 3 repository.
-    refCats : iterable of `lsst.daf.butler.DeferredDatasetHandle`
-        Handles to load refCats on demand
-    log : `lsst.log.Log`, `logging.Logger` or `None`, optional
-        Logger object used to write out messages. If `None` a default
-        logger will be used.
-    """
-    def __init__(self, dataIds, refCats, log=None, config=None, **kwargs):
-        if config is None:
-            config = self.ConfigClass()
-        super().__init__(config=config, **kwargs)
-        self.dataIds = dataIds
-        self.refCats = refCats
-        self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
 
     def loadPixelBox(self, bbox, wcs, filterName, epoch=None,
                      bboxToSpherePadding=100):
@@ -1110,81 +1106,13 @@ def getRefFluxKeys(schema, filterName):
     return (fluxKey, fluxErrKey)
 
 
-class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metaclass=abc.ABCMeta):
+@deprecated(reason=("This task is used in gen2 only; it will be removed after v25. "
+                    "See DM-35671 for details on updating code to avoid this warning."),
+            version="v25.0", category=FutureWarning)
+class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoader, metaclass=abc.ABCMeta):
     """Abstract gen2 base class to load objects from reference catalogs.
     """
     _DefaultName = "LoadReferenceObjects"
-
-    def __init__(self, butler=None, *args, **kwargs):
-        """Construct a LoadReferenceObjectsTask
-
-        Parameters
-        ----------
-        butler : `lsst.daf.persistence.Butler`
-            Data butler, for access reference catalogs.
-        """
-        pipeBase.Task.__init__(self, *args, **kwargs)
-        self.butler = butler
-
-    @timeMethod
-    def loadPixelBox(self, bbox, wcs, filterName, photoCalib=None, epoch=None):
-        """Load reference objects that overlap a rectangular pixel region.
-
-        Parameters
-        ----------
-        bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
-            Bounding box for pixels.
-        wcs : `lsst.afw.geom.SkyWcs`
-            WCS; used to convert pixel positions to sky coordinates
-            and vice-versa.
-        filterName : `str`
-            Name of filter. This can be used for flux limit comparisons.
-        photoCalib : `None`
-            Deprecated, only included for api compatibility.
-        epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
-
-        Returns
-        -------
-        results : `lsst.pipe.base.Struct`
-            A Struct containing the following fields:
-            refCat : `lsst.afw.catalog.SimpleCatalog`
-                A catalog of reference objects with the standard
-                schema, as documented in the main doc string for
-                `LoadReferenceObjects`.
-                The catalog is guaranteed to be contiguous.
-            fluxField : `str`
-                Name of flux field for specified `filterName`.
-
-        Notes
-        -----
-        The search algorithm works by searching in a region in sky
-        coordinates whose center is the center of the bbox and radius
-        is large enough to just include all 4 corners of the bbox.
-        Stars that lie outside the bbox are then trimmed from the list.
-        """
-        circle = self._calculateCircle(bbox, wcs, self.config.pixelMargin)
-
-        # find objects in circle
-        self.log.info("Loading reference objects from %s using center %s and radius %s deg",
-                      self.config.ref_dataset_name, circle.coord, circle.radius.asDegrees())
-        loadRes = self.loadSkyCircle(circle.coord, circle.radius, filterName, epoch=epoch,
-                                     centroids=True)
-        refCat = loadRes.refCat
-        numFound = len(refCat)
-
-        # trim objects outside bbox
-        refCat = self._trimToBBox(refCat=refCat, bbox=circle.bbox, wcs=wcs)
-        numTrimmed = numFound - len(refCat)
-        self.log.debug("trimmed %d out-of-bbox objects, leaving %d", numTrimmed, len(refCat))
-        self.log.info("Loaded %d reference objects", len(refCat))
-
-        # make sure catalog is contiguous
-        if not refCat.isContiguous():
-            loadRes.refCat = refCat.copy(deep=True)
-
-        return loadRes
 
     @abc.abstractmethod
     def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None, centroids=False):
@@ -1224,38 +1152,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoaderBase, metacla
         the catalog.
         """
         return
-
-    @staticmethod
-    def _trimToBBox(refCat, bbox, wcs):
-        """Remove objects outside a given pixel bounding box and set
-        centroid and hasCentroid fields.
-
-        Parameters
-        ----------
-        refCat : `lsst.afw.table.SimpleCatalog`
-            A catalog of objects. The schema must include fields
-            "coord", "centroid" and "hasCentroid".
-            The "coord" field is read.
-            The "centroid" and "hasCentroid" fields are set.
-        bbox : `lsst.geom.Box2D`
-            Pixel region
-        wcs : `lsst.afw.geom.SkyWcs`
-            WCS; used to convert sky coordinates to pixel positions.
-
-        Returns
-        -------
-        catalog : `lsst.afw.table.SimpleCatalog`
-            Reference objects in the bbox, with centroid and
-            hasCentroid fields set.
-        """
-        afwTable.updateRefCentroids(wcs, refCat)
-        centroidKey = afwTable.Point2DKey(refCat.schema["centroid"])
-        retStarCat = type(refCat)(refCat.table)
-        for star in refCat:
-            point = star.get(centroidKey)
-            if bbox.contains(point):
-                retStarCat.append(star)
-        return retStarCat
 
 
 def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
@@ -1317,6 +1213,21 @@ def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
     refCat.sort()
     sourceCat.sort()
     return afwTable.unpackMatches(matchCat, refCat, sourceCat)
+
+
+@deprecated(reason="Base class only used for gen2 interface, and will be removed after v25.0. "
+            "Please use ReferenceObjectLoader directly.",
+            version="v25.0", category=FutureWarning)
+class ReferenceObjectLoaderBase(ReferenceObjectLoader):
+    """Stub of a deprecated class.
+
+    Parameters
+    ----------
+    config : `lsst.pex.config.Config`
+        Configuration for the loader.
+    """
+    def __init__(self, config=None, *args, **kwargs):
+        pass
 
 
 def applyProperMotionsImpl(log, catalog, epoch):

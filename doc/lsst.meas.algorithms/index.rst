@@ -17,6 +17,7 @@ LSST Reference Catalogs
    :maxdepth: 1
 
    creating-a-reference-catalog
+   reference-catalog-schema
 
 .. _lsst.meas.algorithms-contributing:
 .. _lsst.meas.algorithms-taskref:
