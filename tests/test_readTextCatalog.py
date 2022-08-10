@@ -67,7 +67,7 @@ if SaveTextCatalog:
 
 
 class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
-    """Test ReadTextCatalogTask, a reader used by IngestIndexedReferenceTask"""
+    """Test ReadTextCatalogTask"""
 
     def setUp(self):
         self.arr = makeCatalog()
