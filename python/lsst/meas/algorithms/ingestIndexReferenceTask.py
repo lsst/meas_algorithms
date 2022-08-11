@@ -63,37 +63,6 @@ def addRefCatMetadata(catalog):
     catalog.setMetadata(md)
 
 
-class IngestReferenceRunner(pipeBase.TaskRunner):
-    """Task runner for the reference catalog ingester (gen2 version).
-
-    Data IDs are ignored so the runner should just run the task on the parsed command.
-    """
-
-    def run(self, parsedCmd):
-        """Run the task.
-
-        Several arguments need to be collected to send on to the task methods.
-
-        Parameters
-        ----------
-        parsedCmd : `argparse.Namespace`
-            Parsed command.
-
-        Returns
-        -------
-        results : `lsst.pipe.base.Struct` or `None`
-            A empty struct if self.doReturnResults, else None
-        """
-        files = parsedCmd.files
-        butler = parsedCmd.butler
-        task = self.TaskClass(config=self.config, log=self.log, butler=butler)
-        task.writeConfig(parsedCmd.butler, clobber=self.clobberConfig, doBackup=self.doBackup)
-
-        task.run(files)
-        if self.doReturnResults:
-            return pipeBase.Struct()
-
-
 class DatasetConfig(pexConfig.Config):
     """The description of the on-disk storage format for the persisted
     reference catalog.
