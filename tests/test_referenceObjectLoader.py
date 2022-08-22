@@ -110,7 +110,8 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
     def test_loadSkyCircle(self):
         """Test the loadSkyCircle routine."""
         loader = ReferenceObjectLoader([dataRef.dataId for dataRef in self.datasetRefs],
-                                       self.handles)
+                                       self.handles,
+                                       name="testrefcat")
         center = lsst.geom.SpherePoint(180.0*lsst.geom.degrees, 0.0*lsst.geom.degrees)
         cat = loader.loadSkyCircle(
             center,
@@ -140,6 +141,7 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         loaderConfig.pixelMargin = 0
         loader = ReferenceObjectLoader([dataRef.dataId for dataRef in self.datasetRefs],
                                        self.handles,
+                                       name="testrefcat",
                                        config=loaderConfig)
         bbox = lsst.geom.Box2I(corner=lsst.geom.Point2I(0, 0), dimensions=lsst.geom.Extent2I(1000, 1000))
         crpix = lsst.geom.Point2D(500, 500)
@@ -179,6 +181,7 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         loaderConfig.filterMap = {'aprime': 'a'}
         loader = ReferenceObjectLoader([dataRef.dataId for dataRef in self.datasetRefs],
                                        self.handles,
+                                       name="testrefcat",
                                        config=loaderConfig)
         center = lsst.geom.SpherePoint(180.0*lsst.geom.degrees, 0.0*lsst.geom.degrees)
         result = loader.loadSkyCircle(
@@ -195,6 +198,7 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         loaderConfig.filterMap = {'aprime': 'a'}
         loader = ReferenceObjectLoader([dataRef.dataId for dataRef in self.datasetRefs],
                                        self.handles,
+                                       name="testrefcat",
                                        config=loaderConfig)
         center = lsst.geom.SpherePoint(180.0*lsst.geom.degrees, 0.0*lsst.geom.degrees)
         cat = loader.loadSkyCircle(
@@ -242,6 +246,7 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         loaderConfig.requireProperMotion = True
         loader = ReferenceObjectLoader([dataRef.dataId for dataRef in self.datasetRefs],
                                        self.handles,
+                                       name="testrefcat",
                                        config=loaderConfig)
         center = lsst.geom.SpherePoint(180.0*lsst.geom.degrees, 0.0*lsst.geom.degrees)
 

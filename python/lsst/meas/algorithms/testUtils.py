@@ -266,7 +266,7 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
     def __init__(self, filenames, name='cal_ref_cat', config=None, htmLevel=4):
         dataIds, refCats = self._createDataIdsAndRefcats(filenames, htmLevel, name)
 
-        super().__init__(dataIds, refCats, config=config)
+        super().__init__(dataIds, refCats, name=name, config=config)
 
     def _createDataIdsAndRefcats(self, filenames, htmLevel, name):
         """Create mock dataIds and refcat handles.

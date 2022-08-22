@@ -115,7 +115,7 @@ class ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         for filterMap in ({}, {"camr": "r"}):
             config = ReferenceObjectLoader.ConfigClass()
             config.filterMap = filterMap
-            loader = ReferenceObjectLoader(None, None, config=config)
+            loader = ReferenceObjectLoader(None, None, name=None, config=config)
             refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList="r")
             loader._addFluxAliases(refSchema,
                                    anyFilterMapsToThis=config.anyFilterMapsToThis,
@@ -155,7 +155,7 @@ class ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         # test anyFilterMapsToThis
         config = ReferenceObjectLoader.ConfigClass()
         config.anyFilterMapsToThis = "gg"
-        loader = ReferenceObjectLoader(None, None, config=config)
+        loader = ReferenceObjectLoader(None, None, name=None, config=config)
         refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["gg"])
         loader._addFluxAliases(refSchema,
                                anyFilterMapsToThis=config.anyFilterMapsToThis,

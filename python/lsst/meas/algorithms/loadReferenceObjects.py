@@ -264,13 +264,18 @@ class ReferenceObjectLoader:
         An iterable object of data IDs that point to reference catalogs.
     refCats : iterable of `lsst.daf.butler.DeferredDatasetHandle`
         Handles to load refCats on demand.
+    name : `str`, optional
+        The name of the refcat that this object will load. This name is used
+        for applying colorterms, for example.
+    config : `LoadReferenceObjectsConfig`
+        Configuration of this reference loader.
     log : `lsst.log.Log`, `logging.Logger` or `None`, optional
         Logger object used to write out messages. If `None` a default
         logger will be used.
     """
     ConfigClass = LoadReferenceObjectsConfig
 
-    def __init__(self, dataIds, refCats, log=None, config=None, **kwargs):
+    def __init__(self, dataIds, refCats, name=None, log=None, config=None, **kwargs):
         if kwargs:
             warnings.warn("Instantiating ReferenceObjectLoader with additional kwargs is deprecated "
                           "and will be removed after v25.0", FutureWarning, stacklevel=2)
@@ -280,6 +285,7 @@ class ReferenceObjectLoader:
         self.config = config
         self.dataIds = dataIds
         self.refCats = refCats
+        self.name = name
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
 
     def applyProperMotions(self, catalog, epoch):
