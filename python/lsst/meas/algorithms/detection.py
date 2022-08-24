@@ -439,12 +439,15 @@ class SourceDetectionTask(pipeBase.Task):
             Actually do the convolution? Set to False when running on
             e.g. a pre-convolved image, or a mask plane.
 
-        Return Struct contents
-        ----------------------
-        middle : `lsst.afw.image.MaskedImage`
-            Convolved image, without the edges.
-        sigma : `float`
-            Gaussian sigma used for the convolution.
+        Returns
+        -------
+        results : `lsst.pipe.base.Struct`
+            The `~lsst.pipe.base.Struct` contains:
+
+            ``middle``
+                Convolved image, without the edges. (`lsst.afw.image.MaskedImage`)
+            ``sigma``
+                Gaussian sigma used for the convolution. (`float`)
         """
         self.metadata["doSmooth"] = doSmooth
         sigma = psf.computeShape(psf.getAveragePosition()).getDeterminantRadius()
@@ -493,14 +496,20 @@ class SourceDetectionTask(pipeBase.Task):
         factor : `float`
             Multiplier for the configured threshold.
 
-        Return Struct contents
-        ----------------------
-        positive : `lsst.afw.detection.FootprintSet` or `None`
-            Positive detection footprints, if configured.
-        negative : `lsst.afw.detection.FootprintSet` or `None`
-            Negative detection footprints, if configured.
-        factor : `float`
-            Multiplier for the configured threshold.
+        Returns
+        -------
+        results : `lsst.pipe.base.Struct`
+            The `~lsst.pipe.base.Struct` contains:
+
+            ``positive``
+                Positive detection footprints, if configured.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``negative``
+                Negative detection footprints, if configured.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``factor``
+                Multiplier for the configured threshold.
+                (`float`)
         """
         results = pipeBase.Struct(positive=None, negative=None, factor=factor,
                                   positiveThreshold=None, negativeThreshold=None)
@@ -665,24 +674,30 @@ class SourceDetectionTask(pipeBase.Task):
             Exposure identifier; unused by this implementation, but used for
             RNG seed by subclasses.
 
-        Return Struct contents
-        ----------------------
-        positive : `lsst.afw.detection.FootprintSet`
-            Positive polarity footprints (may be `None`)
-        negative : `lsst.afw.detection.FootprintSet`
-            Negative polarity footprints (may be `None`)
-        numPos : `int`
-            Number of footprints in positive or 0 if detection polarity was
-            negative.
-        numNeg : `int`
-            Number of footprints in negative or 0 if detection polarity was
-            positive.
-        background : `lsst.afw.math.BackgroundList`
-            Re-estimated background.  `None` if
-            ``reEstimateBackground==False``.
-        factor : `float`
-            Multiplication factor applied to the configured detection
-            threshold.
+        Returns
+        -------
+        results : `lsst.pipe.base.Struct`
+            A `~lsst.pipe.base.Struct` containing:
+
+            ``positive``
+                Positive polarity footprints.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``negative``
+                Negative polarity footprints.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``numPos``
+                Number of footprints in positive or 0 if detection polarity was
+                negative. (`int`)
+            ``numNeg``
+                Number of footprints in negative or 0 if detection polarity was
+                positive. (`int`)
+            ``background``
+                Re-estimated background.  `None` if
+                ``reEstimateBackground==False``.
+                (`lsst.afw.math.BackgroundList`)
+            ``factor``
+                Multiplication factor applied to the configured detection
+                threshold. (`float`)
         """
         maskedImage = exposure.maskedImage
 

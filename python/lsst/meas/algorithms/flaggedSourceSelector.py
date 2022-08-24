@@ -72,14 +72,14 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool`
+            ``selected``
                 Boolean array of sources that were selected, same length as
-                ``sourceCat``.
+                ``sourceCat``. (`array` of `bool`)
         """
         key = sourceCat.schema.find(self.config.field).key
         return pipeBase.Struct(selected=sourceCat.get(key))

@@ -45,8 +45,8 @@ class ReserveSourcesTask(Task):
     from analysis. This allows evaluation of the quality of model fits
     using sources that were not involved in the fitting process.
 
-    Constructor parameters
-    ----------------------
+    Parameters
+    ----------
     columnName : `str`, required
         Name of flag column to add; we will suffix this with "_reserved".
     schema : `lsst.afw.table.Schema`, required
@@ -86,12 +86,17 @@ class ReserveSourcesTask(Task):
         expId : `int`
             Exposure identifier; used for seeding the random number generator.
 
-        Return struct contents
-        ----------------------
-        reserved : `numpy.ndarray` of type `bool`
-            Sources to be reserved are flagged `True` in this array.
-        use : `numpy.ndarray` of type `bool`
-            Sources the user should use in analysis are flagged `True`.
+        Returns
+        -------
+        results : `lsst.pipe.base.Struct`
+            The results in a `~lsst.pipe.base.Struct`:
+
+            ``reserved``
+                Sources to be reserved are flagged `True` in this array.
+                (`numpy.ndarray` of type `bool`)
+            ``use``
+                Sources the user should use in analysis are flagged `True`.
+                (`numpy.ndarray` of type `bool`)
         """
         if prior is not None:
             assert len(prior) == len(sources), "Length mismatch: %s vs %s" % (len(prior), len(sources))

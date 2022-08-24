@@ -73,8 +73,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         The input catalog must be contiguous in memory.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
                     or `astropy.table.Table`
             Catalog of sources to select from.
@@ -88,18 +88,20 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
-                          or `astropy.table.Table`
+            ``sourceCat``
                 The catalog of sources that were selected.
                 (may not be memory-contiguous)
-            - selected : `numpy.ndarray` of `bool``
+                (`lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                or `astropy.table.Table`)
+            ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
+                (`numpy.ndarray` of `bool``)
 
         Raises
         ------
@@ -142,14 +144,15 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `numpy.ndarray` of `bool``
+            ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
+                (`numpy.ndarray` of `bool`)
         """
         raise NotImplementedError("BaseSourceSelectorTask is abstract")
 
@@ -529,14 +532,15 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
+            ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
+                (`array` of `bool``)
         """
         selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doFluxLimit:
@@ -592,14 +596,15 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
+            ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
+                (`array` of `bool`)
         """
         selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doMagLimit:

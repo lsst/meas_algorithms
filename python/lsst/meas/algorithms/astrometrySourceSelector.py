@@ -77,8 +77,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     def selectSources(self, sourceCat, matches=None, exposure=None):
         """Return a selection of sources that are useful for astrometry.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
@@ -87,8 +87,8 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         exposure : `lsst.afw.image.Exposure` or None
             The exposure the catalog was built from; used for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 

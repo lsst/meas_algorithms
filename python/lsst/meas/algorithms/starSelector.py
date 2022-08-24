@@ -108,13 +108,15 @@ class BaseStarSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
             astrometric matches; ignored by this star selector. Some star selectors
             will ignore this argument, others may require it. See the usesMatches class variable.
 
-        Paramters
-        ---------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
-        Result struct containing:
+            Result `~lsst.pipe.base.Struct` containing:
 
-            - starCat  catalog of stars that were selected as stars and successfuly made into PSF candidates
-                        (a subset of sourceCat whose records are shallow copies)
+            ``starCat``
+                Catalog of stars that were selected as stars and successfuly made into PSF candidates
+                (a subset of sourceCat whose records are shallow copies).
+                (`lsst.afw.table.SourceCatalog`)
 
         Notes
         -----
