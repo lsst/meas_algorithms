@@ -34,12 +34,12 @@ Tasks
    :root: lsst.meas.algorithms
    :toctree: tasks
 
-.. _lsst.meas.algorithms-command-line-tasks:
+.. _lsst.meas.algorithms-pipeline-tasks:
 
-Command-line tasks
-------------------
+Pipeline tasks
+--------------
 
-.. lsst-cmdlinetasks::
+.. lsst-pipelinetasks::
    :root: lsst.meas.algorithms
 
 .. _lsst.meas.algorithms-scripts:
