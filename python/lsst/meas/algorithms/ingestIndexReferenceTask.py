@@ -275,12 +275,13 @@ class ConvertReferenceCatalogBase(pipeBase.Task, abc.ABC):
 
     For producing catalogs this task makes the following assumptions
     about the input catalogs:
+
     - RA, Dec are in decimal degrees.
     - Epoch is available in a column, in a format supported by astropy.time.Time.
     - There are no off-diagonal covariance terms, such as covariance
       between RA and Dec, or between PM RA and PM Dec. Support for such
-     covariance would have to be added to to the config, including consideration
-     of the units in the input catalog.
+      covariance would have to be added to to the config, including consideration
+      of the units in the input catalog.
     """
     canMultiprocess = False
     ConfigClass = ConvertReferenceCatalogConfig

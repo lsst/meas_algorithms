@@ -22,7 +22,7 @@ class SkyObjectsConfig(Config):
                               "(default: nSkySources*nTrialSkySourcesMultiplier)")
     nTrialSourcesMultiplier = Field(dtype=int, default=5,
                                     doc="Set nTrialSkySources to\n"
-                                        "    nSkySources*nTrialSkySourcesMultiplier\n"
+                                        "nSkySources*nTrialSkySourcesMultiplier\n"
                                         "if nTrialSkySources is None")
 
 

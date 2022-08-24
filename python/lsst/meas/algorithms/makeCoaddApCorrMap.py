@@ -35,7 +35,7 @@ def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
         A table of coadd inputs
     coaddBox : `lsst.geom.Box2I`
         Bounding box for coadd
-    coaddWcs : `lsst.afw.geom.SkyWcs
+    coaddWcs : `lsst.afw.geom.SkyWcs`
         Wcs for coadd
     weightFieldName : `str`
         Name of the weight field in the catalog

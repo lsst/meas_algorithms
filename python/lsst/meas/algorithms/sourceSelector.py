@@ -75,9 +75,10 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
-                    or `astropy.table.Table`
-            Catalog of sources to select from.
+        sourceCat : Various table formats
+            Catalog of sources to select from. Can be
+            `lsst.afw.table.SourceCatalog` or `pandas.DataFrame` or
+            `astropy.table.Table`,
         sourceSelectedField : `str` or None
             Name of flag field in sourceCat to set for selected sources.
             If set, will modify sourceCat in-place.
@@ -101,7 +102,7 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
             ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
-                (`numpy.ndarray` of `bool``)
+                (`numpy.ndarray` of `bool`)
 
         Raises
         ------
@@ -135,9 +136,10 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        sourceCat : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
-                    or `astropy.table.Table`
-            Catalog of sources to select from.
+        sourceCat : Various table formats
+            Catalog of sources to select from. Supports
+            `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+            or `astropy.table.Table`
             This catalog must be contiguous in memory.
         matches : `list` of `lsst.afw.table.ReferenceMatch` or None
             A list of lsst.afw.table.ReferenceMatch objects
@@ -223,9 +225,10 @@ class ColorLimit(BaseLimit):
 
         Parameters
         ----------
-        catalog : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
-                  or `astropy.table.Table`
+        catalog : Various table formats
             Catalog of sources to which the limit will be applied.
+            Supports `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+            or `astropy.table.Table`
 
         Returns
         -------

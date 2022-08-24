@@ -203,7 +203,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     @timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
-        """Run source detection and create a SourceCatalog of detections.
+        r"""Run source detection and create a SourceCatalog of detections.
 
         Parameters
         ----------
@@ -227,23 +227,26 @@ class SourceDetectionTask(pipeBase.Task):
         Returns
         -------
         result : `lsst.pipe.base.Struct`
-          ``sources``
-              The detected sources (`lsst.afw.table.SourceCatalog`)
-          ``fpSets``
-              The result resturned by `detectFootprints`
-              (`lsst.pipe.base.Struct`).
+            The `~lsst.pipe.base.Struct` contains:
+
+            ``sources``
+                The detected sources (`lsst.afw.table.SourceCatalog`)
+            ``fpSets``
+                The result returned by `detectFootprints()`
+                (`lsst.pipe.base.Struct`).
 
         Raises
         ------
         ValueError
-            If flags.negative is needed, but isn't in table's schema.
+            Raised if flags.negative is needed, but isn't in table's schema.
         lsst.pipe.base.TaskError
-            If sigma=None, doSmooth=True and the exposure has no PSF.
+            Raised if sigma=None, doSmooth=True and the exposure has no PSF.
 
         Notes
         -----
         If you want to avoid dealing with Sources and Tables, you can use
-        detectFootprints() to just get the `lsst.afw.detection.FootprintSet`s.
+        `detectFootprints()` to just get the
+        `lsst.afw.detection.FootprintSet`\ s.
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
@@ -480,9 +483,9 @@ class SourceDetectionTask(pipeBase.Task):
         return pipeBase.Struct(middle=middle, sigma=sigma)
 
     def applyThreshold(self, middle, bbox, factor=1.0):
-        """Apply thresholds to the convolved image
+        r"""Apply thresholds to the convolved image
 
-        Identifies ``Footprint``s, both positive and negative.
+        Identifies ``Footprint``\ s, both positive and negative.
 
         The threshold can be modified by the provided multiplication
         ``factor``.
