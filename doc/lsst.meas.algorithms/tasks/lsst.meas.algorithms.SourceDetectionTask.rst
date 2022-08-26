@@ -95,8 +95,8 @@ We can then unpack the results:
 Debugging
 =========
 
-The `lsst.pipe.base.cmdLineTask.cmdLineTask` command line task interface
-supports a flag ``-d`` to to import `debug.py` from your ``PYTHONPATH``; see
+The :ref:`pipetask run <pipetask-command>` command-line interface
+supports a flag ``--debug`` to to import `debug.py` from your ``PYTHONPATH``; see
 `lsstDebug` for more about `debug.py` files.
 
 The available variables in `SourceDetectionTask` are:
