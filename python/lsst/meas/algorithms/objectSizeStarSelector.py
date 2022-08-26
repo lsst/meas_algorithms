@@ -350,7 +350,7 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
             ``selected``
                 Boolean array of sources that were selected, same length as
-                sourceCat. (`array` of `bool``)
+                sourceCat. (`array` of `bool`)
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display

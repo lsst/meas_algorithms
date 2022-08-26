@@ -86,7 +86,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
 
             ``selected``
                 Boolean array of sources that were selected, same length as
-                sourceCat. (`array` of `bool``)
+                sourceCat. (`array` of `bool`)
         """
         self._getSchemaKeys(sourceCat.schema)
 
