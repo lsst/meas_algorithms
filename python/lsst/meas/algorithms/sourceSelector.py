@@ -543,7 +543,7 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
             ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
-                (`array` of `bool`)
+                (`numpy.ndarray` of `bool`)
         """
         selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doFluxLimit:
@@ -607,7 +607,7 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
             ``selected``
                 Boolean array of sources that were selected, same length as
                 sourceCat.
-                (`array` of `bool`)
+                (`numpy.ndarray` of `bool`)
         """
         selected = np.ones(len(sourceCat), dtype=bool)
         if self.config.doMagLimit:
