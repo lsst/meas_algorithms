@@ -4,7 +4,7 @@
 ConvertReferenceCatalogTask
 ###########################
 
-``ConvertReferenceCatalogTask`` converts an external catalog for use as an LSST Science Pipelines reference catalog, using a Hierarchical Triangular Mesh (HTM) indexing scheme. The format and layout of the input data is configurable. The output data is a collection of `lsst.afw.table.SimpleCatalog` files identified by their HTM pixel. This task is not available as a command-line task: see :ref:`creating-a-reference-catalog` for how to run the task.
+``ConvertReferenceCatalogTask`` converts an external catalog for use as an LSST Science Pipelines reference catalog, using a Hierarchical Triangular Mesh (HTM) indexing scheme. The format and layout of the input data is configurable. The output data is a collection of `lsst.afw.table.SimpleCatalog` files identified by their HTM pixel. This task is not available as a pipeline task: see :ref:`creating-a-reference-catalog` for how to run the task.
 
 .. _lsst.meas.algorithms.ConvertReferenceCatalogTask-summary:
 

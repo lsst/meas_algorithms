@@ -18,11 +18,11 @@ class SkyObjectsConfig(Config):
     sourceRadius = Field(dtype=float, default=8, doc="Radius, in pixels, of sky objects")
     nSources = Field(dtype=int, default=100, doc="Try to add this many sky objects")
     nTrialSources = Field(dtype=int, default=None, optional=True,
-                          doc="Maximum number of trial sky object positions\n"
+                          doc="Maximum number of trial sky object positions "
                               "(default: nSkySources*nTrialSkySourcesMultiplier)")
     nTrialSourcesMultiplier = Field(dtype=int, default=5,
-                                    doc="Set nTrialSkySources to\n"
-                                        "    nSkySources*nTrialSkySourcesMultiplier\n"
+                                    doc="Set nTrialSkySources to "
+                                        "nSkySources*nTrialSkySourcesMultiplier "
                                         "if nTrialSkySources is None")
 
 

@@ -1040,13 +1040,6 @@ class ReferenceObjectLoader:
 def getRefFluxField(schema, filterName):
     """Get the name of a flux field from a schema.
 
-    return the alias of "anyFilterMapsToThis", if present
-    else:
-        return "*filterName*_camFlux" if present
-        else return "*filterName*_flux" if present (camera filter name
-            matches reference filter name)
-        else throw RuntimeError
-
     Parameters
     ----------
     schema : `lsst.afw.table.Schema`
@@ -1059,10 +1052,17 @@ def getRefFluxField(schema, filterName):
     fluxFieldName : `str`
         Name of flux field.
 
+    Notes
+    -----
+    Return the alias of ``anyFilterMapsToThis``, if present
+    else, return ``*filterName*_camFlux`` if present,
+    else, return ``*filterName*_flux`` if present (camera filter name
+    matches reference filter name), else raise an exception.
+
     Raises
     ------
     RuntimeError
-        If an appropriate field is not found.
+        Raised if an appropriate field is not found.
     """
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
@@ -1142,14 +1142,16 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoader, metaclass=a
         Returns
         -------
         results : `lsst.pipe.base.Struct`
-            A Struct containing the following fields:
-            refCat : `lsst.afw.catalog.SimpleCatalog`
+            A `~lsst.pipe.base.Struct` containing the following fields:
+
+            ``refCat``
                 A catalog of reference objects with the standard
                 schema, as documented in the main doc string for
                 `LoadReferenceObjects`.
                 The catalog is guaranteed to be contiguous.
-            fluxField : `str`
-                Name of flux field for specified `filterName`.
+                (`lsst.afw.catalog.SimpleCatalog`)
+            ``fluxField``
+                Name of flux field for specified `filterName`. (`str`)
 
         Notes
         -----

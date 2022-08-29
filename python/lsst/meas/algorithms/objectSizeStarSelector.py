@@ -332,8 +332,8 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
         A list of PSF candidates may be used by a PSF fitter to construct a PSF.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         sourceCat : `lsst.afw.table.SourceCatalog`
             Catalog of sources to select from.
             This catalog must be contiguous in memory.
@@ -343,14 +343,14 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
             The exposure the catalog was built from; used to get the detector
             to transform to TanPix, and for debug display.
 
-        Return
-        ------
+        Returns
+        -------
         struct : `lsst.pipe.base.Struct`
             The struct contains the following data:
 
-            - selected : `array` of `bool``
+            ``selected``
                 Boolean array of sources that were selected, same length as
-                sourceCat.
+                sourceCat. (`numpy.ndarray` of `bool`)
         """
         import lsstDebug
         display = lsstDebug.Info(__name__).display

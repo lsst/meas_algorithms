@@ -94,9 +94,11 @@ class DynamicDetectionTask(SourceDetectionTask):
         result : `lsst.pipe.base.Struct`
             Result struct with components:
 
-            - ``multiplicative``: multiplicative factor to be applied to the
+            ``multiplicative``
+                Multiplicative factor to be applied to the
                 configured detection threshold (`float`).
-            - ``additive``: additive factor to be applied to the background
+            ``additive``
+                Additive factor to be applied to the background
                 level (`float`).
         """
         # Make a catalog of sky objects
@@ -164,26 +166,33 @@ class DynamicDetectionTask(SourceDetectionTask):
             Exposure identifier, used as a seed for the random number
             generator. If absent, the seed will be the sum of the image.
 
-        Return Struct contents
-        ----------------------
-        positive : `lsst.afw.detection.FootprintSet`
-            Positive polarity footprints (may be `None`)
-        negative : `lsst.afw.detection.FootprintSet`
-            Negative polarity footprints (may be `None`)
-        numPos : `int`
-            Number of footprints in positive or 0 if detection polarity was
-            negative.
-        numNeg : `int`
-            Number of footprints in negative or 0 if detection polarity was
-            positive.
-        background : `lsst.afw.math.BackgroundList`
-            Re-estimated background.  `None` if
-            ``reEstimateBackground==False``.
-        factor : `float`
-            Multiplication factor applied to the configured detection
-            threshold.
-        prelim : `lsst.pipe.base.Struct`
-            Results from preliminary detection pass.
+        Returns
+        -------
+        resutls : `lsst.pipe.base.Struct`
+            The results `~lsst.pipe.base.Struct` contains:
+
+            ``positive``
+                Positive polarity footprints.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``negative``
+                Negative polarity footprints.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``numPos``
+                Number of footprints in positive or 0 if detection polarity was
+                negative. (`int`)
+            ``numNeg``
+                Number of footprints in negative or 0 if detection polarity was
+                positive. (`int`)
+            ``background``
+                Re-estimated background.  `None` if
+                ``reEstimateBackground==False``.
+                (`lsst.afw.math.BackgroundList`)
+            ``factor``
+                Multiplication factor applied to the configured detection
+                threshold. (`float`)
+            ``prelim``
+                Results from preliminary detection pass.
+                (`lsst.pipe.base.Struct`)
         """
         maskedImage = exposure.maskedImage
 
