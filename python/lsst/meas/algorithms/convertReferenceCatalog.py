@@ -77,8 +77,6 @@ class DatasetConfig(pexConfig.Config):
     )
     ref_dataset_name = pexConfig.Field(
         dtype=str,
-        # TODO DM-31817: remove this default value.
-        default='cal_ref_cat',
         doc="Name of this reference catalog; this should match the name used during butler ingest.",
     )
     indexer = IndexerRegistry.makeField(
