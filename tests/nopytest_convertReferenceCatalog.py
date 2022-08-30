@@ -38,15 +38,15 @@ from lsst.daf.butler import DatasetType, DeferredDatasetHandle
 from lsst.daf.butler.script import ingest_files
 from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader)
 from lsst.meas.algorithms.htmIndexer import HtmIndexer
-from lsst.meas.algorithms.ingestIndexReferenceTask import addRefCatMetadata
 from lsst.meas.algorithms.convertRefcatManager import ConvertRefcatManager
 from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
+from lsst.meas.algorithms.convertReferenceCatalog import addRefCatMetadata
 import lsst.utils
 
-import ingestIndexTestBase
+import convertReferenceCatalogTestBase
 
 
-class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
                                           lsst.utils.tests.TestCase):
     """Test converting a refcat with multiprocessing turned on."""
     def testIngestTwoFilesTwoCores(self):
@@ -59,8 +59,10 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
             inPath2 = inTempDir2.name
             skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
             # override some field names, and use multiple cores
-            config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=withRaDecErr, withMagErr=True,
-                                                           withPm=True, withPmErr=True)
+            config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=withRaDecErr,
+                                                                       withMagErr=True,
+                                                                       withPm=True,
+                                                                       withPmErr=True)
             # use a very small HTM pixelization depth to ensure there will be collisions when
             # ingesting the files in parallel
             depth = 2
@@ -121,7 +123,7 @@ class TestConvertReferenceCatalogParallel(ingestIndexTestBase.ConvertReferenceCa
         runTest(withRaDecErr=False)
 
 
-class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
                                lsst.utils.tests.TestCase):
     """Unittests of various methods of ConvertRefcatManager.
 
@@ -132,16 +134,16 @@ class TestConvertRefcatManager(ingestIndexTestBase.ConvertReferenceCatalogTestBa
 
         self.tempDir = tempfile.TemporaryDirectory()
         tempPath = self.tempDir.name
-        self.log = lsst.log.Log.getLogger("lsst.TestIngestIndexManager")
-        self.config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=True)
+        self.log = lsst.log.Log.getLogger("lsst.TestConvertRefcatManager")
+        self.config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
         self.depth = 2  # very small depth, for as few pixels as possible.
         self.indexer = HtmIndexer(self.depth)
         self.htm = lsst.sphgeom.HtmPixelization(self.depth)
-        ingester = ConvertReferenceCatalogTask(output_dir=tempPath, config=self.config)
+        converter = ConvertReferenceCatalogTask(output_dir=tempPath, config=self.config)
         dtype = [('id', '<f8'), ('ra', '<f8'), ('dec', '<f8'), ('ra_err', '<f8'), ('dec_err', '<f8'),
                  ('a', '<f8'), ('a_err', '<f8')]
-        self.schema, self.key_map = ingester.makeSchema(dtype)
+        self.schema, self.key_map = converter.makeSchema(dtype)
         self.fileReader = ReadTextCatalogTask()
 
         self.fakeInput = self.makeSkyCatalog(outPath=None, size=5, idStart=6543)

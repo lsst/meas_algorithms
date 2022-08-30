@@ -130,7 +130,7 @@ class ConvertReferenceCatalogTestBase:
         extra_col1 = np.random.normal(size=size)
         extra_col2 = np.random.normal(1000., 100., size=size)
         # compute proper motion and PM error in arcseconds/year
-        # and let the ingest task scale them to radians
+        # and let the convert task scale them to radians
         pm_amt_arcsec = cls.properMotionAmt.asArcseconds()
         pm_dir_rad = cls.properMotionDir.asRadians()
         pm_ra = np.ones(size)*pm_amt_arcsec*math.cos(pm_dir_rad)
@@ -250,17 +250,17 @@ class ConvertReferenceCatalogTestBase:
         return lsst.daf.butler.Butler(rootPath, writeable=True)
 
     def checkAllRowsInRefcat(self, refObjLoader, skyCatalog, config):
-        """Check that every item in ``skyCatalog`` is in the ingested catalog,
+        """Check that every item in ``skyCatalog`` is in the converted catalog,
         and check that fields are correct in it.
 
         Parameters
         ----------
-        refObjLoader : `lsst.meas.algorithms.LoadIndexedReferenceObjectsTask`
+        refObjLoader : `lsst.meas.algorithms.ReferenceObjectLoader`
             A reference object loader to use to search for rows from
             ``skyCatalog``.
         skyCatalog : `np.ndarray`
             The original data to compare with.
-        config : `lsst.meas.algorithms.LoadIndexedReferenceObjectsConfig`
+        config : `lsst.meas.algorithms.LoadReferenceObjectsConfig`
             The Config that was used to generate the refcat.
         """
         for row in skyCatalog:

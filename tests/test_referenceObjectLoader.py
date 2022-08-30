@@ -38,10 +38,10 @@ from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits
 import lsst.utils
 import lsst.geom
 
-import ingestIndexTestBase
+import convertReferenceCatalogTestBase
 
 
-class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
+class ReferenceObjectLoaderTestCase(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
                                     lsst.utils.tests.TestCase):
     """Test case for ReferenceObjectLoader."""
     @classmethod
@@ -56,8 +56,8 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         cls.skyCatalog = skyCatalog
 
         # override some field names.
-        config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=True, withMagErr=True,
-                                                       withPm=True, withPmErr=True)
+        config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True, withMagErr=True,
+                                                                   withPm=True, withPmErr=True)
         # use a very small HTM pixelization depth
         depth = 2
         config.dataset_config.indexer.active.depth = depth
@@ -277,7 +277,9 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
 
         loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
-        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20), 5*lsst.geom.degrees, 'a')
+        result = loader.loadSkyCircle(convertReferenceCatalogTestBase.make_coord(10, 20),
+                                      5*lsst.geom.degrees,
+                                      'a')
 
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(filenames[0])
@@ -299,7 +301,9 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
 
         loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
-        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20), 5*lsst.geom.degrees, 'a')
+        result = loader.loadSkyCircle(convertReferenceCatalogTestBase.make_coord(10, 20),
+                                      5*lsst.geom.degrees,
+                                      'a')
 
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(filenames[0])

@@ -34,7 +34,7 @@ from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, co
 import lsst.pex.config
 import lsst.utils.tests
 
-from ingestIndexTestBase import makeConvertConfig
+from convertReferenceCatalogTestBase import makeConvertConfig
 
 
 class ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
