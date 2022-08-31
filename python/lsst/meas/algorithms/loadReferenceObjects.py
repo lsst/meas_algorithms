@@ -761,32 +761,6 @@ class ReferenceObjectLoader:
                 md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
         return md
 
-    def joinMatchListWithCatalog(self, matchCat, sourceCat):
-        """Relink an unpersisted match list to sources and reference objects.
-
-        A match list is persisted and unpersisted as a catalog of IDs
-        produced by afw.table.packMatches(), with match metadata
-        (as returned by the astrometry tasks) in the catalog's metadata
-        attribute. This method converts such a match catalog into a match
-        list, with links to source records and reference object records.
-
-        Parameters
-        ----------
-        matchCat : `lsst.afw.table.BaseCatalog`
-            Unpersisted packed match list.
-            ``matchCat.table.getMetadata()`` must contain match metadata,
-            as returned by the astrometry tasks.
-        sourceCat : `lsst.afw.table.SourceCatalog`
-            Source catalog. As a side effect, the catalog will be sorted
-            by ID.
-
-        Returns
-        -------
-        matchList : `lsst.afw.table.ReferenceMatchVector`
-            Match list.
-        """
-        return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
-
     def loadPixelBox(self, bbox, wcs, filterName, epoch=None,
                      bboxToSpherePadding=100):
         """Load reference objects that are within a pixel-based rectangular
@@ -1160,67 +1134,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoader, metaclass=a
         the catalog.
         """
         return
-
-
-def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
-    """Relink an unpersisted match list to sources and reference
-    objects.
-
-    A match list is persisted and unpersisted as a catalog of IDs
-    produced by afw.table.packMatches(), with match metadata
-    (as returned by the astrometry tasks) in the catalog's metadata
-    attribute. This method converts such a match catalog into a match
-    list, with links to source records and reference object records.
-
-    Parameters
-    ----------
-    refObjLoader
-        Reference object loader to use in getting reference objects
-    matchCat : `lsst.afw.table.BaseCatalog`
-        Unperisted packed match list.
-        ``matchCat.table.getMetadata()`` must contain match metadata,
-        as returned by the astrometry tasks.
-    sourceCat : `lsst.afw.table.SourceCatalog`
-        Source catalog. As a side effect, the catalog will be sorted
-        by ID.
-
-    Returns
-    -------
-    matchList : `lsst.afw.table.ReferenceMatchVector`
-        Match list.
-    """
-    matchmeta = matchCat.table.getMetadata()
-    version = matchmeta.getInt('SMATCHV')
-    if version != 1:
-        raise ValueError('SourceMatchVector version number is %i, not 1.' % version)
-    filterName = matchmeta.getString('FILTER').strip()
-    try:
-        epoch = matchmeta.getDouble('EPOCH')
-    except (LookupError, TypeError):
-        epoch = None  # Not present, or not correct type means it's not set
-    if 'RADIUS' in matchmeta:
-        # This is a circle style metadata, call loadSkyCircle
-        ctrCoord = geom.SpherePoint(matchmeta.getDouble('RA'),
-                                    matchmeta.getDouble('DEC'), geom.degrees)
-        rad = matchmeta.getDouble('RADIUS')*geom.degrees
-        refCat = refObjLoader.loadSkyCircle(ctrCoord, rad, filterName, epoch=epoch).refCat
-    elif "INNER_UPPER_LEFT_RA" in matchmeta:
-        # This is the sky box type (only triggers in the LoadReferenceObject class, not task)
-        # Only the outer box is required to be loaded to get the maximum region, all filtering
-        # will be done by the unpackMatches function, and no spatial filtering needs to be done
-        # by the refObjLoader
-        box = []
-        for place in ("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"):
-            coord = geom.SpherePoint(matchmeta.getDouble(f"OUTER_{place}_RA"),
-                                     matchmeta.getDouble(f"OUTER_{place}_DEC"),
-                                     geom.degrees).getVector()
-            box.append(coord)
-        outerBox = sphgeom.ConvexPolygon(box)
-        refCat = refObjLoader.loadRegion(outerBox, filterName, epoch=epoch).refCat
-
-    refCat.sort()
-    sourceCat.sort()
-    return afwTable.unpackMatches(matchCat, refCat, sourceCat)
 
 
 @deprecated(reason="Base class only used for gen2 interface, and will be removed after v25.0. "
