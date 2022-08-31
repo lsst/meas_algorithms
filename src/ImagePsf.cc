@@ -44,12 +44,21 @@ namespace algorithms {
 
 double ImagePsf::doComputeApertureFlux(double radius, geom::Point2D const& position,
                                        afw::image::Color const& color) const {
-    afw::image::Image<double> const& image(*computeKernelImage(position, color, INTERNAL));
-
     geom::Point2D const center(0.0, 0.0);
     afw::geom::ellipses::Axes const axes(radius, radius);
+    afw::geom::ellipses::Ellipse ellipse(axes, center);
+    geom::Box2I box(ellipse.computeBBox());
+    // perhaps needs a grow here
+    afw::image::Image<double> image(*computeKernelImage(position, color, INTERNAL));
+    if (!image.getBBox().contains(box)) {
+        box.include(image.getBBox());
+        afw::image::Image<double> paddedImage(box);
+        paddedImage = 0.0;
+        paddedImage.assign(image, image.getBBox());
+        image = paddedImage;
+    }
     base::ApertureFluxResult result = base::ApertureFluxAlgorithm::computeSincFlux(
-            image, afw::geom::ellipses::Ellipse(axes, center), base::ApertureFluxControl());
+            image, ellipse, base::ApertureFluxControl());
     return result.instFlux;
 }
 
