@@ -703,8 +703,8 @@ class ReferenceObjectLoader:
         filterName : `str`
             Name of the camera filter.
         epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
+            Epoch that proper motion and parallax were corrected to, or `None`
+            if no such corrections were applied.
 
         Returns
         -------
@@ -715,9 +715,12 @@ class ReferenceObjectLoader:
         md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
         md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
         md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
-        md.add('SMATCHV', 1, 'SourceMatchVector version number')
-        md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
+        # Version 1: Initial version
+        # Version 2: JEPOCH for TAI Julian Epoch year of PM/parallax correction
+        md.add('SMATCHV', 2, 'SourceMatchVector version number')
+        md.add('FILTER', filterName, 'camera filter name for photometric data')
+        md.add('JEPOCH', None if epoch is None else epoch.tai.jyear,
+               'Julian epoch (TAI Julian Epoch year) for catalog')
         return md
 
     def getMetadataBox(self, bbox, wcs, filterName, epoch=None,
@@ -736,8 +739,8 @@ class ReferenceObjectLoader:
         filterName : `str`
             Name of the camera filter.
         epoch : `astropy.time.Time` or `None`,  optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
+            Epoch that proper motion and parallax were corrected to, or `None`
+            if no such corrections were applied.
         bboxToSpherePadding : `int`, optional
             Padding in pixels to account for translating a set of corners into
             a spherical (convex) boundary that is certain to encompass the
