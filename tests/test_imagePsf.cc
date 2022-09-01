@@ -120,4 +120,6 @@ BOOST_AUTO_TEST_CASE(PsfApertureFlux) {
     checkApertureFlux(25, 5.0, 3.0, 1E-2);
     checkApertureFlux(25, 5.0, 5.0, 1E-2);
     checkApertureFlux(25, 5.0, 10.0, 1E-2);
+    // test when the aperture is larger than the bounding box
+    checkApertureFlux(45, 5.0, 30.0, 1E-2);
 }
