@@ -720,6 +720,7 @@ class ReferenceObjectLoader:
         # Version 2: JEPOCH for TAI Julian Epoch year of PM/parallax correction
         md.add('SMATCHV', 2, 'SourceMatchVector version number')
         md.add('FILTER', filterName, 'camera filter name for photometric data')
+        md.add('TIMESYS', "TAI", "time scale of time keywords")
         md.add('JEPOCH', None if epoch is None else epoch.tai.jyear,
                'Julian epoch (TAI Julian Epoch year) for catalog')
         return md

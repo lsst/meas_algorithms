@@ -238,6 +238,7 @@ class ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(metadata['SMATCHV'], 2)
         self.assertEqual(metadata['FILTER'], 'fakeR')
         self.assertEqual(metadata['JEPOCH'], None)
+        self.assertEqual(metadata['TIMESYS'], 'TAI')
 
         epoch = astropy.time.Time(2023.0, format="jyear", scale="tai")
         metadata = loader.getMetadataCircle(center, radius, "fakeR", epoch=epoch)
