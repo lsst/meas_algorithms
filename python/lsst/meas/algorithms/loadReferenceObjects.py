@@ -689,7 +689,8 @@ class ReferenceObjectLoader:
 
     @staticmethod
     def getMetadataCircle(coord, radius, filterName, epoch=None):
-        """Return metadata about the reference catalog being loaded.
+        """Return metadata about the loaded reference catalog, in an on-sky
+        circle.
 
         This metadata is used for reloading the catalog (e.g. for
         reconstituting a normalized match list).
@@ -725,7 +726,8 @@ class ReferenceObjectLoader:
 
     def getMetadataBox(self, bbox, wcs, filterName, epoch=None,
                        bboxToSpherePadding=100):
-        """Return metadata about the load
+        """Return metadata about the loaded reference catalog, in an
+        on-detector box.
 
         This metadata is used for reloading the catalog (e.g., for
         reconstituting a normalised match list).
