@@ -689,7 +689,8 @@ class ReferenceObjectLoader:
 
     @staticmethod
     def getMetadataCircle(coord, radius, filterName, epoch=None):
-        """Return metadata about the reference catalog being loaded.
+        """Return metadata about the loaded reference catalog, in an on-sky
+        circle.
 
         This metadata is used for reloading the catalog (e.g. for
         reconstituting a normalized match list).
@@ -703,8 +704,8 @@ class ReferenceObjectLoader:
         filterName : `str`
             Name of the camera filter.
         epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
+            Epoch that proper motion and parallax were corrected to, or `None`
+            if no such corrections were applied.
 
         Returns
         -------
@@ -715,14 +716,19 @@ class ReferenceObjectLoader:
         md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
         md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
         md.add('RADIUS', radius.asDegrees(), 'field radius in degrees, minimum')
-        md.add('SMATCHV', 1, 'SourceMatchVector version number')
-        md.add('FILTER', filterName, 'filter name for photometric data')
-        md.add('EPOCH', "NONE" if epoch is None else epoch.mjd, 'Epoch (TAI MJD) for catalog')
+        # Version 1: Initial version
+        # Version 2: JEPOCH for TAI Julian Epoch year of PM/parallax correction
+        md.add('SMATCHV', 2, 'SourceMatchVector version number')
+        md.add('FILTER', filterName, 'camera filter name for photometric data')
+        md.add('TIMESYS', "TAI", "time scale of time keywords")
+        md.add('JEPOCH', None if epoch is None else epoch.tai.jyear,
+               'Julian epoch (TAI Julian Epoch year) for catalog')
         return md
 
     def getMetadataBox(self, bbox, wcs, filterName, epoch=None,
                        bboxToSpherePadding=100):
-        """Return metadata about the load
+        """Return metadata about the loaded reference catalog, in an
+        on-detector box.
 
         This metadata is used for reloading the catalog (e.g., for
         reconstituting a normalised match list).
@@ -736,8 +742,8 @@ class ReferenceObjectLoader:
         filterName : `str`
             Name of the camera filter.
         epoch : `astropy.time.Time` or `None`,  optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
+            Epoch that proper motion and parallax were corrected to, or `None`
+            if no such corrections were applied.
         bboxToSpherePadding : `int`, optional
             Padding in pixels to account for translating a set of corners into
             a spherical (convex) boundary that is certain to encompass the
@@ -760,32 +766,6 @@ class ReferenceObjectLoader:
                 md.add(f"{box}_{name}_RA", geom.SpherePoint(corner).getRa().asDegrees(), f"{box}_corner")
                 md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
         return md
-
-    def joinMatchListWithCatalog(self, matchCat, sourceCat):
-        """Relink an unpersisted match list to sources and reference objects.
-
-        A match list is persisted and unpersisted as a catalog of IDs
-        produced by afw.table.packMatches(), with match metadata
-        (as returned by the astrometry tasks) in the catalog's metadata
-        attribute. This method converts such a match catalog into a match
-        list, with links to source records and reference object records.
-
-        Parameters
-        ----------
-        matchCat : `lsst.afw.table.BaseCatalog`
-            Unpersisted packed match list.
-            ``matchCat.table.getMetadata()`` must contain match metadata,
-            as returned by the astrometry tasks.
-        sourceCat : `lsst.afw.table.SourceCatalog`
-            Source catalog. As a side effect, the catalog will be sorted
-            by ID.
-
-        Returns
-        -------
-        matchList : `lsst.afw.table.ReferenceMatchVector`
-            Match list.
-        """
-        return joinMatchListWithCatalogImpl(self, matchCat, sourceCat)
 
     def loadPixelBox(self, bbox, wcs, filterName, epoch=None,
                      bboxToSpherePadding=100):
@@ -1160,67 +1140,6 @@ class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoader, metaclass=a
         the catalog.
         """
         return
-
-
-def joinMatchListWithCatalogImpl(refObjLoader, matchCat, sourceCat):
-    """Relink an unpersisted match list to sources and reference
-    objects.
-
-    A match list is persisted and unpersisted as a catalog of IDs
-    produced by afw.table.packMatches(), with match metadata
-    (as returned by the astrometry tasks) in the catalog's metadata
-    attribute. This method converts such a match catalog into a match
-    list, with links to source records and reference object records.
-
-    Parameters
-    ----------
-    refObjLoader
-        Reference object loader to use in getting reference objects
-    matchCat : `lsst.afw.table.BaseCatalog`
-        Unperisted packed match list.
-        ``matchCat.table.getMetadata()`` must contain match metadata,
-        as returned by the astrometry tasks.
-    sourceCat : `lsst.afw.table.SourceCatalog`
-        Source catalog. As a side effect, the catalog will be sorted
-        by ID.
-
-    Returns
-    -------
-    matchList : `lsst.afw.table.ReferenceMatchVector`
-        Match list.
-    """
-    matchmeta = matchCat.table.getMetadata()
-    version = matchmeta.getInt('SMATCHV')
-    if version != 1:
-        raise ValueError('SourceMatchVector version number is %i, not 1.' % version)
-    filterName = matchmeta.getString('FILTER').strip()
-    try:
-        epoch = matchmeta.getDouble('EPOCH')
-    except (LookupError, TypeError):
-        epoch = None  # Not present, or not correct type means it's not set
-    if 'RADIUS' in matchmeta:
-        # This is a circle style metadata, call loadSkyCircle
-        ctrCoord = geom.SpherePoint(matchmeta.getDouble('RA'),
-                                    matchmeta.getDouble('DEC'), geom.degrees)
-        rad = matchmeta.getDouble('RADIUS')*geom.degrees
-        refCat = refObjLoader.loadSkyCircle(ctrCoord, rad, filterName, epoch=epoch).refCat
-    elif "INNER_UPPER_LEFT_RA" in matchmeta:
-        # This is the sky box type (only triggers in the LoadReferenceObject class, not task)
-        # Only the outer box is required to be loaded to get the maximum region, all filtering
-        # will be done by the unpackMatches function, and no spatial filtering needs to be done
-        # by the refObjLoader
-        box = []
-        for place in ("UPPER_LEFT", "UPPER_RIGHT", "LOWER_LEFT", "LOWER_RIGHT"):
-            coord = geom.SpherePoint(matchmeta.getDouble(f"OUTER_{place}_RA"),
-                                     matchmeta.getDouble(f"OUTER_{place}_DEC"),
-                                     geom.degrees).getVector()
-            box.append(coord)
-        outerBox = sphgeom.ConvexPolygon(box)
-        refCat = refObjLoader.loadRegion(outerBox, filterName, epoch=epoch).refCat
-
-    refCat.sort()
-    sourceCat.sort()
-    return afwTable.unpackMatches(matchCat, refCat, sourceCat)
 
 
 @deprecated(reason="Base class only used for gen2 interface, and will be removed after v25.0. "

@@ -24,7 +24,10 @@
 import itertools
 import unittest
 
+import astropy.time
+
 import lsst.afw.table as afwTable
+import lsst.geom
 import lsst.log
 from lsst.meas.algorithms import ReferenceObjectLoader, getRefFluxField, getRefFluxKeys
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
@@ -223,6 +226,23 @@ class ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         oldRefCat = make_catalog()
         newRefCat = convertToNanojansky(oldRefCat, log, doConvert=False)
         self.assertIsNone(newRefCat)
+
+    def testGetMetadataCircle(self):
+        center = lsst.geom.SpherePoint(100*lsst.geom.degrees, 45*lsst.geom.degrees)
+        radius = lsst.geom.Angle(1*lsst.geom.degrees)
+        loader = ReferenceObjectLoader(None, None, name=None)
+        metadata = loader.getMetadataCircle(center, radius, "fakeR")
+        self.assertEqual(metadata['RA'], center.getLongitude().asDegrees())
+        self.assertEqual(metadata['DEC'], center.getLatitude().asDegrees())
+        self.assertEqual(metadata['RADIUS'], radius.asDegrees())
+        self.assertEqual(metadata['SMATCHV'], 2)
+        self.assertEqual(metadata['FILTER'], 'fakeR')
+        self.assertEqual(metadata['JEPOCH'], None)
+        self.assertEqual(metadata['TIMESYS'], 'TAI')
+
+        epoch = astropy.time.Time(2023.0, format="jyear", scale="tai")
+        metadata = loader.getMetadataCircle(center, radius, "fakeR", epoch=epoch)
+        self.assertEqual(metadata['JEPOCH'], epoch.jyear)
 
 
 class ConvertReferenceCatalogConfigValidateTestCase(lsst.utils.tests.TestCase):
