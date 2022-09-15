@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import itertools
 import os.path
 import tempfile
 import unittest
@@ -38,6 +37,7 @@ from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLo
                                   getRefFluxField, getRefFluxKeys)
 from lsst.meas.algorithms.testUtils import MockReferenceObjectLoaderFromFiles
 from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
+from lsst.meas.algorithms.convertReferenceCatalog import _makeSchema
 import lsst.utils
 import lsst.geom
 
@@ -69,66 +69,13 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
         except lsst.pex.config.FieldValidationError:
             self.fail("`anyFilterMapsToThis`-only LoadReferenceObjectsConfig should not fail validation.")
 
-    def testMakeMinimalSchema(self):
-        """Make a schema and check it."""
-        for filterNameList in (["r"], ["foo", "_bar"]):
-            for (addIsPhotometric, addIsResolved, addIsVariable,
-                 coordErrDim, addProperMotion, properMotionErrDim,
-                 addParallax) in itertools.product(
-                    (False, True), (False, True), (False, True),
-                    (-1, 0, 1, 2, 3, 4), (False, True), (-1, 0, 1, 2, 3, 4),
-                    (False, True)):
-                argDict = dict(
-                    filterNameList=filterNameList,
-                    addIsPhotometric=addIsPhotometric,
-                    addIsResolved=addIsResolved,
-                    addIsVariable=addIsVariable,
-                    coordErrDim=coordErrDim,
-                    addProperMotion=addProperMotion,
-                    properMotionErrDim=properMotionErrDim,
-                    addParallax=addParallax,
-                )
-                if coordErrDim not in (0, 2, 3) or \
-                        (addProperMotion and properMotionErrDim not in (0, 2, 3)):
-                    with self.assertRaises(ValueError):
-                        ReferenceObjectLoader.makeMinimalSchema(**argDict)
-                else:
-                    refSchema = ReferenceObjectLoader.makeMinimalSchema(**argDict)
-                    self.assertTrue("coord_ra" in refSchema)
-                    self.assertTrue("coord_dec" in refSchema)
-                    for filterName in filterNameList:
-                        fluxField = filterName + "_flux"
-                        self.assertIn(fluxField, refSchema)
-                        self.assertNotIn("x" + fluxField, refSchema)
-                        fluxErrField = fluxField + "Err"
-                        self.assertIn(fluxErrField, refSchema)
-                        self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
-                    self.assertEqual("resolved" in refSchema, addIsResolved)
-                    self.assertEqual("variable" in refSchema, addIsVariable)
-                    self.assertEqual("photometric" in refSchema, addIsPhotometric)
-                    self.assertEqual("photometric" in refSchema, addIsPhotometric)
-                    self.assertEqual("epoch" in refSchema, addProperMotion or addParallax)
-                    self.assertEqual("coord_raErr" in refSchema, coordErrDim > 0)
-                    self.assertEqual("coord_decErr" in refSchema, coordErrDim > 0)
-                    self.assertEqual("coord_ra_dec_Cov" in refSchema, coordErrDim == 3)
-                    self.assertEqual("pm_ra" in refSchema, addProperMotion)
-                    self.assertEqual("pm_dec" in refSchema, addProperMotion)
-                    self.assertEqual("pm_raErr" in refSchema, addProperMotion and properMotionErrDim > 0)
-                    self.assertEqual("pm_decErr" in refSchema, addProperMotion and properMotionErrDim > 0)
-                    self.assertEqual("pm_flag" in refSchema, addProperMotion)
-                    self.assertEqual("pm_ra_dec_Cov" in refSchema,
-                                     addProperMotion and properMotionErrDim == 3)
-                    self.assertEqual("parallax" in refSchema, addParallax)
-                    self.assertEqual("parallaxErr" in refSchema, addParallax)
-                    self.assertEqual("parallax_flag" in refSchema, addParallax)
-
     def testFilterAliasMap(self):
         """Make a schema with filter aliases."""
         for filterMap in ({}, {"camr": "r"}):
             config = ReferenceObjectLoader.ConfigClass()
             config.filterMap = filterMap
             loader = ReferenceObjectLoader(None, None, name=None, config=config)
-            refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList="r")
+            refSchema = _makeSchema(filterNameList="r")
             loader._addFluxAliases(refSchema,
                                    anyFilterMapsToThis=config.anyFilterMapsToThis,
                                    filterMap=config.filterMap)
@@ -163,50 +110,50 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
                 with self.assertRaises(RuntimeError):
                     getRefFluxKeys(refSchema, "camr")
 
+    def testCheckFluxUnits(self):
+        """Test that we can identify old style fluxes in a schema."""
+        schema = _makeSchema(['r', 'z'])
+        # the default schema should pass
+        self.assertTrue(hasNanojanskyFluxUnits(schema))
+        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = _makeSchema(['r', 'z'])
+        schema.addField('bad_flux', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = _makeSchema(['r', 'z'])
+        schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = _makeSchema(['r', 'z'])
+        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = _makeSchema(['r', 'z'])
+        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = _makeSchema(['r', 'z'])
+        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
     def testAnyFilterMapsToThisAlias(self):
         # test anyFilterMapsToThis
         config = ReferenceObjectLoader.ConfigClass()
         config.anyFilterMapsToThis = "gg"
         loader = ReferenceObjectLoader(None, None, name=None, config=config)
-        refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["gg"])
+        refSchema = _makeSchema(filterNameList=["gg"])
         loader._addFluxAliases(refSchema,
                                anyFilterMapsToThis=config.anyFilterMapsToThis,
                                filterMap=config.filterMap)
         self.assertEqual(getRefFluxField(refSchema, "r"), "gg_flux")
         # raise if "gg" is not in the refcat filter list
         with self.assertRaises(RuntimeError):
-            refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["rr"])
+            refSchema = _makeSchema(filterNameList=["rr"])
             refSchema = loader._addFluxAliases(refSchema,
                                                anyFilterMapsToThis=config.anyFilterMapsToThis,
                                                filterMap=config.filterMap)
-
-    def testCheckFluxUnits(self):
-        """Test that we can identify old style fluxes in a schema."""
-        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
-        # the default schema should pass
-        self.assertTrue(hasNanojanskyFluxUnits(schema))
-        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
-        schema.addField('bad_flux', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
-        schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
-        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
-        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
-        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
 
     def testConvertOldFluxes(self):
         """Check that we can convert old style fluxes in a catalog."""
@@ -215,7 +162,7 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
         log = lsst.log.Log()
 
         def make_catalog():
-            schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+            schema = _makeSchema(['r', 'z'])
             schema.addField('bad_flux', doc='old flux units', type=float, units='')
             schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
             refCat = afwTable.SimpleCatalog(schema)
@@ -278,7 +225,8 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
 
         # override some field names.
         config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True, withMagErr=True,
-                                                                   withPm=True, withParallax=True)
+                                                                   withPm=True, withParallax=True,
+                                                                   withFullPositionInformation=True)
         # use a very small HTM pixelization depth
         depth = 2
         config.dataset_config.indexer.active.depth = depth

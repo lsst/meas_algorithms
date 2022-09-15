@@ -26,14 +26,15 @@ import sys
 import unittest
 import unittest.mock
 import tempfile
+import itertools
 
 from lsst.afw.table import SimpleCatalog
 from lsst.pex.config import FieldValidationError
-from lsst.meas.algorithms import (convertReferenceCatalog, ConvertReferenceCatalogTask)
+from lsst.meas.algorithms import (convertReferenceCatalog, ConvertReferenceCatalogTask, getRefFluxField)
 from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
 from lsst.meas.algorithms.htmIndexer import HtmIndexer
 from lsst.meas.algorithms.convertRefcatManager import ConvertGaiaManager
-from lsst.meas.algorithms.convertReferenceCatalog import addRefCatMetadata
+from lsst.meas.algorithms.convertReferenceCatalog import addRefCatMetadata, _makeSchema
 
 import lsst.utils
 
@@ -104,6 +105,73 @@ class TestMain(lsst.utils.tests.TestCase):
         outdir.cleanup()
 
 
+class MakeSchemaTestCase(lsst.utils.tests.TestCase):
+    """Test the function to make reference catalog schemas.
+    """
+    def testMakeSchema(self):
+        """Make a schema and check it."""
+        for filterNameList in (["r"], ["foo", "_bar"]):
+            for (addIsPhotometric, addIsResolved, addIsVariable) in itertools.product((False, True),
+                                                                                      (False, True),
+                                                                                      (False, True)):
+                argDict = dict(
+                    filterNameList=filterNameList,
+                    addIsPhotometric=addIsPhotometric,
+                    addIsResolved=addIsResolved,
+                    addIsVariable=addIsVariable,
+                )
+                refSchema = _makeSchema(**argDict)
+                self.assertTrue("coord_ra" in refSchema)
+                self.assertTrue("coord_dec" in refSchema)
+                self.assertTrue("coord_raErr" in refSchema)
+                self.assertTrue("coord_decErr" in refSchema)
+                for filterName in filterNameList:
+                    fluxField = filterName + "_flux"
+                    self.assertIn(fluxField, refSchema)
+                    self.assertNotIn("x" + fluxField, refSchema)
+                    fluxErrField = fluxField + "Err"
+                    self.assertIn(fluxErrField, refSchema)
+                    self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
+                self.assertEqual("resolved" in refSchema, addIsResolved)
+                self.assertEqual("variable" in refSchema, addIsVariable)
+                self.assertEqual("photometric" in refSchema, addIsPhotometric)
+                self.assertEqual("photometric" in refSchema, addIsPhotometric)
+
+                # The default for `fullPositionInformation` is False, so none
+                # of the following should be included. We test setting these
+                # all together below.
+                self.assertNotIn("epoch", refSchema)
+                self.assertNotIn("pm_ra", refSchema)
+                self.assertNotIn("pm_dec", refSchema)
+                self.assertNotIn("pm_flag", refSchema)
+                self.assertNotIn("parallax", refSchema)
+                self.assertNotIn("parallax_flag", refSchema)
+
+    def testMakeSchema_fullCovariance(self):
+        """Make a schema with full position information and coordinate
+        covariance and test it."""
+        refSchema = _makeSchema(filterNameList=["r"], fullPositionInformation=True)
+        # Test that the epoch, proper motion and parallax terms are included in
+        # the schema.
+        self.assertIn("epoch", refSchema)
+        self.assertIn("pm_ra", refSchema)
+        self.assertIn("pm_dec", refSchema)
+        self.assertIn("pm_flag", refSchema)
+        self.assertIn("parallax", refSchema)
+        self.assertIn("parallax_flag", refSchema)
+        # Test that a sample of the 15 covariance terms are included in the schema.
+        self.assertIn("coord_raErr", refSchema)
+        self.assertIn("coord_decErr", refSchema)
+        self.assertIn("coord_ra_coord_dec_Cov", refSchema)
+        self.assertIn("pm_raErr", refSchema)
+        self.assertIn("pm_ra_parallax_Cov", refSchema)
+        self.assertIn("parallaxErr", refSchema)
+        self.assertEqual(refSchema['coord_raErr'].asField().getUnits(), "rad")
+        self.assertEqual(refSchema['coord_ra_coord_dec_Cov'].asField().getUnits(), "rad^2")
+        self.assertEqual(refSchema['pm_raErr'].asField().getUnits(), "rad/year")
+        self.assertEqual(refSchema['pm_dec_parallax_Cov'].asField().getUnits(), "rad^2/year")
+
+
 class ConvertReferenceCatalogConfigValidateTestCase(lsst.utils.tests.TestCase):
     """Test validation of ConvertReferenceCatalogConfig."""
     def testValidateRaDecMag(self):
@@ -158,23 +226,19 @@ class ConvertReferenceCatalogConfigValidateTestCase(lsst.utils.tests.TestCase):
                     config.validate()
 
     def testValidatePm(self):
-        basicNames = ["pm_ra_name", "pm_dec_name", "epoch_name", "epoch_format", "epoch_scale"]
+        names = ["pm_ra_name", "pm_dec_name", "epoch_name", "epoch_format", "epoch_scale",
+                 "pm_ra_err_name", "pm_dec_err_name"]
 
-        for withPmErr in (False, True):
-            config = makeConvertConfig(withPm=True, withPmErr=withPmErr)
-            config.validate()
-            del config
+        config = makeConvertConfig(withPm=True)
+        config.validate()
+        del config
 
-            if withPmErr:
-                names = basicNames + ["pm_ra_err_name", "pm_dec_err_name"]
-            else:
-                names = basicNames
-                for name in names:
-                    with self.subTest(name=name, withPmErr=withPmErr):
-                        config = makeConvertConfig(withPm=True, withPmErr=withPmErr)
-                        setattr(config, name, None)
-                        with self.assertRaises(ValueError):
-                            config.validate()
+        for name in names:
+            with self.subTest(name=name):
+                config = makeConvertConfig(withPm=True)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError):
+                    config.validate()
 
     def testValidateParallax(self):
         """Validation should fail if any parallax-related fields are missing.
@@ -192,10 +256,28 @@ class ConvertReferenceCatalogConfigValidateTestCase(lsst.utils.tests.TestCase):
                 with self.assertRaises(ValueError, msg=name):
                     config.validate()
 
+    def testValidateCovariance(self):
+        """Validation should fail if any position-related fields are empty if
+        full_position_information is set.
+        """
+        names = ["ra_err_name", "dec_err_name", "coord_err_unit",
+                 "parallax_name", "parallax_err_name",
+                 "epoch_name", "epoch_format", "epoch_scale",
+                 "pm_ra_name", "pm_dec_name", "pm_ra_err_name", "pm_dec_err_name"]
+
+        for name in names:
+            with self.subTest(name=name):
+                config = makeConvertConfig(withRaDecErr=True, withParallax=True, withPm=True)
+                config.full_position_information = True
+                config.manager.retarget(ConvertGaiaManager)
+                setattr(config, name, None)
+                with self.assertRaises(ValueError, msg=name):
+                    config.validate()
+
 
 class ConvertGaiaManagerTests(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
                               lsst.utils.tests.TestCase):
-    """Unittests of methods of ConvertGaiaManager
+    """Unittests specific to the Gaia catalog.
     """
     def setUp(self):
 
@@ -206,7 +288,8 @@ class ConvertGaiaManagerTests(convertReferenceCatalogTestBase.ConvertReferenceCa
         self.log = lsst.log.Log.getLogger("lsst.TestConvertRefcatManager")
         self.config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
-        self.config.coordinate_covariance = True
+        self.config.full_position_information = True
+        self.config.manager.retarget(ConvertGaiaManager)
         self.config.coord_err_unit = 'milliarcsecond'
         self.config.ra_err_name = 'ra_error'
         self.config.dec_err_name = 'dec_error'
@@ -267,7 +350,7 @@ class ConvertGaiaManagerTests(convertReferenceCatalogTestBase.ConvertReferenceCa
 
         coordConvert = (self.worker.coord_err_unit).to(u.radian)
         pmConvert = (self.worker.config.pm_scale * u.milliarcsecond).to_value(u.radian)
-        parallaxConvert = (self.config.parallax_scale * u.milliarcsecond).to_value(u.radian)
+        parallaxConvert = (self.worker.config.parallax_scale * u.milliarcsecond).to_value(u.radian)
 
         # Test a few combinations of coordinates, proper motion, and parallax.
         # Check that the covariance in the output catalog matches the

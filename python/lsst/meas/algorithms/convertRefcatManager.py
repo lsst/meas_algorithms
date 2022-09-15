@@ -290,9 +290,9 @@ class ConvertRefcatManager:
 
         Notes
         -----
-        This does not currently handle the ra/dec covariance field,
-        ``coord_ra_dec_Cov``. That field may require extra work, as its units
-        may be more complicated in external catalogs.
+        This does not handle the ra/dec covariance field,
+        ``coord_ra_coord_dec_Cov``. That field is handled in
+        `_setCoordinateCovariance`.
         """
         result = {}
         if hasattr(self, "coord_err_unit"):
@@ -437,9 +437,9 @@ class ConvertRefcatManager:
         record.setCoord(self.computeCoord(row, self.config.ra_name, self.config.dec_name))
 
         self._setFlags(record, row)
-        self._setProperMotion(record, row)
-        self._setParallax(record, row)
-        if self.config.coordinate_covariance:
+        if self.config.full_position_information:
+            self._setProperMotion(record, row)
+            self._setParallax(record, row)
             self._setCoordinateCovariance(record, row)
         self._setExtra(record, row)
 

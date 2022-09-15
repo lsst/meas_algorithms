@@ -55,19 +55,17 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
     focuses on checking the conversion, using the loader to perform that check.
     """
     def testIngestTwoFilesTwoCores(self):
-        def runTest(withRaDecErr):
+        with (tempfile.TemporaryDirectory() as inPath1, tempfile.TemporaryDirectory() as inPath2,
+              tempfile.TemporaryDirectory() as dataPath):
             # Generate a second catalog, with different ids
-            inTempDir1 = tempfile.TemporaryDirectory()
-            inPath1 = inTempDir1.name
             skyCatalogFile1, _, skyCatalog1 = self.makeSkyCatalog(inPath1, idStart=25, seed=123)
-            inTempDir2 = tempfile.TemporaryDirectory()
-            inPath2 = inTempDir2.name
             skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
             # override some field names, and use multiple cores
-            config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=withRaDecErr,
+            config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True,
                                                                        withMagErr=True,
                                                                        withPm=True,
-                                                                       withPmErr=True)
+                                                                       withParallax=True,
+                                                                       withFullPositionInformation=True)
             # use a very small HTM pixelization depth to ensure there will be collisions when
             # ingesting the files in parallel
             depth = 2
@@ -76,12 +74,9 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
             config.file_reader.format = 'ascii.commented_header'
             config.n_processes = 2  # use multiple cores for this test only
             config.id_name = 'id'  # Use the ids from the generated catalogs
-            repoPath = os.path.join(self.outPath, "output_multifile_parallel",
-                                    "_withRaDecErr" if withRaDecErr else "_noRaDecErr")
+            repoPath = os.path.join(self.outPath, "output_multifile_parallel")
 
             # Convert the input data files to our HTM indexed format.
-            dataTempDir = tempfile.TemporaryDirectory()
-            dataPath = dataTempDir.name
             converter = ConvertReferenceCatalogTask(output_dir=dataPath, config=config)
             converter.run([skyCatalogFile1, skyCatalogFile2])
 
@@ -119,13 +114,6 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
                                            log=self.logger)
             self.checkAllRowsInRefcat(loader, skyCatalog1, config)
             self.checkAllRowsInRefcat(loader, skyCatalog2, config)
-
-            inTempDir1.cleanup()
-            inTempDir2.cleanup()
-            dataTempDir.cleanup()
-
-        runTest(withRaDecErr=True)
-        runTest(withRaDecErr=False)
 
 
 class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,

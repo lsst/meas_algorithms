@@ -31,7 +31,7 @@ import astropy
 import astropy.units as u
 
 import lsst.daf.butler
-from lsst.meas.algorithms import IndexerRegistry
+from lsst.meas.algorithms import IndexerRegistry, ConvertRefcatManager
 from lsst.meas.algorithms import ConvertReferenceCatalogConfig
 import lsst.utils
 
@@ -41,8 +41,20 @@ def make_coord(ra, dec):
     return lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees)
 
 
-def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPmErr=False,
-                      withParallax=False):
+class ConvertReferenceCatalogCustomClass(ConvertRefcatManager):
+    """Custom class to overload `ConvertRefcatManager._setCoordinateCovariance`
+    """
+    def _setCoordinateCovariance(self, record, row):
+        """Coordinate covariance will not be used, so set to zero.
+        """
+        outputParams = ['coord_ra', 'coord_dec', 'pm_ra', 'pm_dec', 'parallax']
+        for i in range(5):
+            for j in range(i):
+                record.set(self.key_map[f'{outputParams[j]}_{outputParams[i]}_Cov'], 0)
+
+
+def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False,
+                      withParallax=False, withFullPositionInformation=False):
     """Make a config for ConvertReferenceCatalogTask
 
     This is primarily intended to simplify tests of config validation,
@@ -68,8 +80,6 @@ def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPm
     if withPm:
         config.pm_ra_name = "pm_ra"
         config.pm_dec_name = "pm_dec"
-
-    if withPmErr:
         config.pm_ra_err_name = "pm_ra_err"
         config.pm_dec_err_name = "pm_dec_err"
 
@@ -81,6 +91,10 @@ def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPm
         config.epoch_name = "unixtime"
         config.epoch_format = "unix"
         config.epoch_scale = "utc"
+
+    if withFullPositionInformation:
+        config.full_position_information = True
+        config.manager.retarget(ConvertReferenceCatalogCustomClass)
 
     return config
 
@@ -303,11 +317,13 @@ class ConvertReferenceCatalogTestBase:
                 # `units` field to convert them, and they are float32, so the tolerance is wider.
                 raErr = cat[0]['coord_raErr']*u.Unit(cat.schema['coord_raErr'].asField().getUnits())
                 decErr = cat[0]['coord_decErr']*u.Unit(cat.schema['coord_decErr'].asField().getUnits())
-                self.assertFloatsAlmostEqual(row['ra_err'], raErr.to_value(config.coord_err_unit),
+                self.assertFloatsAlmostEqual(row['ra_error'], raErr.to_value(config.coord_err_unit),
                                              rtol=1e-7, msg=msg)
-                self.assertFloatsAlmostEqual(row['dec_err'], decErr.to_value(config.coord_err_unit),
+                self.assertFloatsAlmostEqual(row['dec_error'], decErr.to_value(config.coord_err_unit),
                                              rtol=1e-7, msg=msg)
 
             if config.parallax_name is not None:
                 self.assertFloatsAlmostEqual(row['parallax'], cat[0]['parallax'].asArcseconds())
-                self.assertFloatsAlmostEqual(row['parallax_error'], cat[0]['parallaxErr'].asArcseconds())
+                parallaxErr = cat[0]['parallaxErr'].asArcseconds()
+                # larger tolerance: input data is float32
+                self.assertFloatsAlmostEqual(row['parallax_error'], parallaxErr, rtol=3e-8)
