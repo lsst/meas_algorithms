@@ -912,8 +912,7 @@ class ReferenceObjectLoader:
         regionLon = region.getBoundingBox().getLon()
         self.log.info("Loading reference objects from %s in region bounded by "
                       "[%.8f, %.8f], [%.8f, %.8f] RA Dec",
-                      # Name of refcat we're loading from is the datasetType.
-                      self.refCats[0].ref.datasetType.name,
+                      self.name,
                       regionLon.getA().asDegrees(), regionLon.getB().asDegrees(),
                       regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
