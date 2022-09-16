@@ -71,6 +71,7 @@ from .stamps import *
 from .brightStarStamps import *
 from .accumulator_mean_stack import *
 from .scaleVariance import *
+from .noise_covariance import *
 
 from .version import *
 
