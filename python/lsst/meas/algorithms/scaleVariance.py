@@ -31,12 +31,11 @@ __all__ = ["ScaleVarianceConfig", "ScaleVarianceTask"]
 
 class ScaleVarianceConfig(Config):
     background = ConfigurableField(target=SubtractBackgroundTask, doc="Background subtraction")
-    maskPlanes = ListField(
-        dtype=str,
+    maskPlanes = ListField[str](
         default=["DETECTED", "DETECTED_NEGATIVE", "BAD", "SAT", "NO_DATA", "INTRP"],
         doc="Mask planes for pixels to ignore when scaling variance",
     )
-    limit = Field(dtype=float, default=10.0, doc="Maximum variance scaling value to permit")
+    limit = Field[float](default=10.0, doc="Maximum variance scaling value to permit")
 
     def setDefaults(self):
         self.background.binSize = 32
