@@ -75,7 +75,7 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
         pipeBase.Task.__init__(self, config=config, **kwds)
 
     @abc.abstractmethod
-    def determinePsf(self, exposure, psfCandidateList, metadata=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         """Determine a PSF model.
 
         Parameters
@@ -88,6 +88,8 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
             selector.
         metadata : `str`, optional
             A place to save interesting items.
+        flagKey: `lsst.afw.table.Key`, optional
+            Schema key used to mark sources actually used in PSF determination.
 
         Returns
         -------
