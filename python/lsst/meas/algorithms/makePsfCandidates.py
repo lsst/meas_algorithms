@@ -34,12 +34,13 @@ from . import makePsfCandidate
 
 class MakePsfCandidatesConfig(pexConfig.Config):
     kernelSize = pexConfig.Field(
-        doc="size of the kernel to create",
+        doc="Size of the postage stamp in pixels (excluding the border) around each star that is extracted "
+            "for fitting. Should be odd and preferably at least 25.",
         dtype=int,
         default=25,
     )
     borderWidth = pexConfig.Field(
-        doc="number of pixels to ignore around the edge of PSF candidate postage stamps",
+        doc="Number of pixels to ignore around the edge of PSF candidate postage stamps",
         dtype=int,
         default=0,
     )
