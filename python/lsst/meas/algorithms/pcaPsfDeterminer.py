@@ -159,6 +159,10 @@ class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
         default=True,
     )
 
+    def setDefaults(self):
+        super().setDefaults()
+        self.stampSize = 41
+
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
     """A measurePsfTask psf estimator.
