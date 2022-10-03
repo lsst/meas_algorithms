@@ -64,7 +64,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
             ``lsst.meas.algorithms.starSelector.run()``.
         exposure : `lsst.afw.image.Exposure`
             The exposure containing the sources.
-        psfCandidateField : `str` or None
+        psfCandidateField : `str`, optional
             Name of flag field to set True for PSF candidates, or None to not
             set a field; the field is left unchanged for non-candidates.
 

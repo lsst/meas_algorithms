@@ -86,7 +86,7 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
             A sequence of PSF candidates; typically obtained by
             detecting sources and then running them through a star
             selector.
-        metadata : `str`
+        metadata : `str`, optional
             A place to save interesting items.
 
         Returns
