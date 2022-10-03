@@ -34,20 +34,35 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 
     This is fairly sparse; more fields can be moved here once it is clear they are universal.
     """
+    stampSize = pexConfig.Field(
+        doc="Size of the postage stamp (in native pixels) to render the PSF model. Should be odd.",
+        dtype=int,
+        default=None,
+        optional=True,
+        check=lambda x: (x > 0) & (x % 2 == 1),
+    )
     kernelSize = pexConfig.Field(
-        doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype=float,
-        default=10.0,
+        doc="Size of the kernel to create. "
+            "If less than 15, then the median of the square root of the "
+            "stellar quadrupole moments is multiplied by kernelSize and "
+            "used as the kernel size.",
+        dtype=int,
+        default=None,
+        optional=True,
+        deprecated="This field is deprecated and will be removed after v25. "
+                   "Use stampSize instead.",
     )
     kernelSizeMin = pexConfig.Field(
-        doc="Minimum radius of the kernel",
+        doc="Minimum radius of the kernel. Relevant only if kernelSize < 15.",
         dtype=int,
         default=25,
+        deprecated="This field is deprecated and will be removed after v25.",
     )
     kernelSizeMax = pexConfig.Field(
-        doc="Maximum radius of the kernel",
+        doc="Maximum radius of the kernel. Relevant only if kernelSize < 15.",
         dtype=int,
         default=45,
+        deprecated="This field is deprecated and will be removed after v25.",
     )
 
 
