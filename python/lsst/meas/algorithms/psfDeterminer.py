@@ -65,6 +65,21 @@ class BasePsfDeterminerConfig(pexConfig.Config):
         deprecated="This field is deprecated and will be removed after v25.",
     )
 
+    def validate(self):
+        # TODO: DM-36311: Lines involving kernelSize* (or the entire method)
+        # may be removed after v25.
+        super().validate()
+        # Ensure that stampSize and kernelSize are not contradictory.
+        if self.stampSize is not None and self.kernelSize is not None:
+            raise pexConfig.FieldValidationError(self.__class__.kernelSize, self,
+                                                 "Only one of stampSize (preferable) and kernelSize "
+                                                 "(deprecated) must be set."
+                                                 )
+        if self.kernelSizeMin > self.kernelSizeMax:
+            raise pexConfig.FieldValidationError(self.__class__.kernelSizeMax, self,
+                                                 "kernelSizeMin must be <= kernelSizeMax"
+                                                 )
+
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     """Base class for PSF determiners
