@@ -279,13 +279,19 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             raise RuntimeError("No usable PSF candidates supplied")
         nEigenComponents = self.config.nEigenComponents  # initial version
 
-        if self.config.kernelSize >= 15:
-            self.log.warning("WARNING: NOT scaling kernelSize by stellar quadrupole moment "
+        # TODO: DM-36311: Keep only the if block below.
+        if self.config.stampSize:
+            actualKernelSize = int(self.config.stampSize)
+        elif self.config.kernelSize >= 15:
+            self.log.warning("NOT scaling kernelSize by stellar quadrupole moment "
                              "because config.kernelSize=%s >= 15; "
                              "using config.kernelSize as the width, instead",
                              self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
         else:
+            self.log.warning("scaling kernelSize by stellar quadrupole moment "
+                             "because config.kernelSize=%s < 15. This behavior is deprecated.",
+                             self.config.kernelSize)
             medSize = numpy.median(sizes)
             actualKernelSize = 2*int(self.config.kernelSize*math.sqrt(medSize) + 0.5) + 1
             if actualKernelSize < self.config.kernelSizeMin:
@@ -297,6 +303,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 print("Median size=%s" % (medSize,))
         self.log.trace("Kernel size=%s", actualKernelSize)
 
+        if actualKernelSize > psfCandidateList[0].getWidth():
+            self.log.warning("Using a region (%d x %d) larger than kernelSize (%d) set while making PSF "
+                             "candidates. Consider setting a larger value for kernelSize for "
+                             "`makePsfCandidates` to avoid this warning.",
+                             actualKernelSize, actualKernelSize, psfCandidateList[0].getWidth())
         # Set size of image returned around candidate
         psfCandidateList[0].setHeight(actualKernelSize)
         psfCandidateList[0].setWidth(actualKernelSize)
