@@ -52,9 +52,6 @@ class MakePsfCandidatesTask(pipeBase.Task):
     ConfigClass = MakePsfCandidatesConfig
     _DefaultName = "makePsfCandidates"
 
-    def __init__(self, **kwds):
-        pipeBase.Task.__init__(self, **kwds)
-
     def run(self, starCat, exposure, psfCandidateField=None):
         """Make a list of PSF candidates from a star catalog.
 
