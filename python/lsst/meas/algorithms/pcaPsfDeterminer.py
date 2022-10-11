@@ -308,9 +308,6 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                              "candidates. Consider setting a larger value for kernelSize for "
                              "`makePsfCandidates` to avoid this warning.",
                              actualKernelSize, actualKernelSize, psfCandidateList[0].getWidth())
-        # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(actualKernelSize)
-        psfCandidateList[0].setWidth(actualKernelSize)
 
         if self.config.doRejectBlends:
             # Remove blended candidates completely
@@ -446,7 +443,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 for cand in cell.begin(False):
                     candCenter = lsst.geom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
-                        im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
+                        im = cand.getMaskedImage(actualKernelSize, actualKernelSize)
                     except Exception:
                         continue
 
