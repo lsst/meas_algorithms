@@ -68,94 +68,77 @@ def numCandidatesToReject(numBadCandidates, numIter, totalIter):
 
 
 class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
-    nonLinearSpatialFit = pexConfig.Field(
+    nonLinearSpatialFit = pexConfig.Field[bool](
         doc="Use non-linear fitter for spatial variation of Kernel",
-        dtype=bool,
         default=False,
     )
-    nEigenComponents = pexConfig.Field(
+    nEigenComponents = pexConfig.Field[int](
         doc="number of eigen components for PSF kernel creation",
-        dtype=int,
         default=4,
         check=lambda x: x >= 1
     )
-    spatialOrder = pexConfig.Field(
+    spatialOrder = pexConfig.Field[int](
         doc="specify spatial order for PSF kernel creation",
-        dtype=int,
         default=2,
     )
-    sizeCellX = pexConfig.Field(
+    sizeCellX = pexConfig.Field[int](
         doc="size of cell used to determine PSF (pixels, column direction)",
-        dtype=int,
         default=256,
         #        minValue = 10,
         check=lambda x: x >= 10,
     )
-    sizeCellY = pexConfig.Field(
+    sizeCellY = pexConfig.Field[int](
         doc="size of cell used to determine PSF (pixels, row direction)",
-        dtype=int,
         default=sizeCellX.default,
         #        minValue = 10,
         check=lambda x: x >= 10,
     )
-    nStarPerCell = pexConfig.Field(
+    nStarPerCell = pexConfig.Field[int](
         doc="number of stars per psf cell for PSF kernel creation",
-        dtype=int,
         default=3,
     )
-    borderWidth = pexConfig.Field(
+    borderWidth = pexConfig.Field[int](
         doc="Number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype=int,
         default=0,
     )
-    nStarPerCellSpatialFit = pexConfig.Field(
+    nStarPerCellSpatialFit = pexConfig.Field[int](
         doc="number of stars per psf Cell for spatial fitting",
-        dtype=int,
         default=5,
     )
-    constantWeight = pexConfig.Field(
+    constantWeight = pexConfig.Field[bool](
         doc="Should each PSF candidate be given the same weight, independent of magnitude?",
-        dtype=bool,
         default=True,
     )
-    nIterForPsf = pexConfig.Field(
+    nIterForPsf = pexConfig.Field[int](
         doc="number of iterations of PSF candidate star list",
-        dtype=int,
         default=3,
     )
-    tolerance = pexConfig.Field(
+    tolerance = pexConfig.Field[float](
         doc="tolerance of spatial fitting",
-        dtype=float,
         default=1e-2,
     )
-    lam = pexConfig.Field(
+    lam = pexConfig.Field[float](
         doc="floor for variance is lam*data",
-        dtype=float,
         default=0.05,
     )
-    reducedChi2ForPsfCandidates = pexConfig.Field(
+    reducedChi2ForPsfCandidates = pexConfig.Field[float](
         doc="for psf candidate evaluation",
-        dtype=float,
         default=2.0,
     )
-    spatialReject = pexConfig.Field(
+    spatialReject = pexConfig.Field[float](
         doc="Rejection threshold (stdev) for candidates based on spatial fit",
-        dtype=float,
         default=3.0,
     )
-    pixelThreshold = pexConfig.Field(
+    pixelThreshold = pexConfig.Field[float](
         doc="Threshold (stdev) for rejecting extraneous pixels around candidate; applied if positive",
-        dtype=float,
         default=0.0,
     )
-    doRejectBlends = pexConfig.Field(
+    doRejectBlends = pexConfig.Field[bool](
         doc="Reject candidates that are blended?",
-        dtype=bool,
         default=False,
     )
-    doMaskBlends = pexConfig.Field(
+    doMaskBlends = pexConfig.Field[bool](
         doc="Mask blends in image?",
-        dtype=bool,
         default=True,
     )
 
