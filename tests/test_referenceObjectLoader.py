@@ -43,7 +43,15 @@ import convertReferenceCatalogTestBase
 
 class ReferenceObjectLoaderTestCase(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
                                     lsst.utils.tests.TestCase):
-    """Test case for ReferenceObjectLoader."""
+    """Tests of loading reference catalogs, using an in-memory generated fake
+    sky catalog that is converted to an LSST refcat.
+
+    This effectively is a partial integration test of the refcat conversion,
+    ingestion, and loading sequence, focusing mostly on testing the different
+    ways to load a refcat. It significantlyoverlaps in coverage with
+    ``nopytest_convertReferenceCatalog.py``, but uses a very trivial test
+    refcat and only one core during the conversion.
+    """
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

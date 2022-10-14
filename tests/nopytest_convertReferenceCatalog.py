@@ -48,7 +48,12 @@ import convertReferenceCatalogTestBase
 
 class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
                                           lsst.utils.tests.TestCase):
-    """Test converting a refcat with multiprocessing turned on."""
+    """Test converting a refcat with multiprocessing turned on.
+
+    This significantly overlaps in coverage with
+    ``ReferenceObjectLoaderTestCase`` in ``test_referenceObjectLoader.py``, but
+    focuses on checking the conversion, using the loader to perform that check.
+    """
     def testIngestTwoFilesTwoCores(self):
         def runTest(withRaDecErr):
             # Generate a second catalog, with different ids
