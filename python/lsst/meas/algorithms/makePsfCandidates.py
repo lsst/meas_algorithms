@@ -33,14 +33,13 @@ from . import makePsfCandidate
 
 
 class MakePsfCandidatesConfig(pexConfig.Config):
-    kernelSize = pexConfig.Field(
-        doc="size of the kernel to create",
-        dtype=int,
+    kernelSize = pexConfig.Field[int](
+        doc="Size of the postage stamp in pixels (excluding the border) around each star that is extracted "
+            "for fitting. Should be odd and preferably at least 25.",
         default=25,
     )
-    borderWidth = pexConfig.Field(
-        doc="number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype=int,
+    borderWidth = pexConfig.Field[int](
+        doc="Number of pixels to ignore around the edge of PSF candidate postage stamps",
         default=0,
     )
 
@@ -50,9 +49,6 @@ class MakePsfCandidatesTask(pipeBase.Task):
     """
     ConfigClass = MakePsfCandidatesConfig
     _DefaultName = "makePsfCandidates"
-
-    def __init__(self, **kwds):
-        pipeBase.Task.__init__(self, **kwds)
 
     def run(self, starCat, exposure, psfCandidateField=None):
         """Make a list of PSF candidates from a star catalog.
@@ -64,7 +60,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
             ``lsst.meas.algorithms.starSelector.run()``.
         exposure : `lsst.afw.image.Exposure`
             The exposure containing the sources.
-        psfCandidateField : `str` or None
+        psfCandidateField : `str`, optional
             Name of flag field to set True for PSF candidates, or None to not
             set a field; the field is left unchanged for non-candidates.
 

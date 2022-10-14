@@ -68,96 +68,83 @@ def numCandidatesToReject(numBadCandidates, numIter, totalIter):
 
 
 class PcaPsfDeterminerConfig(BasePsfDeterminerTask.ConfigClass):
-    nonLinearSpatialFit = pexConfig.Field(
+    nonLinearSpatialFit = pexConfig.Field[bool](
         doc="Use non-linear fitter for spatial variation of Kernel",
-        dtype=bool,
         default=False,
     )
-    nEigenComponents = pexConfig.Field(
+    nEigenComponents = pexConfig.Field[int](
         doc="number of eigen components for PSF kernel creation",
-        dtype=int,
         default=4,
         check=lambda x: x >= 1
     )
-    spatialOrder = pexConfig.Field(
+    spatialOrder = pexConfig.Field[int](
         doc="specify spatial order for PSF kernel creation",
-        dtype=int,
         default=2,
     )
-    sizeCellX = pexConfig.Field(
+    sizeCellX = pexConfig.Field[int](
         doc="size of cell used to determine PSF (pixels, column direction)",
-        dtype=int,
         default=256,
         #        minValue = 10,
         check=lambda x: x >= 10,
     )
-    sizeCellY = pexConfig.Field(
+    sizeCellY = pexConfig.Field[int](
         doc="size of cell used to determine PSF (pixels, row direction)",
-        dtype=int,
         default=sizeCellX.default,
         #        minValue = 10,
         check=lambda x: x >= 10,
     )
-    nStarPerCell = pexConfig.Field(
+    nStarPerCell = pexConfig.Field[int](
         doc="number of stars per psf cell for PSF kernel creation",
-        dtype=int,
         default=3,
     )
-    borderWidth = pexConfig.Field(
+    borderWidth = pexConfig.Field[int](
         doc="Number of pixels to ignore around the edge of PSF candidate postage stamps",
-        dtype=int,
         default=0,
     )
-    nStarPerCellSpatialFit = pexConfig.Field(
+    nStarPerCellSpatialFit = pexConfig.Field[int](
         doc="number of stars per psf Cell for spatial fitting",
-        dtype=int,
         default=5,
     )
-    constantWeight = pexConfig.Field(
+    constantWeight = pexConfig.Field[bool](
         doc="Should each PSF candidate be given the same weight, independent of magnitude?",
-        dtype=bool,
         default=True,
     )
-    nIterForPsf = pexConfig.Field(
+    nIterForPsf = pexConfig.Field[int](
         doc="number of iterations of PSF candidate star list",
-        dtype=int,
         default=3,
     )
-    tolerance = pexConfig.Field(
+    tolerance = pexConfig.Field[float](
         doc="tolerance of spatial fitting",
-        dtype=float,
         default=1e-2,
     )
-    lam = pexConfig.Field(
+    lam = pexConfig.Field[float](
         doc="floor for variance is lam*data",
-        dtype=float,
         default=0.05,
     )
-    reducedChi2ForPsfCandidates = pexConfig.Field(
+    reducedChi2ForPsfCandidates = pexConfig.Field[float](
         doc="for psf candidate evaluation",
-        dtype=float,
         default=2.0,
     )
-    spatialReject = pexConfig.Field(
+    spatialReject = pexConfig.Field[float](
         doc="Rejection threshold (stdev) for candidates based on spatial fit",
-        dtype=float,
         default=3.0,
     )
-    pixelThreshold = pexConfig.Field(
+    pixelThreshold = pexConfig.Field[float](
         doc="Threshold (stdev) for rejecting extraneous pixels around candidate; applied if positive",
-        dtype=float,
         default=0.0,
     )
-    doRejectBlends = pexConfig.Field(
+    doRejectBlends = pexConfig.Field[bool](
         doc="Reject candidates that are blended?",
-        dtype=bool,
         default=False,
     )
-    doMaskBlends = pexConfig.Field(
+    doMaskBlends = pexConfig.Field[bool](
         doc="Mask blends in image?",
-        dtype=bool,
         default=True,
     )
+
+    def setDefaults(self):
+        super().setDefaults()
+        self.stampSize = 41
 
 
 class PcaPsfDeterminerTask(BasePsfDeterminerTask):
@@ -275,13 +262,19 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             raise RuntimeError("No usable PSF candidates supplied")
         nEigenComponents = self.config.nEigenComponents  # initial version
 
-        if self.config.kernelSize >= 15:
-            self.log.warning("WARNING: NOT scaling kernelSize by stellar quadrupole moment "
+        # TODO: DM-36311: Keep only the if block below.
+        if self.config.stampSize:
+            actualKernelSize = int(self.config.stampSize)
+        elif self.config.kernelSize >= 15:
+            self.log.warning("NOT scaling kernelSize by stellar quadrupole moment "
                              "because config.kernelSize=%s >= 15; "
                              "using config.kernelSize as the width, instead",
                              self.config.kernelSize)
             actualKernelSize = int(self.config.kernelSize)
         else:
+            self.log.warning("scaling kernelSize by stellar quadrupole moment "
+                             "because config.kernelSize=%s < 15. This behavior is deprecated.",
+                             self.config.kernelSize)
             medSize = numpy.median(sizes)
             actualKernelSize = 2*int(self.config.kernelSize*math.sqrt(medSize) + 0.5) + 1
             if actualKernelSize < self.config.kernelSizeMin:
@@ -293,9 +286,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 print("Median size=%s" % (medSize,))
         self.log.trace("Kernel size=%s", actualKernelSize)
 
-        # Set size of image returned around candidate
-        psfCandidateList[0].setHeight(actualKernelSize)
-        psfCandidateList[0].setWidth(actualKernelSize)
+        if actualKernelSize > psfCandidateList[0].getWidth():
+            self.log.warning("Using a region (%d x %d) larger than kernelSize (%d) set while making PSF "
+                             "candidates. Consider setting a larger value for kernelSize for "
+                             "`makePsfCandidates` to avoid this warning.",
+                             actualKernelSize, actualKernelSize, psfCandidateList[0].getWidth())
 
         if self.config.doRejectBlends:
             # Remove blended candidates completely
@@ -431,7 +426,7 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
                 for cand in cell.begin(False):
                     candCenter = lsst.geom.PointD(cand.getXCenter(), cand.getYCenter())
                     try:
-                        im = cand.getMaskedImage(kernel.getWidth(), kernel.getHeight())
+                        im = cand.getMaskedImage(actualKernelSize, actualKernelSize)
                     except Exception:
                         continue
 

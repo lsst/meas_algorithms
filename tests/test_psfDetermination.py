@@ -241,7 +241,7 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         psfDeterminerConfig.sizeCellY = height//3
         psfDeterminerConfig.nEigenComponents = nEigenComponents
         psfDeterminerConfig.spatialOrder = 1
-        psfDeterminerConfig.kernelSizeMin = 31
+        psfDeterminerConfig.stampSize = 31
         psfDeterminerConfig.nStarPerCell = 0
         psfDeterminerConfig.nStarPerCellSpatialFit = 0  # unlimited
         self.psfDeterminer = psfDeterminerTask(psfDeterminerConfig)

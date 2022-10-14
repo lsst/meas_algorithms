@@ -34,21 +34,47 @@ class BasePsfDeterminerConfig(pexConfig.Config):
 
     This is fairly sparse; more fields can be moved here once it is clear they are universal.
     """
-    kernelSize = pexConfig.Field(
-        doc="radius of the kernel to create, relative to the square root of the stellar quadrupole moments",
-        dtype=float,
-        default=10.0,
+    stampSize = pexConfig.Field[int](
+        doc="Size of the postage stamp (in native pixels) to render the PSF model. Should be odd.",
+        default=None,
+        optional=True,
+        check=lambda x: (x > 0) & (x % 2 == 1),
     )
-    kernelSizeMin = pexConfig.Field(
-        doc="Minimum radius of the kernel",
-        dtype=int,
+    kernelSize = pexConfig.Field[int](
+        doc="Size of the kernel to create. "
+            "If less than 15, then the median of the square root of the "
+            "stellar quadrupole moments is multiplied by kernelSize and "
+            "used as the kernel size.",
+        default=None,
+        optional=True,
+        deprecated="This field is deprecated and will be removed after v25. "
+                   "Use stampSize instead.",
+    )
+    kernelSizeMin = pexConfig.Field[int](
+        doc="Minimum radius of the kernel. Relevant only if kernelSize < 15.",
         default=25,
+        deprecated="This field is deprecated and will be removed after v25.",
     )
-    kernelSizeMax = pexConfig.Field(
-        doc="Maximum radius of the kernel",
-        dtype=int,
+    kernelSizeMax = pexConfig.Field[int](
+        doc="Maximum radius of the kernel. Relevant only if kernelSize < 15.",
         default=45,
+        deprecated="This field is deprecated and will be removed after v25.",
     )
+
+    def validate(self):
+        # TODO: DM-36311: Lines involving kernelSize* (or the entire method)
+        # may be removed after v25.
+        super().validate()
+        # Ensure that stampSize and kernelSize are not contradictory.
+        if self.stampSize is not None and self.kernelSize is not None:
+            raise pexConfig.FieldValidationError(self.__class__.kernelSize, self,
+                                                 "Only one of stampSize (preferable) and kernelSize "
+                                                 "(deprecated) must be set."
+                                                 )
+        if self.kernelSizeMin > self.kernelSizeMax:
+            raise pexConfig.FieldValidationError(self.__class__.kernelSizeMax, self,
+                                                 "kernelSizeMin must be <= kernelSizeMax"
+                                                 )
 
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
@@ -75,7 +101,7 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
         pipeBase.Task.__init__(self, config=config, **kwds)
 
     @abc.abstractmethod
-    def determinePsf(self, exposure, psfCandidateList, metadata=None):
+    def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
         """Determine a PSF model.
 
         Parameters
@@ -86,8 +112,10 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
             A sequence of PSF candidates; typically obtained by
             detecting sources and then running them through a star
             selector.
-        metadata : `str`
+        metadata : `str`, optional
             A place to save interesting items.
+        flagKey: `lsst.afw.table.Key`, optional
+            Schema key used to mark sources actually used in PSF determination.
 
         Returns
         -------
