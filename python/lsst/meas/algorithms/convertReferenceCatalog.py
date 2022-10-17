@@ -225,7 +225,7 @@ class ConvertReferenceCatalogConfig(pexConfig.Config):
         self.dataset_config.indexer['HTM'].depth = 7
 
     def validate(self):
-        pexConfig.Config.validate(self)
+        super().validate()
 
         def assertAllOrNone(*names):
             """Raise ValueError unless all the named fields are set or are
@@ -486,7 +486,6 @@ def run_convert(outputDir, configFile, fileglob):
 
     config = ConvertReferenceCatalogTask.ConfigClass()
     config.load(configFile)
-    config.validate()
     converter = ConvertReferenceCatalogTask(output_dir=outputDir, config=config)
     files = glob.glob(fileglob)
     converter.run(files)
