@@ -11,8 +11,8 @@ This page describes how to "convert" and "ingest" an external catalog for use as
 The process for generating an LSST-style HTM indexed reference catalog is similar to that of running other LSST Tasks: write an appropriate ``Config`` and run :lsst-task:`~lsst.meas.algorithms.convertReferenceCatalog.ConvertReferenceCatalogTask`
 The differences are in how you prepare the input data, how you go about running the ``Task``, and what you do with the final output.
 
-Ingesting a large reference catalog can be a slow process.
-Ingesting all of Gaia DR2 took a weekend on a high-performance workstation running with 8 parallel processes, for example.
+Converting a large reference catalog can be a slow process.
+Converting all of Gaia DR2 took a weekend on a high-performance workstation running with 8 parallel processes, for example.
 
 This page uses `Gaia DR2`_ as an example.
 

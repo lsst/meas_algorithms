@@ -56,7 +56,6 @@ from .flaggedSourceSelector import *
 from .sourceSelector import *
 from .astrometrySourceSelector import *
 from .matcherSourceSelector import *
-from .ingestIndexReferenceTask import *
 from .convertReferenceCatalog import *
 from .convertRefcatManager import *
 from .loadIndexedReferenceObjects import *

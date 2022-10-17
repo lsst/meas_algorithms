@@ -18,6 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import itertools
 import os.path
 import tempfile
 import unittest
@@ -32,18 +34,237 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.table as afwTable
 from lsst.daf.butler import DatasetType, DeferredDatasetHandle
 from lsst.daf.butler.script import ingest_files
-from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader)
+from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader,
+                                  getRefFluxField, getRefFluxKeys)
 from lsst.meas.algorithms.testUtils import MockReferenceObjectLoaderFromFiles
-from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits
+from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
 import lsst.utils
 import lsst.geom
 
-import ingestIndexTestBase
+import convertReferenceCatalogTestBase
 
 
-class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogTestBase,
-                                    lsst.utils.tests.TestCase):
-    """Test case for ReferenceObjectLoader."""
+class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
+    """Test parts of the reference loader that don't depend on loading a
+    catalog, for example schema creation, filter maps, units, and metadata.
+    """
+    def testFilterMapVsAnyFilterMapsToThis(self):
+        config = ReferenceObjectLoader.ConfigClass()
+        # check that a filterMap-only config passes validation
+        config.filterMap = {"b": "a"}
+        try:
+            config.validate()
+        except lsst.pex.config.FieldValidationError:
+            self.fail("`filterMap`-only LoadReferenceObjectsConfig should not fail validation.")
+
+        # anyFilterMapsToThis and filterMap are mutually exclusive
+        config.anyFilterMapsToThis = "c"
+        with self.assertRaises(lsst.pex.config.FieldValidationError):
+            config.validate()
+
+        # check that a anyFilterMapsToThis-only config passes validation
+        config.filterMap = {}
+        try:
+            config.validate()
+        except lsst.pex.config.FieldValidationError:
+            self.fail("`anyFilterMapsToThis`-only LoadReferenceObjectsConfig should not fail validation.")
+
+    def testMakeMinimalSchema(self):
+        """Make a schema and check it."""
+        for filterNameList in (["r"], ["foo", "_bar"]):
+            for (addIsPhotometric, addIsResolved, addIsVariable,
+                 coordErrDim, addProperMotion, properMotionErrDim,
+                 addParallax) in itertools.product(
+                    (False, True), (False, True), (False, True),
+                    (-1, 0, 1, 2, 3, 4), (False, True), (-1, 0, 1, 2, 3, 4),
+                    (False, True)):
+                argDict = dict(
+                    filterNameList=filterNameList,
+                    addIsPhotometric=addIsPhotometric,
+                    addIsResolved=addIsResolved,
+                    addIsVariable=addIsVariable,
+                    coordErrDim=coordErrDim,
+                    addProperMotion=addProperMotion,
+                    properMotionErrDim=properMotionErrDim,
+                    addParallax=addParallax,
+                )
+                if coordErrDim not in (0, 2, 3) or \
+                        (addProperMotion and properMotionErrDim not in (0, 2, 3)):
+                    with self.assertRaises(ValueError):
+                        ReferenceObjectLoader.makeMinimalSchema(**argDict)
+                else:
+                    refSchema = ReferenceObjectLoader.makeMinimalSchema(**argDict)
+                    self.assertTrue("coord_ra" in refSchema)
+                    self.assertTrue("coord_dec" in refSchema)
+                    for filterName in filterNameList:
+                        fluxField = filterName + "_flux"
+                        self.assertIn(fluxField, refSchema)
+                        self.assertNotIn("x" + fluxField, refSchema)
+                        fluxErrField = fluxField + "Err"
+                        self.assertIn(fluxErrField, refSchema)
+                        self.assertEqual(getRefFluxField(refSchema, filterName), filterName + "_flux")
+                    self.assertEqual("resolved" in refSchema, addIsResolved)
+                    self.assertEqual("variable" in refSchema, addIsVariable)
+                    self.assertEqual("photometric" in refSchema, addIsPhotometric)
+                    self.assertEqual("photometric" in refSchema, addIsPhotometric)
+                    self.assertEqual("epoch" in refSchema, addProperMotion or addParallax)
+                    self.assertEqual("coord_raErr" in refSchema, coordErrDim > 0)
+                    self.assertEqual("coord_decErr" in refSchema, coordErrDim > 0)
+                    self.assertEqual("coord_ra_dec_Cov" in refSchema, coordErrDim == 3)
+                    self.assertEqual("pm_ra" in refSchema, addProperMotion)
+                    self.assertEqual("pm_dec" in refSchema, addProperMotion)
+                    self.assertEqual("pm_raErr" in refSchema, addProperMotion and properMotionErrDim > 0)
+                    self.assertEqual("pm_decErr" in refSchema, addProperMotion and properMotionErrDim > 0)
+                    self.assertEqual("pm_flag" in refSchema, addProperMotion)
+                    self.assertEqual("pm_ra_dec_Cov" in refSchema,
+                                     addProperMotion and properMotionErrDim == 3)
+                    self.assertEqual("parallax" in refSchema, addParallax)
+                    self.assertEqual("parallaxErr" in refSchema, addParallax)
+                    self.assertEqual("parallax_flag" in refSchema, addParallax)
+
+    def testFilterAliasMap(self):
+        """Make a schema with filter aliases."""
+        for filterMap in ({}, {"camr": "r"}):
+            config = ReferenceObjectLoader.ConfigClass()
+            config.filterMap = filterMap
+            loader = ReferenceObjectLoader(None, None, name=None, config=config)
+            refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList="r")
+            loader._addFluxAliases(refSchema,
+                                   anyFilterMapsToThis=config.anyFilterMapsToThis,
+                                   filterMap=config.filterMap)
+
+            self.assertIn("r_flux", refSchema)
+            self.assertIn("r_fluxErr", refSchema)
+
+            # camera filters aliases are named <filter>_camFlux
+            if "camr" in filterMap:
+                self.assertEqual(getRefFluxField(refSchema, "camr"), "camr_camFlux")
+            else:
+                with self.assertRaisesRegex(RuntimeError,
+                                            r"Could not find flux field\(s\) camr_camFlux, camr_flux"):
+                    getRefFluxField(refSchema, "camr")
+
+            refCat = afwTable.SimpleCatalog(refSchema)
+            refObj = refCat.addNew()
+            refObj["r_flux"] = 1.23
+            self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "r")), 1.23)
+            if "camr" in filterMap:
+                self.assertAlmostEqual(refCat[0].get(getRefFluxField(refSchema, "camr")), 1.23)
+            refObj["r_fluxErr"] = 0.111
+            if "camr" in filterMap:
+                self.assertEqual(refCat[0].get("camr_camFluxErr"), 0.111)
+            fluxKey, fluxErrKey = getRefFluxKeys(refSchema, "r")
+            self.assertEqual(refCat[0].get(fluxKey), 1.23)
+            self.assertEqual(refCat[0].get(fluxErrKey), 0.111)
+            if "camr" in filterMap:
+                fluxKey, fluxErrKey = getRefFluxKeys(refSchema, "camr")
+                self.assertEqual(refCat[0].get(fluxErrKey), 0.111)
+            else:
+                with self.assertRaises(RuntimeError):
+                    getRefFluxKeys(refSchema, "camr")
+
+    def testAnyFilterMapsToThisAlias(self):
+        # test anyFilterMapsToThis
+        config = ReferenceObjectLoader.ConfigClass()
+        config.anyFilterMapsToThis = "gg"
+        loader = ReferenceObjectLoader(None, None, name=None, config=config)
+        refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["gg"])
+        loader._addFluxAliases(refSchema,
+                               anyFilterMapsToThis=config.anyFilterMapsToThis,
+                               filterMap=config.filterMap)
+        self.assertEqual(getRefFluxField(refSchema, "r"), "gg_flux")
+        # raise if "gg" is not in the refcat filter list
+        with self.assertRaises(RuntimeError):
+            refSchema = ReferenceObjectLoader.makeMinimalSchema(filterNameList=["rr"])
+            refSchema = loader._addFluxAliases(refSchema,
+                                               anyFilterMapsToThis=config.anyFilterMapsToThis,
+                                               filterMap=config.filterMap)
+
+    def testCheckFluxUnits(self):
+        """Test that we can identify old style fluxes in a schema."""
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+        # the default schema should pass
+        self.assertTrue(hasNanojanskyFluxUnits(schema))
+        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_flux', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+        schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
+        self.assertFalse(hasNanojanskyFluxUnits(schema))
+
+    def testConvertOldFluxes(self):
+        """Check that we can convert old style fluxes in a catalog."""
+        flux = 1.234
+        fluxErr = 5.678
+        log = lsst.log.Log()
+
+        def make_catalog():
+            schema = ReferenceObjectLoader.makeMinimalSchema(['r', 'z'])
+            schema.addField('bad_flux', doc='old flux units', type=float, units='')
+            schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
+            refCat = afwTable.SimpleCatalog(schema)
+            refObj = refCat.addNew()
+            refObj["bad_flux"] = flux
+            refObj["bad_fluxErr"] = fluxErr
+            return refCat
+
+        oldRefCat = make_catalog()
+        newRefCat = convertToNanojansky(oldRefCat, log)
+        self.assertEqual(newRefCat['bad_flux'], [flux*1e9, ])
+        self.assertEqual(newRefCat['bad_fluxErr'], [fluxErr*1e9, ])
+        self.assertEqual(newRefCat.schema['bad_flux'].asField().getUnits(), 'nJy')
+        self.assertEqual(newRefCat.schema['bad_fluxErr'].asField().getUnits(), 'nJy')
+
+        # check that doConvert=False returns None (it also logs a summary)
+        oldRefCat = make_catalog()
+        newRefCat = convertToNanojansky(oldRefCat, log, doConvert=False)
+        self.assertIsNone(newRefCat)
+
+    def testGetMetadataCircle(self):
+        center = lsst.geom.SpherePoint(100*lsst.geom.degrees, 45*lsst.geom.degrees)
+        radius = lsst.geom.Angle(1*lsst.geom.degrees)
+        loader = ReferenceObjectLoader(None, None, name=None)
+        metadata = loader.getMetadataCircle(center, radius, "fakeR")
+        self.assertEqual(metadata['RA'], center.getLongitude().asDegrees())
+        self.assertEqual(metadata['DEC'], center.getLatitude().asDegrees())
+        self.assertEqual(metadata['RADIUS'], radius.asDegrees())
+        self.assertEqual(metadata['SMATCHV'], 2)
+        self.assertEqual(metadata['FILTER'], 'fakeR')
+        self.assertEqual(metadata['JEPOCH'], None)
+        self.assertEqual(metadata['TIMESYS'], 'TAI')
+
+        epoch = astropy.time.Time(2023.0, format="jyear", scale="tai")
+        metadata = loader.getMetadataCircle(center, radius, "fakeR", epoch=epoch)
+        self.assertEqual(metadata['JEPOCH'], epoch.jyear)
+
+
+class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
+                                     lsst.utils.tests.TestCase):
+    """Tests of loading reference catalogs, using an in-memory generated fake
+    sky catalog that is converted to an LSST refcat.
+
+    This effectively is a partial integration test of the refcat conversion,
+    ingestion, and loading sequence, focusing mostly on testing the different
+    ways to load a refcat. It significantly overlaps in coverage with
+    ``nopytest_convertReferenceCatalog.py``, but uses a very trivial test
+    refcat and only one core during the conversion.
+    """
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -56,8 +277,8 @@ class ReferenceObjectLoaderTestCase(ingestIndexTestBase.ConvertReferenceCatalogT
         cls.skyCatalog = skyCatalog
 
         # override some field names.
-        config = ingestIndexTestBase.makeConvertConfig(withRaDecErr=True, withMagErr=True,
-                                                       withPm=True, withPmErr=True)
+        config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True, withMagErr=True,
+                                                                   withPm=True, withPmErr=True)
         # use a very small HTM pixelization depth
         depth = 2
         config.dataset_config.indexer.active.depth = depth
@@ -277,7 +498,9 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
 
         loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
-        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20), 5*lsst.geom.degrees, 'a')
+        result = loader.loadSkyCircle(convertReferenceCatalogTestBase.make_coord(10, 20),
+                                      5*lsst.geom.degrees,
+                                      'a')
 
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(filenames[0])
@@ -299,7 +522,9 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
 
         loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
-        result = loader.loadSkyCircle(ingestIndexTestBase.make_coord(10, 20), 5*lsst.geom.degrees, 'a')
+        result = loader.loadSkyCircle(convertReferenceCatalogTestBase.make_coord(10, 20),
+                                      5*lsst.geom.degrees,
+                                      'a')
 
         self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
         catalog = afwTable.SimpleCatalog.readFits(filenames[0])
