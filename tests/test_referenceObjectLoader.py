@@ -278,7 +278,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
 
         # override some field names.
         config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True, withMagErr=True,
-                                                                   withPm=True, withPmErr=True)
+                                                                   withPm=True, withParallax=True)
         # use a very small HTM pixelization depth
         depth = 2
         config.dataset_config.indexer.active.depth = depth
@@ -344,7 +344,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         self.assertLess(np.max(dist), 30.0)
 
         # Check that all the objects from the two catalogs are here.
-        dist = sphdist(180.0, 0.0, self.skyCatalog['ra_icrs'], self.skyCatalog['dec_icrs'])
+        dist = sphdist(180.0, 0.0, self.skyCatalog['ra'], self.skyCatalog['dec'])
         inside, = (dist < 30.0).nonzero()
         self.assertEqual(len(cat), len(inside))
 

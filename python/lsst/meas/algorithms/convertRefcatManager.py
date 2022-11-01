@@ -91,8 +91,9 @@ class ConvertRefcatManager:
         self.htmRange = htmRange
         self.addRefCatMetadata = addRefCatMetadata
         self.log = log
+
         if self.config.coord_err_unit is not None:
-            # cache this to speed up coordinate conversions
+            # cache this to speed up coordinate conversions.
             self.coord_err_unit = u.Unit(self.config.coord_err_unit)
 
     def run(self, inputFiles):
@@ -383,6 +384,23 @@ class ConvertRefcatManager:
         return astropy.time.Time(nativeEpoch, format=self.config.epoch_format,
                                  scale=self.config.epoch_scale).tai.mjd
 
+    def _setCoordinateCovariance(self, record, row):
+        """Set the off-diagonal position covariance in a record of an indexed
+        catalog.
+
+        There is no generic way to determine covariance. Override this method
+        in a subclass specialized for your dataset.
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being converted.
+        """
+        raise NotImplementedError("There is no default method for setting the covariance. Override this "
+                                  "method in a subclass specialized for your dataset.")
+
     def _setExtra(self, record, row):
         """Set extra data fields in a record of an indexed catalog.
 
@@ -421,12 +439,20 @@ class ConvertRefcatManager:
         self._setFlags(record, row)
         self._setProperMotion(record, row)
         self._setParallax(record, row)
+        if self.config.coordinate_covariance:
+            self._setCoordinateCovariance(record, row)
         self._setExtra(record, row)
 
 
 class ConvertGaiaManager(ConvertRefcatManager):
     """Special-case convert manager to deal with Gaia fluxes.
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.properMotionUnit = self.config.pm_scale * u.milliarcsecond
+        self.parallaxUnit = self.config.parallax_scale * u.milliarcsecond
+        self.outputUnit = u.radian * u.radian
+
     def _getFluxes(self, input):
         result = {}
 
@@ -454,6 +480,45 @@ class ConvertGaiaManager(ConvertRefcatManager):
         result['phot_rp_mean_fluxErr'] = result['phot_rp_mean_flux'] / input['phot_rp_mean_flux_over_error']
 
         return result
+
+    def _setCoordinateCovariance(self, record, row):
+        """Set the off-diagonal position covariance in a record of an indexed
+        catalog.
+
+        Convert the Gaia coordinate correlations into covariances.
+
+        Parameters
+        ----------
+        record : `lsst.afw.table.SimpleRecord`
+            Row from indexed catalog to modify.
+        row : structured `numpy.array`
+            Row from catalog being converted.
+        """
+        inputParams = ['ra', 'dec', 'parallax', 'pmra', 'pmdec']
+        outputParams = ['coord_ra', 'coord_dec', 'parallax', 'pm_ra', 'pm_dec']
+        # The Gaia standard for naming is to order the parameters as
+        # (coordinates, parallax, proper motion), so they need to be reordered
+        # as (coordinates, proper motion, parallax) to match the order used
+        # in LSST code (i.g. 'coord_parallax_pm_ra_Cov' becomes
+        # 'coord_pm_ra_parallax_Cov').
+        reorder = [0, 1, 4, 2, 3]
+
+        inputUnits = [self.coord_err_unit, self.coord_err_unit, self.parallaxUnit, self.properMotionUnit,
+                      self.properMotionUnit]
+
+        for i in range(5):
+            for j in range(i):
+                j_error = row[f'{inputParams[j]}_error'] * inputUnits[j]
+                i_error = row[f'{inputParams[i]}_error'] * inputUnits[i]
+                ij_corr = row[f'{inputParams[j]}_{inputParams[i]}_corr']
+                cov = (i_error * j_error * ij_corr).to_value(self.outputUnit)
+
+                # Switch from order of Gaia parallax and proper motion
+                # parameters to the desired schema:
+                a = (i if (reorder[i] < reorder[j]) else j)
+                b = (j if (reorder[i] < reorder[j]) else i)
+
+                record.set(self.key_map[f'{outputParams[a]}_{outputParams[b]}_Cov'], cov)
 
 
 class ConvertGaiaXpManager(ConvertRefcatManager):

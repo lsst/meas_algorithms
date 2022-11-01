@@ -213,8 +213,8 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         # check that the new catalog elements are set correctly
         newElements = self.fakeInput[self.matchedPixels == pixelId]
         np.testing.assert_equal(newcat[nOld:]['id'], newElements['id'])
-        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_ra'], newElements['ra_icrs']*np.pi/180)
-        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_dec'], newElements['dec_icrs']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_ra'], newElements['ra']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_dec'], newElements['dec']*np.pi/180)
 
     def test_doOnePixelNoData(self):
         """Test that we can put new data into an empty catalog."""
@@ -231,8 +231,8 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         # check that the new catalog elements are set correctly
         newElements = self.fakeInput[self.matchedPixels == pixelId]
         np.testing.assert_equal(newcat['id'], newElements['id'])
-        self.assertFloatsAlmostEqual(newcat['coord_ra'], newElements['ra_icrs']*np.pi/180)
-        self.assertFloatsAlmostEqual(newcat['coord_dec'], newElements['dec_icrs']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat['coord_ra'], newElements['ra']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat['coord_dec'], newElements['dec']*np.pi/180)
 
     def test_getCatalog(self):
         """Test that getCatalog returns a properly expanded new catalog."""
@@ -249,6 +249,12 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         np.testing.assert_equal(newcat[:len(catalog)]['id'], catalog['id'])
         self.assertFloatsEqual(newcat[:len(catalog)]['coord_ra'], catalog['coord_ra'])
         self.assertFloatsEqual(newcat[:len(catalog)]['coord_dec'], catalog['coord_dec'])
+
+    def test_setCoordinateCovariance(self):
+        catalog = self._createFakeCatalog(nOld=10, nNew=0)
+
+        with self.assertRaises(NotImplementedError):
+            self.worker._setCoordinateCovariance(catalog[0], self.fakeInput[0])
 
     def tearDown(self):
         self.tempDir.cleanup()

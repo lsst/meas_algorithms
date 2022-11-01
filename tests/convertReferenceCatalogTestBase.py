@@ -47,14 +47,14 @@ def makeConvertConfig(withMagErr=False, withRaDecErr=False, withPm=False, withPm
 
     This is primarily intended to simplify tests of config validation,
     so fields that are not validated are not set.
-    However, it can calso be used to reduce boilerplate in other tests.
+    However, it can also be used to reduce boilerplate in other tests.
     """
     config = ConvertReferenceCatalogConfig()
     config.dataset_config.ref_dataset_name = "testRefCat"
     config.pm_scale = 1000.0
     config.parallax_scale = 1e3
-    config.ra_name = 'ra_icrs'
-    config.dec_name = 'dec_icrs'
+    config.ra_name = 'ra'
+    config.dec_name = 'dec'
     config.mag_column_list = ['a', 'b']
 
     if withMagErr:
@@ -91,6 +91,8 @@ class ConvertReferenceCatalogTestBase:
     @classmethod
     def makeSkyCatalog(cls, outPath, size=1000, idStart=1, seed=123):
         """Make an on-sky catalog, and save it to a text file.
+
+        The catalog columns mimic the columns from the native Gaia catalog.
 
         Parameters
         ----------
@@ -139,33 +141,53 @@ class ConvertReferenceCatalogTestBase:
         pm_dec_err = np.ones(size)*cls.properMotionErr.asArcseconds()*abs(math.sin(pm_dir_rad))
         parallax = np.ones(size)*0.1  # arcseconds
         parallax_error = np.ones(size)*0.003  # arcseconds
+        ra_dec_corr = 2 * np.random.random(size) - 1
+        ra_parallax_corr = 2 * np.random.random(size) - 1
+        ra_pmra_corr = 2 * np.random.random(size) - 1
+        ra_pmdec_corr = 2 * np.random.random(size) - 1
+        dec_parallax_corr = 2 * np.random.random(size) - 1
+        dec_pmra_corr = 2 * np.random.random(size) - 1
+        dec_pmdec_corr = 2 * np.random.random(size) - 1
+        parallax_pmra_corr = 2 * np.random.random(size) - 1
+        parallax_pmdec_corr = 2 * np.random.random(size) - 1
+        pmra_pmdec_corr = 2 * np.random.random(size) - 1
         unixtime = np.ones(size)*cls.epoch.unix
 
         def get_word(word_len):
             return "".join(np.random.choice([s for s in string.ascii_letters], word_len))
         extra_col3 = np.array([get_word(num) for num in np.random.randint(11, size=size)])
 
-        dtype = np.dtype([('id', float), ('ra_icrs', float), ('dec_icrs', float),
-                          ('ra_err', float), ('dec_err', float), ('a', float),
+        dtype = np.dtype([('id', float), ('ra', float), ('dec', float),
+                          ('ra_error', float), ('dec_error', float), ('a', float),
                           ('a_err', float), ('b', float), ('b_err', float), ('is_phot', int),
                           ('is_res', int), ('is_var', int), ('val1', float), ('val2', float),
-                          ('val3', '|S11'), ('pm_ra', float), ('pm_dec', float), ('pm_ra_err', float),
-                          ('pm_dec_err', float), ('parallax', float), ('parallax_error', float),
-                          ('unixtime', float)])
+                          ('val3', '|S11'), ('pmra', float), ('pmdec', float), ('pmra_error', float),
+                          ('pmdec_error', float), ('parallax', float), ('parallax_error', float),
+                          ('ra_dec_corr', float), ('ra_parallax_corr', float), ('ra_pmra_corr', float),
+                          ('ra_pmdec_corr', float), ('dec_parallax_corr', float), ('dec_pmra_corr', float),
+                          ('dec_pmdec_corr', float), ('parallax_pmra_corr', float),
+                          ('parallax_pmdec_corr', float), ('pmra_pmdec_corr', float), ('unixtime', float)])
 
         arr = np.array(list(zip(ident, ra, dec, ra_err, dec_err, a_mag, a_mag_err, b_mag, b_mag_err,
                                 is_photometric, is_resolved, is_variable, extra_col1, extra_col2, extra_col3,
-                                pm_ra, pm_dec, pm_ra_err, pm_dec_err, parallax, parallax_error, unixtime)),
+                                pm_ra, pm_dec, pm_ra_err, pm_dec_err, parallax, parallax_error, ra_dec_corr,
+                                ra_parallax_corr, ra_pmra_corr, ra_pmdec_corr, dec_parallax_corr,
+                                dec_pmra_corr, dec_pmdec_corr, parallax_pmra_corr, parallax_pmdec_corr,
+                                pmra_pmdec_corr, unixtime)),
                        dtype=dtype)
         if outPath is not None:
             # write the data with full precision; this is not realistic for
             # real catalogs, but simplifies tests based on round tripped data
             saveKwargs = dict(
-                header="id,ra_icrs,dec_icrs,ra_err,dec_err,"
+                header="id,ra,dec,ra_err,dec_err,"
                        "a,a_err,b,b_err,is_phot,is_res,is_var,val1,val2,val3,"
-                       "pm_ra,pm_dec,pm_ra_err,pm_dec_err,parallax,parallax_err,unixtime",
+                       "pm_ra,pm_dec,pm_ra_err,pm_dec_err,parallax,parallax_err,ra_dec_corr,"
+                       "ra_parallax_corr,ra_pmra_corr,ra_pmdec_corr,dec_parallax_corr,"
+                       "dec_pmra_corr,dec_pmdec_corr,parallax_pmra_corr,parallax_pmdec_corr,"
+                       "pmra_pmdec_corr,unixtime",
                 fmt=["%i", "%.15g", "%.15g", "%.15g", "%.15g",
                      "%.15g", "%.15g", "%.15g", "%.15g", "%i", "%i", "%i", "%.15g", "%.15g", "%s",
+                     "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g",
                      "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g", "%.15g"]
             )
 
@@ -214,7 +236,7 @@ class ConvertReferenceCatalogTestBase:
                 cent = make_coord(*tupl)
                 cls.compCats[tupl] = []
                 for rec in cls.skyCatalog:
-                    if make_coord(rec['ra_icrs'], rec['dec_icrs']).separation(cent) < cls.searchRadius:
+                    if make_coord(rec['ra'], rec['dec']).separation(cent) < cls.searchRadius:
                         cls.compCats[tupl].append(rec['id'])
 
         cls.testRepoPath = cls.outPath+"/test_repo"
@@ -264,7 +286,7 @@ class ConvertReferenceCatalogTestBase:
             The Config that was used to generate the refcat.
         """
         for row in skyCatalog:
-            center = lsst.geom.SpherePoint(row['ra_icrs'], row['dec_icrs'], lsst.geom.degrees)
+            center = lsst.geom.SpherePoint(row['ra'], row['dec'], lsst.geom.degrees)
             with self.assertLogs(self.logger.name, level="INFO") as cm:
                 cat = refObjLoader.loadSkyCircle(center, 2*lsst.geom.arcseconds, filterName='a').refCat
             self.assertIn("Loading reference objects from testRefCat in region", cm.output[0])
@@ -272,9 +294,9 @@ class ConvertReferenceCatalogTestBase:
             msg = f"input row not found in loaded catalog:\nrow:\n{row}\n{row.dtype}\n\ncatalog:\n{cat[0]}"
             self.assertEqual(row['id'], cat[0]['id'], msg)
             # coordinates won't match perfectly due to rounding in radian/degree conversions
-            self.assertFloatsAlmostEqual(row['ra_icrs'], cat[0]['coord_ra'].asDegrees(),
+            self.assertFloatsAlmostEqual(row['ra'], cat[0]['coord_ra'].asDegrees(),
                                          rtol=1e-14, msg=msg)
-            self.assertFloatsAlmostEqual(row['dec_icrs'], cat[0]['coord_dec'].asDegrees(),
+            self.assertFloatsAlmostEqual(row['dec'], cat[0]['coord_dec'].asDegrees(),
                                          rtol=1e-14, msg=msg)
             if config.coord_err_unit is not None:
                 # coordinate errors are not lsst.geom.Angle, so we have to use the

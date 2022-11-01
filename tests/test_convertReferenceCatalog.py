@@ -19,17 +19,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import astropy.units as u
+import numpy as np
 import os.path
 import sys
 import unittest
 import unittest.mock
 import tempfile
 
+from lsst.afw.table import SimpleCatalog
 from lsst.pex.config import FieldValidationError
-from lsst.meas.algorithms import convertReferenceCatalog
+from lsst.meas.algorithms import (convertReferenceCatalog, ConvertReferenceCatalogTask)
+from lsst.meas.algorithms.readTextCatalogTask import ReadTextCatalogTask
+from lsst.meas.algorithms.htmIndexer import HtmIndexer
+from lsst.meas.algorithms.convertRefcatManager import ConvertGaiaManager
+from lsst.meas.algorithms.convertReferenceCatalog import addRefCatMetadata
+
 import lsst.utils
 
 from convertReferenceCatalogTestBase import makeConvertConfig
+import convertReferenceCatalogTestBase
 
 
 class TestMain(lsst.utils.tests.TestCase):
@@ -182,6 +191,108 @@ class ConvertReferenceCatalogConfigValidateTestCase(lsst.utils.tests.TestCase):
                 setattr(config, name, None)
                 with self.assertRaises(ValueError, msg=name):
                     config.validate()
+
+
+class ConvertGaiaManagerTests(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
+                              lsst.utils.tests.TestCase):
+    """Unittests of methods of ConvertGaiaManager
+    """
+    def setUp(self):
+
+        np.random.seed(10)
+
+        self.tempDir = tempfile.TemporaryDirectory()
+        tempPath = self.tempDir.name
+        self.log = lsst.log.Log.getLogger("lsst.TestConvertRefcatManager")
+        self.config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True)
+        self.config.id_name = 'id'
+        self.config.coordinate_covariance = True
+        self.config.coord_err_unit = 'milliarcsecond'
+        self.config.ra_err_name = 'ra_error'
+        self.config.dec_err_name = 'dec_error'
+        self.config.pm_ra_name = 'pmra'
+        self.config.pm_dec_name = 'pmdec'
+        self.config.pm_ra_err_name = 'pmra_error'
+        self.config.pm_dec_err_name = 'pmdec_error'
+        self.config.parallax_name = 'parallax'
+        self.config.parallax_err_name = 'parallax_error'
+        self.config.epoch_name = 'unixtime'
+        self.config.epoch_format = 'unix'
+        self.config.epoch_scale = 'tai'
+        self.depth = 2  # very small depth, for as few pixels as possible.
+        self.indexer = HtmIndexer(self.depth)
+        self.htm = lsst.sphgeom.HtmPixelization(self.depth)
+        converter = ConvertReferenceCatalogTask(output_dir=tempPath, config=self.config)
+        dtype = [('id', '<f8'), ('ra', '<f8'), ('dec', '<f8'), ('ra_err', '<f8'), ('dec_err', '<f8'),
+                 ('a', '<f8'), ('a_err', '<f8')]
+        self.schema, self.key_map = converter.makeSchema(dtype)
+        self.fileReader = ReadTextCatalogTask()
+
+        self.fakeInput = self.makeSkyCatalog(outPath=None, size=5, idStart=6543)
+        self.matchedPixels = np.array([1, 1, 2, 2, 3])
+        self.tempDir2 = tempfile.TemporaryDirectory()
+        tempPath = self.tempDir2.name
+        self.filenames = {x: os.path.join(tempPath, "%d.fits" % x) for x in set(self.matchedPixels)}
+
+        self.worker = ConvertGaiaManager(self.filenames,
+                                         self.config,
+                                         self.fileReader,
+                                         self.indexer,
+                                         self.schema,
+                                         self.key_map,
+                                         self.htm.universe()[0],
+                                         addRefCatMetadata,
+                                         self.log)
+
+    def tearDown(self):
+        self.tempDir.cleanup()
+        self.tempDir2.cleanup()
+
+    def test_positionSetting(self):
+        """Test the _setProperMotion, _setParallax, and
+        _setCoordinateCovariance methods.
+        """
+        outputCatalog = SimpleCatalog(self.worker.schema)
+        outputCatalog.resize(len(self.fakeInput))
+
+        # Set coordinate errors and covariances:
+        coordErr = self.worker._getCoordErr(self.fakeInput)
+        for name, array in coordErr.items():
+            outputCatalog[name] = array
+
+        for outputRow, inputRow in zip(outputCatalog, self.fakeInput):
+            self.worker._setProperMotion(outputRow, inputRow)
+            self.worker._setParallax(outputRow, inputRow)
+            self.worker._setCoordinateCovariance(outputRow, inputRow)
+
+        coordConvert = (self.worker.coord_err_unit).to(u.radian)
+        pmConvert = (self.worker.config.pm_scale * u.milliarcsecond).to_value(u.radian)
+        parallaxConvert = (self.config.parallax_scale * u.milliarcsecond).to_value(u.radian)
+
+        # Test a few combinations of coordinates, proper motion, and parallax.
+        # Check that the covariance in the output catalog matches the
+        # covariance calculated from the input, and also matches the covariance
+        # calculated from the output catalog errors with the input correlation.
+        ra_pmra_cov1 = (self.fakeInput['ra_error'] * self.fakeInput['pmra_error']
+                        * self.fakeInput['ra_pmra_corr']) * coordConvert * pmConvert
+        ra_pmra_cov2 = (outputCatalog['coord_raErr'] * outputCatalog['pm_raErr']
+                        * self.fakeInput['ra_pmra_corr'])
+        np.testing.assert_allclose(ra_pmra_cov1, outputCatalog['coord_ra_pm_ra_Cov'])
+        np.testing.assert_allclose(ra_pmra_cov2, outputCatalog['coord_ra_pm_ra_Cov'])
+
+        dec_parallax_cov1 = (self.fakeInput['dec_error'] * self.fakeInput['parallax_error']
+                             * self.fakeInput['dec_parallax_corr']) * coordConvert * parallaxConvert
+        dec_parallax_cov2 = (outputCatalog['coord_decErr'] * outputCatalog['parallaxErr']
+                             * self.fakeInput['dec_parallax_corr'])
+        np.testing.assert_allclose(dec_parallax_cov1, outputCatalog['coord_dec_parallax_Cov'])
+        np.testing.assert_allclose(dec_parallax_cov2, outputCatalog['coord_dec_parallax_Cov'])
+
+        pmdec_parallax_cov1 = (self.fakeInput['pmdec_error'] * self.fakeInput['parallax_error']
+                               * self.fakeInput['parallax_pmdec_corr']) * pmConvert * parallaxConvert
+        pmdec_parallax_cov2 = (outputCatalog['pm_decErr'] * outputCatalog['parallaxErr']
+                               * self.fakeInput['parallax_pmdec_corr'])
+        np.testing.assert_allclose(pmdec_parallax_cov1, outputCatalog['pm_dec_parallax_Cov'])
+        np.testing.assert_allclose(pmdec_parallax_cov2, outputCatalog['pm_dec_parallax_Cov'])
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
