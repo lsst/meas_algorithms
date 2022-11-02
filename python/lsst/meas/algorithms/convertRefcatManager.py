@@ -25,6 +25,7 @@ from ctypes import c_int
 import os.path
 import itertools
 import multiprocessing
+import time
 
 import astropy.time
 import astropy.units as u
@@ -121,8 +122,13 @@ class ConvertRefcatManager:
             for i in range(self.htmRange[0], self.htmRange[1]):
                 fileLocks[i] = manager.Lock()
             self.log.info("File locks created.")
+
+            start_time = time.perf_counter()
             with multiprocessing.Pool(self.config.n_processes) as pool:
                 result = pool.starmap(self._convertOneFile, zip(inputFiles, itertools.repeat(fileLocks)))
+            end_time = time.perf_counter()
+            self.log.info("Finished writing files. Elapsed time: %.2f seconds", end_time-start_time)
+
             return {id: self.filenames[id] for item in result for id in item}
 
     def _convertOneFile(self, filename, fileLocks):
