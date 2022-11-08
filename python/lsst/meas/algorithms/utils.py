@@ -788,7 +788,7 @@ def showPsfResiduals(exposure, sourceSet, magType="psf", scale=10, display=None)
     mimIn = mimIn.Factory(mimIn, True)  # make a copy to subtract from
 
     psf = exposure.getPsf()
-    psfWidth, psfHeight = psf.getLocalKernel().getDimensions()
+    psfWidth, psfHeight = psf.getLocalKernel(psf.getAveragePosition()).getDimensions()
     #
     # Make the image that we'll paste our residuals into.  N.b. they can overlap the edges
     #

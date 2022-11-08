@@ -127,9 +127,9 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
                                   psf.computeShape(self.pointCentroid2).getIyy(), rtol=1E-1)
         # Compare truth PSF at average position vs. truth PSF at extended source position
         self.assertFloatsNotEqual(psf.computeShape(self.extendedCentroid).getIxx(),
-                                  psf.computeShape().getIxx(), rtol=1E-1)
+                                  psf.computeShape(psf.getAveragePosition()).getIxx(), rtol=1E-1)
         self.assertFloatsNotEqual(psf.computeShape(self.extendedCentroid).getIyy(),
-                                  psf.computeShape().getIyy(), rtol=1E-1)
+                                  psf.computeShape(psf.getAveragePosition()).getIyy(), rtol=1E-1)
         # Now check the base_SdssShape_psf entries against the PSF truth values
         for record in catalog:
             psfTruth = psf.computeShape(lsst.geom.Point2D(record.getX(), record.getY()))
@@ -142,11 +142,13 @@ class SdssShapePsfTestCase(measBaseTests.AlgorithmTestCase, lsst.utils.tests.Tes
 
         This test resides here because PcaPsfs do not have their own test module"""
         psf = self._computeVaryingPsf()
-        dim = psf.computeBBox().getDimensions()
+        dim = psf.computeBBox(psf.getAveragePosition()).getDimensions()
         for pad in [0, 4, -2]:
             resizedPsf = psf.resized(dim.getX() + pad, dim.getY() + pad)
-            self.assertEqual(resizedPsf.computeBBox().getDimensions(),
-                             lsst.geom.Extent2I(dim.getX() + pad, dim.getY() + pad))
+            self.assertEqual(
+                resizedPsf.computeBBox(resizedPsf.getAveragePosition()).getDimensions(),
+                lsst.geom.Extent2I(dim.getX() + pad, dim.getY() + pad)
+            )
             if psf.getKernel().isSpatiallyVarying():
                 self.assertEqual(resizedPsf.getKernel().getSpatialParameters(),
                                  psf.getKernel().getSpatialParameters())

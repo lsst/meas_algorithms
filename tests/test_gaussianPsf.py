@@ -191,8 +191,10 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
 
         for pad in [-2, 4, 0]:
             resizedKPsf = kPsf.resized(ksize + pad, ksize + pad)
-            self.assertEqual(resizedKPsf.computeBBox().getDimensions(),
-                             lsst.geom.Extent2I(ksize + pad, ksize + pad))
+            self.assertEqual(
+                resizedKPsf.computeBBox(resizedKPsf.getAveragePosition()).getDimensions(),
+                lsst.geom.Extent2I(ksize + pad, ksize + pad)
+            )
             self.assertEqual(resizedKPsf.getKernel().getKernelParameters(),
                              kPsf.getKernel().getKernelParameters())
             self._compareKernelImages(kPsf, resizedKPsf)
@@ -246,7 +248,10 @@ class GaussianPsfTestCase(lsst.utils.tests.TestCase):
         """Test that computeBBox returns same bbox as kernel.
         """
         for psf in [self.psfDg, self.psfSg]:
-            self.assertEqual(psf.computeBBox(), psf.getKernel().getBBox())
+            self.assertEqual(
+                psf.computeBBox(psf.getAveragePosition()),
+                psf.getKernel().getBBox()
+            )
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

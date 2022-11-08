@@ -216,7 +216,7 @@ struct ToyPsf : public ImagePsf {
         double a, b, c;
         this->evalABC(a, b, c, ccdXY);
 
-        Box2I bbox = computeBBox();
+        Box2I bbox = computeBBox(getAveragePosition());
         return fill_gaussian(a, b, c, 0, 0, bbox.getWidth(), bbox.getHeight(), bbox.getMinX(),
                              bbox.getMinY());
     }

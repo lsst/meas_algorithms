@@ -90,7 +90,11 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
             psfIm = psf.computeImage(psf.getAveragePosition())
             self.assertEqual(psfIm.getWidth(), desWidth)
             self.assertEqual(psfIm.getHeight(), desHeight)
-            self.assertAlmostEqual(psf.computeShape().getDeterminantRadius(), desSigma, delta=1e-3)
+            self.assertAlmostEqual(
+                psf.computeShape(psf.getAveragePosition()).getDeterminantRadius(),
+                desSigma,
+                delta=1e-3
+            )
 
     def testBadDim(self):
         for width in (8, 10, 20):
