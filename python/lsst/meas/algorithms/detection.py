@@ -573,7 +573,7 @@ class SourceDetectionTask(pipeBase.Task):
                 else:
                     stencil = (afwGeom.Stencil.CIRCLE if self.config.isotropicGrow else
                                afwGeom.Stencil.MANHATTAN)
-                    for fp in fpSet:
+                    for fp in fpSet.getFootprints():
                         fp.dilate(nGrow, stencil)
             fpSet.setMask(mask, maskName)
             if not self.config.returnOriginalFootprints:
