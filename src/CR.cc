@@ -336,7 +336,7 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
                                                                *
                                                                * Realise PSF at center of image
                                                                */
-    std::shared_ptr<afw::math::Kernel const> kernel = psf.getLocalKernel();
+    std::shared_ptr<afw::math::Kernel const> kernel = psf.getLocalKernel(psf.getAveragePosition());
     if (!kernel) {
         throw LSST_EXCEPT(pexExcept::NotFoundError, "Psf is unable to return a kernel");
     }

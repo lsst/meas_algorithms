@@ -86,21 +86,22 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
         self.img.array[:] = np.exp(-0.5*rsqr**2) + np.exp(-0.5*rsqr**2/4)
         self.img.array /= np.sum(self.img.array)
         self.psf = MyTestImagePsf(self.img)
+        self.averagePosition = self.psf.getAveragePosition()
 
     def testImage(self):
         self.assertImagesEqual(
             self.img,
-            self.psf.computeImage(self.psf.getAveragePosition())
+            self.psf.computeImage(self.averagePosition)
         )
         self.assertImagesEqual(
             self.img,
-            self.psf.computeKernelImage(self.psf.getAveragePosition())
+            self.psf.computeKernelImage(self.averagePosition)
         )
 
     def testBBox(self):
         self.assertEqual(
             self.bbox,
-            self.psf.computeBBox()
+            self.psf.computeBBox(self.averagePosition)
         )
 
     def testResized(self):
@@ -114,15 +115,15 @@ class ImagePsfTrampolineTestSuite(lsst.utils.tests.TestCase):
             self.assertIsNot(clone, self.psf)
             self.assertImagesEqual(
                 clone.computeImage(clone.getAveragePosition()),
-                self.psf.computeImage(self.psf.getAveragePosition())
+                self.psf.computeImage(self.averagePosition)
             )
             self.assertEqual(
-                clone.computeApertureFlux(0.5),
-                self.psf.computeApertureFlux(0.5)
+                clone.computeApertureFlux(0.5, self.averagePosition),
+                self.psf.computeApertureFlux(0.5, self.averagePosition)
             )
             self.assertEqual(
                 clone.computeShape(clone.getAveragePosition()),
-                self.psf.computeShape(self.psf.getAveragePosition())
+                self.psf.computeShape(self.averagePosition)
             )
 
     def testPersistence(self):

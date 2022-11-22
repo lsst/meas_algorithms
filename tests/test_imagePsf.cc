@@ -103,7 +103,7 @@ void checkShape(int size, Quadrupole const & ellipse, double tol) {
 
 void checkApertureFlux(int size, double sigma, double radius, double tol) {
     TestGaussianPsf psf(size, sigma);
-    double flux = psf.computeApertureFlux(radius);
+    double flux = psf.computeApertureFlux(radius, psf.getAveragePosition());
     double check = 1.0 - std::exp(-0.5*(radius*radius)/(sigma*sigma));
     BOOST_CHECK_CLOSE(flux, check, tol);
 }

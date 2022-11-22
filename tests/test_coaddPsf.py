@@ -454,7 +454,10 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
         mypsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref, 'weight')
 
-        self.assertEqual(mypsf.computeKernelImage().getBBox(), mypsf.computeBBox())
+        self.assertEqual(
+            mypsf.computeKernelImage(mypsf.getAveragePosition()).getBBox(),
+            mypsf.computeBBox(mypsf.getAveragePosition())
+        )
 
         with self.assertRaises(pexExceptions.LogicError):
             mypsf.resized(100, 100)
@@ -477,7 +480,7 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
         coaddPsf = measAlg.CoaddPsf(self.mycatalog, self.wcsref)
         with self.assertRaises(pexExceptions.RangeError) as cm:
-            coaddPsf.computeKernelImage()
+            coaddPsf.computeKernelImage(coaddPsf.getAveragePosition())
         self.assertIn("id=%d" % (badId,), str(cm.exception))
 
 
