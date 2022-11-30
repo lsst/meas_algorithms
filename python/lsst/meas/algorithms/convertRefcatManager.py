@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ConvertRefcatManager", "ConvertGaiaManager"]
+__all__ = ["ConvertRefcatManager", "ConvertGaiaManager", "ConvertGaiaXpManager"]
 
 from ctypes import c_int
 import os.path
@@ -452,5 +452,28 @@ class ConvertGaiaManager(ConvertRefcatManager):
         result['phot_g_mean_fluxErr'] = result['phot_g_mean_flux'] / input['phot_g_mean_flux_over_error']
         result['phot_bp_mean_fluxErr'] = result['phot_bp_mean_flux'] / input['phot_bp_mean_flux_over_error']
         result['phot_rp_mean_fluxErr'] = result['phot_rp_mean_flux'] / input['phot_rp_mean_flux_over_error']
+
+        return result
+
+
+class ConvertGaiaXpManager(ConvertRefcatManager):
+    """Special-case convert manager for Gaia XP spectrophotometry catalogs,
+    that have fluxes/flux errors, instead of magnitudes/mag errors.  The input
+    flux and error values are in units of  W/Hz/(m^2) (Gaia Collaboration, Montegriffo et al. 2022).
+    The the flux and fluxErr fields in the output catalog have units of nJy.
+    """
+
+    def _getFluxes(self, inputData):
+        result = {}
+        for item in self.config.mag_column_list:
+
+            error_col_name = item.replace("_flux_", "_flux_error_")
+
+            result[item + "_flux"] = (
+                inputData[item] * u.Watt / u.Hz / u.meter / u.meter
+            ).to_value(u.nJy)
+            result[item + "_fluxErr"] = (
+                inputData[error_col_name] * u.Watt / u.Hz / u.meter / u.meter
+            ).to_value(u.nJy)
 
         return result
