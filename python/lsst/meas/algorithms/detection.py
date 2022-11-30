@@ -160,14 +160,14 @@ class SourceDetectionConfig(pexConfig.Config):
 
 
 class SourceDetectionTask(pipeBase.Task):
-    """Create the detection task.  Most arguments are simply passed onto pipe.base.Task.
+    """Detect peaks and footprints of sources in an image.
 
     Parameters
     ----------
     schema : `lsst.afw.table.Schema`
         Schema object used to create the output `lsst.afw.table.SourceCatalog`
     **kwds
-        Keyword arguments passed to `lsst.pipe.base.task.Task.__init__`
+        Keyword arguments passed to `lsst.pipe.base.Task.__init__`
 
     If schema is not None and configured for 'both' detections,
     a 'flags.negative' field will be added to label detections made with a
@@ -175,10 +175,9 @@ class SourceDetectionTask(pipeBase.Task):
 
     Notes
     -----
-    This task can add fields to the schema, so any code calling this task must ensure that
-    these columns are indeed present in the input match list.
+    This task can add fields to the schema, so any code calling this task must
+    ensure that these columns are indeed present in the input match list.
     """
-
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
 
@@ -203,7 +202,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     @timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
-        r"""Run source detection and create a SourceCatalog of detections.
+        r"""Detect sources and return catalog(s) of detections.
 
         Parameters
         ----------
@@ -230,10 +229,27 @@ class SourceDetectionTask(pipeBase.Task):
             The `~lsst.pipe.base.Struct` contains:
 
             ``sources``
-                The detected sources (`lsst.afw.table.SourceCatalog`)
-            ``fpSets``
-                The result returned by `detectFootprints()`
-                (`lsst.pipe.base.Struct`).
+                Detected sources on the exposure.
+                (`lsst.afw.table.SourceCatalog`)
+            ``positive``
+                Positive polarity footprints.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``negative``
+                Negative polarity footprints.
+                (`lsst.afw.detection.FootprintSet` or `None`)
+            ``numPos``
+                Number of footprints in positive or 0 if detection polarity was
+                negative. (`int`)
+            ``numNeg``
+                Number of footprints in negative or 0 if detection polarity was
+                positive. (`int`)
+            ``background``
+                Re-estimated background. `None` if
+                ``reEstimateBackground==False``.
+                (`lsst.afw.math.BackgroundList`)
+            ``factor``
+                Multiplication factor applied to the configured detection
+                threshold. (`float`)
 
         Raises
         ------
@@ -246,7 +262,7 @@ class SourceDetectionTask(pipeBase.Task):
         -----
         If you want to avoid dealing with Sources and Tables, you can use
         `detectFootprints()` to just get the
-        `lsst.afw.detection.FootprintSet`\ s.
+        `~lsst.afw.detection.FootprintSet`\s.
         """
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
@@ -359,7 +375,7 @@ class SourceDetectionTask(pipeBase.Task):
             self.updatePeaks(results.negative, middle, results.negativeThreshold)
 
     def clearMask(self, mask):
-        """Clear the DETECTED and DETECTED_NEGATIVE mask planes
+        """Clear the DETECTED and DETECTED_NEGATIVE mask planes.
 
         Removes any previous detection mask in preparation for a new
         detection pass.
@@ -372,7 +388,7 @@ class SourceDetectionTask(pipeBase.Task):
         mask &= ~(mask.getPlaneBitMask("DETECTED") | mask.getPlaneBitMask("DETECTED_NEGATIVE"))
 
     def calculateKernelSize(self, sigma):
-        """Calculate size of smoothing kernel
+        """Calculate the size of the smoothing kernel.
 
         Uses the ``nSigmaForKernel`` configuration parameter. Note
         that that is the full width of the kernel bounding box
@@ -392,10 +408,11 @@ class SourceDetectionTask(pipeBase.Task):
         return (int(sigma * self.config.nSigmaForKernel + 0.5)//2)*2 + 1  # make sure it is odd
 
     def getPsf(self, exposure, sigma=None):
-        """Retrieve the PSF for an exposure
+        """Create a single Gaussian PSF for an exposure.
 
-        If ``sigma`` is provided, we make a ``GaussianPsf`` with that,
-        otherwise use the one from the ``exposure``.
+        If ``sigma`` is provided, we make a `~lsst.afw.detection.GaussianPsf`
+        with that, otherwise use the sigma from the psf of the ``exposure`` to
+        make the `~lsst.afw.detection.GaussianPsf`.
 
         Parameters
         ----------
@@ -406,8 +423,14 @@ class SourceDetectionTask(pipeBase.Task):
 
         Returns
         -------
-        psf : `lsst.afw.detection.Psf`
+        psf : `lsst.afw.detection.GaussianPsf`
             PSF to use for detection.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if ``sigma`` is not provided and ``exposure`` does not
+            contain a ``Psf`` object.
         """
         if sigma is None:
             psf = exposure.getPsf()
@@ -419,7 +442,7 @@ class SourceDetectionTask(pipeBase.Task):
         return psf
 
     def convolveImage(self, maskedImage, psf, doSmooth=True):
-        """Convolve the image with the PSF
+        """Convolve the image with the PSF.
 
         We convolve the image with a Gaussian approximation to the PSF,
         because this is separable and therefore fast. It's technically a
@@ -485,8 +508,7 @@ class SourceDetectionTask(pipeBase.Task):
     def applyThreshold(self, middle, bbox, factor=1.0):
         r"""Apply thresholds to the convolved image
 
-        Identifies ``Footprint``\ s, both positive and negative.
-
+        Identifies `~lsst.afw.detection.Footprint`\s, both positive and negative.
         The threshold can be modified by the provided multiplication
         ``factor``.
 
@@ -539,15 +561,15 @@ class SourceDetectionTask(pipeBase.Task):
         return results
 
     def finalizeFootprints(self, mask, results, sigma, factor=1.0):
-        """Finalize the detected footprints
+        """Finalize the detected footprints.
 
-        Grows the footprints, sets the ``DETECTED`` and ``DETECTED_NEGATIVE``
-        mask planes, and logs the results.
+        Grow the footprints, set the ``DETECTED`` and ``DETECTED_NEGATIVE``
+        mask planes, and log the results.
 
         ``numPos`` (number of positive footprints), ``numPosPeaks`` (number
         of positive peaks), ``numNeg`` (number of negative footprints),
         ``numNegPeaks`` (number of negative peaks) entries are added to the
-        detection results.
+        ``results`` struct.
 
         Parameters
         ----------
