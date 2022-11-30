@@ -493,14 +493,12 @@ class SourceDetectionTask(pipeBase.Task):
         convolvedImage = maskedImage.Factory(maskedImage.getBBox())
 
         afwMath.convolve(convolvedImage, maskedImage, gaussKernel, afwMath.ConvolutionControl())
-        #
+
         # Only search psf-smoothed part of frame
-        #
         goodBBox = gaussKernel.shrinkBBox(convolvedImage.getBBox())
         middle = convolvedImage.Factory(convolvedImage, goodBBox, afwImage.PARENT, False)
-        #
+
         # Mark the parts of the image outside goodBBox as EDGE
-        #
         self.setEdgeBits(maskedImage, goodBBox, maskedImage.getMask().getPlaneBitMask("EDGE"))
 
         return pipeBase.Struct(middle=middle, sigma=sigma)
