@@ -4,8 +4,9 @@
 SourceDetectionTask
 ###################
 
-``SourceDetectionTask`` Detect positive and negative sources on an exposure
-and return a new table.SourceCatalog
+`SourceDetectionTask` detects positive and negative sources on an exposure and produces a `lsst.afw.table.SourceCatalog` of detected sources.
+This task convolves the image with a Gaussian approximation to the PSF, matched to the sigma of the input exposure, because this is separable and fast.
+The PSF would have to be very non-Gaussian or non-circular for this approximation to have a significant impact on the signal-to-noise of the detected sources.
 
 .. _lsst.meas.algorithms.SourceDetectionTask-api:
 
