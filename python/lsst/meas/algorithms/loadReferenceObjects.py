@@ -835,6 +835,7 @@ class ReferenceObjectLoader:
             # beyond the projected detector of interest.  This step is required
             # due to the very local nature of the wcs available for the
             # sky <--> pixel conversions.
+            return refCat
             preFiltFunc = _FilterCatalog(outerSkyRegion)
             refCat = preFiltFunc(refCat, region)
 
