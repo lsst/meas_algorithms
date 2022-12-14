@@ -28,9 +28,11 @@ __all__ = ["ConvertReferenceCatalogTask", "ConvertReferenceCatalogConfig", "Data
 
 import argparse
 import glob
+import numpy
 import os
 import pathlib
 import logging
+import itertools
 
 import astropy
 
@@ -42,10 +44,10 @@ from lsst.daf.base import PropertyList
 from .indexerRegistry import IndexerRegistry
 from .readTextCatalogTask import ReadTextCatalogTask
 from . import convertRefcatManager
-from . import ReferenceObjectLoader
 
 # The most recent Indexed Reference Catalog on-disk format version.
-LATEST_FORMAT_VERSION = 1
+# See DatasetConfig.format_version for details of version numbers.
+LATEST_FORMAT_VERSION = 2
 
 
 def addRefCatMetadata(catalog):
@@ -64,6 +66,157 @@ def addRefCatMetadata(catalog):
     catalog.setMetadata(md)
 
 
+def _makeSchema(filterNameList, *, addCentroid=False,
+                addIsPhotometric=False, addIsResolved=False,
+                addIsVariable=False, fullPositionInformation=False):
+    """Make a standard schema for reference object catalogs.
+
+    Parameters
+    ----------
+    filterNameList : `list` of `str`
+        List of filter names. Used to create <filterName>_flux fields.
+    addCentroid : `bool`
+        If True then add fields "centroid" and "hasCentroid".
+    addIsPhotometric : `bool`
+        If True then add field "photometric".
+    addIsResolved : `bool`
+        If True then add field "resolved".
+    addIsVariable : `bool`
+        If True then add field "variable".
+    fullPositionInformation : `bool`
+        If True then add epoch, proper motion, and parallax, along with the
+        full five-dimensional covariance between ra and dec coordinates,
+        proper motion in ra and dec, and parallax.
+
+    Returns
+    -------
+    schema : `lsst.afw.table.Schema`
+        Schema for reference catalog, an
+        `lsst.afw.table.SimpleCatalog`.
+    """
+    schema = lsst.afw.table.SimpleTable.makeMinimalSchema()
+    if addCentroid:
+        lsst.afw.table.Point2DKey.addFields(
+            schema,
+            "centroid",
+            "centroid on an exposure, if relevant",
+            "pixel",
+        )
+        schema.addField(
+            field="hasCentroid",
+            type="Flag",
+            doc="is position known?",
+        )
+    for filterName in filterNameList:
+        schema.addField(
+            field="%s_flux" % (filterName,),
+            type=numpy.float64,
+            doc="flux in filter %s" % (filterName,),
+            units="nJy",
+        )
+    for filterName in filterNameList:
+        schema.addField(
+            field="%s_fluxErr" % (filterName,),
+            type=numpy.float64,
+            doc="flux uncertainty in filter %s" % (filterName,),
+            units="nJy",
+        )
+    if addIsPhotometric:
+        schema.addField(
+            field="photometric",
+            type="Flag",
+            doc="set if the object can be used for photometric calibration",
+        )
+    if addIsResolved:
+        schema.addField(
+            field="resolved",
+            type="Flag",
+            doc="set if the object is spatially resolved",
+        )
+    if addIsVariable:
+        schema.addField(
+            field="variable",
+            type="Flag",
+            doc="set if the object has variable brightness",
+        )
+    lsst.afw.table.CovarianceMatrix2fKey.addFields(
+        schema=schema,
+        prefix="coord",
+        names=["ra", "dec"],
+        units=["rad", "rad"],
+        diagonalOnly=True,
+    )
+
+    if fullPositionInformation:
+        schema.addField(
+            field="epoch",
+            type=numpy.float64,
+            doc="date of observation (TAI, MJD)",
+            units="day",
+        )
+        schema.addField(
+            field="pm_ra",
+            type="Angle",
+            doc="proper motion in the right ascension direction = dra/dt * cos(dec)",
+            units="rad/year",
+        )
+        schema.addField(
+            field="pm_dec",
+            type="Angle",
+            doc="proper motion in the declination direction",
+            units="rad/year",
+        )
+        lsst.afw.table.CovarianceMatrix2fKey.addFields(
+            schema=schema,
+            prefix="pm",
+            names=["ra", "dec"],
+            units=["rad/year", "rad/year"],
+            diagonalOnly=True,
+        )
+        schema.addField(
+            field="pm_flag",
+            type="Flag",
+            doc="Set if proper motion or proper motion error is bad",
+        )
+        schema.addField(
+            field="parallax",
+            type="Angle",
+            doc="parallax",
+            units="rad",
+        )
+        schema.addField(
+            field="parallaxErr",
+            type="Angle",
+            doc="uncertainty in parallax",
+            units="rad",
+        )
+        schema.addField(
+            field="parallax_flag",
+            type="Flag",
+            doc="Set if parallax or parallax error is bad",
+        )
+        # Add all the off-diagonal covariance terms
+        fields = ["coord_ra", "coord_dec", "pm_ra", "pm_dec", "parallax"]
+        units = ["rad", "rad", "rad/year", "rad/year", "rad"]
+        for field, unit in zip(itertools.combinations(fields, r=2), itertools.combinations(units, r=2)):
+            i_field = field[0]
+            i_unit = unit[0]
+            j_field = field[1]
+            j_unit = unit[1]
+            formatted_unit = "rad^2"
+            if ("year" in i_unit) and ("year" in j_unit):
+                formatted_unit += "/year^2"
+            elif ("year" in i_unit) or ("year" in j_unit):
+                formatted_unit += "/year"
+            schema.addField(
+                field=f"{i_field}_{j_field}_Cov",
+                type="F",
+                doc=f"Covariance between {i_field} and {j_field}",
+                units=formatted_unit
+            )
+    return schema
+
+
 class DatasetConfig(pexConfig.Config):
     """Description of the on-disk storage format for the converted reference
     catalog.
@@ -72,7 +225,8 @@ class DatasetConfig(pexConfig.Config):
         dtype=int,
         doc="Version number of the persisted on-disk storage format."
         "\nVersion 0 had Jy as flux units (default 0 for unversioned catalogs)."
-        "\nVersion 1 had nJy as flux units.",
+        "\nVersion 1 had nJy as flux units."
+        "\nVersion 2 had position-related covariances.",
         default=0  # This needs to always be 0, so that unversioned catalogs are interpreted as version 0.
     )
     ref_dataset_name = pexConfig.Field(
@@ -197,6 +351,13 @@ class ConvertReferenceCatalogConfig(pexConfig.Config):
         doc="Scale factor by which to multiply parallax values to obtain units of milliarcsec",
         default=1.0,
     )
+    full_position_information = pexConfig.Field(
+        dtype=bool,
+        doc="Include epoch, proper motions, parallax, and covariances between sky coordinates, proper motion,"
+            " and parallax in the schema. If true, a custom ``ConvertRefcatManager`` class must exist to"
+            " compute the output covariances.",
+        default=False
+    )
     epoch_name = pexConfig.Field(
         dtype=str,
         doc="Name of epoch column",
@@ -262,6 +423,18 @@ class ConvertReferenceCatalogConfig(pexConfig.Config):
             raise ValueError(
                 '"epoch_name" must be specified if "pm_ra/dec_name" or "parallax_name" are specified')
 
+        # Need all the error field names set if we are including covariances.
+        if self.full_position_information:
+            # Since full_position_information is True, this will only pass for
+            # the "All" case.
+            assertAllOrNone("full_position_information",
+                            "ra_err_name", "dec_err_name", "coord_err_unit",
+                            "epoch_name", "epoch_format", "epoch_scale",
+                            "pm_ra_name", "pm_dec_name",
+                            "pm_ra_err_name", "pm_dec_err_name",
+                            "parallax_name", "parallax_err_name"
+                            )
+
 
 class ConvertReferenceCatalogTask(lsst.pipe.base.Task):
     """Class for producing HTM-indexed reference catalogs from external
@@ -277,10 +450,10 @@ class ConvertReferenceCatalogTask(lsst.pipe.base.Task):
 
     - RA, Dec are in decimal degrees.
     - Epoch is available in a column, in a format supported by astropy.time.Time.
-    - There are no off-diagonal covariance terms, such as covariance
-      between RA and Dec, or between PM RA and PM Dec. Support for such
-      covariance would have to be added to to the config, including consideration
-      of the units in the input catalog.
+    - There are either no off-diagonal covariance terms, or there are all the
+      five-dimensional covariance terms (between RA, Dec, proper motion, and
+      parallax). In the latter case, a custom ``ConvertRefcatManager`` must
+      exist to handle the covariance terms.
 
     Parameters
     ----------
@@ -390,16 +563,13 @@ class ConvertReferenceCatalogTask(lsst.pipe.base.Task):
             - A map of catalog keys to use in filling the record
         """
         # make a schema with the standard fields
-        schema = ReferenceObjectLoader.makeMinimalSchema(
+        schema = _makeSchema(
             filterNameList=self.config.mag_column_list,
             addCentroid=False,
             addIsPhotometric=bool(self.config.is_photometric_name),
             addIsResolved=bool(self.config.is_resolved_name),
             addIsVariable=bool(self.config.is_variable_name),
-            coordErrDim=2 if bool(self.config.ra_err_name) else 0,
-            addProperMotion=2 if bool(self.config.pm_ra_name) else 0,
-            properMotionErrDim=2 if bool(self.config.pm_ra_err_name) else 0,
-            addParallax=bool(self.config.parallax_name),
+            fullPositionInformation=self.config.full_position_information,
         )
         keysToSkip = set(("id", "centroid_x", "centroid_y", "hasCentroid"))
         key_map = {fieldName: schema[fieldName].asKey() for fieldName in schema.getOrderedNames()

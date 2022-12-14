@@ -55,19 +55,17 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
     focuses on checking the conversion, using the loader to perform that check.
     """
     def testIngestTwoFilesTwoCores(self):
-        def runTest(withRaDecErr):
+        with (tempfile.TemporaryDirectory() as inPath1, tempfile.TemporaryDirectory() as inPath2,
+              tempfile.TemporaryDirectory() as dataPath):
             # Generate a second catalog, with different ids
-            inTempDir1 = tempfile.TemporaryDirectory()
-            inPath1 = inTempDir1.name
             skyCatalogFile1, _, skyCatalog1 = self.makeSkyCatalog(inPath1, idStart=25, seed=123)
-            inTempDir2 = tempfile.TemporaryDirectory()
-            inPath2 = inTempDir2.name
             skyCatalogFile2, _, skyCatalog2 = self.makeSkyCatalog(inPath2, idStart=5432, seed=11)
             # override some field names, and use multiple cores
-            config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=withRaDecErr,
+            config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True,
                                                                        withMagErr=True,
                                                                        withPm=True,
-                                                                       withPmErr=True)
+                                                                       withParallax=True,
+                                                                       withFullPositionInformation=True)
             # use a very small HTM pixelization depth to ensure there will be collisions when
             # ingesting the files in parallel
             depth = 2
@@ -76,12 +74,9 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
             config.file_reader.format = 'ascii.commented_header'
             config.n_processes = 2  # use multiple cores for this test only
             config.id_name = 'id'  # Use the ids from the generated catalogs
-            repoPath = os.path.join(self.outPath, "output_multifile_parallel",
-                                    "_withRaDecErr" if withRaDecErr else "_noRaDecErr")
+            repoPath = os.path.join(self.outPath, "output_multifile_parallel")
 
             # Convert the input data files to our HTM indexed format.
-            dataTempDir = tempfile.TemporaryDirectory()
-            dataPath = dataTempDir.name
             converter = ConvertReferenceCatalogTask(output_dir=dataPath, config=config)
             converter.run([skyCatalogFile1, skyCatalogFile2])
 
@@ -119,13 +114,6 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
                                            log=self.logger)
             self.checkAllRowsInRefcat(loader, skyCatalog1, config)
             self.checkAllRowsInRefcat(loader, skyCatalog2, config)
-
-            inTempDir1.cleanup()
-            inTempDir2.cleanup()
-            dataTempDir.cleanup()
-
-        runTest(withRaDecErr=True)
-        runTest(withRaDecErr=False)
 
 
 class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,
@@ -213,8 +201,8 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         # check that the new catalog elements are set correctly
         newElements = self.fakeInput[self.matchedPixels == pixelId]
         np.testing.assert_equal(newcat[nOld:]['id'], newElements['id'])
-        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_ra'], newElements['ra_icrs']*np.pi/180)
-        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_dec'], newElements['dec_icrs']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_ra'], newElements['ra']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat[nOld:]['coord_dec'], newElements['dec']*np.pi/180)
 
     def test_doOnePixelNoData(self):
         """Test that we can put new data into an empty catalog."""
@@ -231,8 +219,8 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         # check that the new catalog elements are set correctly
         newElements = self.fakeInput[self.matchedPixels == pixelId]
         np.testing.assert_equal(newcat['id'], newElements['id'])
-        self.assertFloatsAlmostEqual(newcat['coord_ra'], newElements['ra_icrs']*np.pi/180)
-        self.assertFloatsAlmostEqual(newcat['coord_dec'], newElements['dec_icrs']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat['coord_ra'], newElements['ra']*np.pi/180)
+        self.assertFloatsAlmostEqual(newcat['coord_dec'], newElements['dec']*np.pi/180)
 
     def test_getCatalog(self):
         """Test that getCatalog returns a properly expanded new catalog."""
@@ -249,6 +237,12 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         np.testing.assert_equal(newcat[:len(catalog)]['id'], catalog['id'])
         self.assertFloatsEqual(newcat[:len(catalog)]['coord_ra'], catalog['coord_ra'])
         self.assertFloatsEqual(newcat[:len(catalog)]['coord_dec'], catalog['coord_dec'])
+
+    def test_setCoordinateCovariance(self):
+        catalog = self._createFakeCatalog(nOld=10, nNew=0)
+
+        with self.assertRaises(NotImplementedError):
+            self.worker._setCoordinateCovariance(catalog[0], self.fakeInput[0])
 
     def tearDown(self):
         self.tempDir.cleanup()
