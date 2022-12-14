@@ -54,6 +54,12 @@ class ReadTextCatalogConfig(pexConfig.Config):
         doc=("Format of files to read, from the astropy.table I/O list here:"
              "http://docs.astropy.org/en/stable/io/unified.html#built-in-table-readers-writers")
     )
+    fill_values = pexConfig.ListField(
+        dtype=str,
+        default=[],
+        doc=("A list giving [<match_string>, '0', <optional column name>], which is used to mask"
+             " the given values in the input file.")
+    )
 
 
 class ReadTextCatalogTask(pipeBase.Task):
@@ -83,6 +89,9 @@ class ReadTextCatalogTask(pipeBase.Task):
         else:
             # if we don't specify column names, start the header at this line.
             kwargs['header_start'] = self.config.header_lines
+
+        if self.config.fill_values:
+            kwargs['fill_values'] = [list(self.config.fill_values)]
 
         # return a numpy array for backwards compatibility with other readers
         return np.array(Table.read(filename, format=self.config.format,

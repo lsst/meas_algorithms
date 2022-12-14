@@ -114,6 +114,22 @@ class ReadTextCatalogTaskTestCase(lsst.utils.tests.TestCase):
             with self.assertRaises(ValueError):
                 task.run(TextPath)
 
+    def testNullValues(self):
+        """Test that missing values designated by a string are converted to
+        zeros and that their column has the appropriate data type."""
+        config = ReadTextCatalogTask.ConfigClass()
+        config.fill_values = ['null', '0']
+        task = ReadTextCatalogTask(config=config)
+        nullValuesFile = os.path.join(TestDir, "data", "testReadTextCatalog_nullValues.csv")
+        arr = task.run(nullValuesFile)
+
+        dtype = [("name", "U8"), ("ra", "float64"), ("dec", "float64"),
+                 ("counts", "int64"), ("flux", "float64"), ("resolved", "int64")]
+        for (name, dt) in dtype:
+            self.assertEqual(dt, arr.dtype[name])
+
+        self.assertEqual(arr['counts'][1], 0)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
