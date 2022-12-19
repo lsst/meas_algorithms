@@ -54,6 +54,23 @@ class ReadTextCatalogConfig(pexConfig.Config):
         doc=("Format of files to read, from the astropy.table I/O list here:"
              "http://docs.astropy.org/en/stable/io/unified.html#built-in-table-readers-writers")
     )
+    fill_values = pexConfig.ListField(
+        dtype=str,
+        default=None,
+        optional=True,
+        doc=("A list giving [<match_string>, <fill_value>], which is used to mask"
+             " the given values in the input file. '0' is suggested for the fill value in order to prevent"
+             " changing the column datatype. The default behavior is to fill empty data with zeros. See "
+             "https://docs.astropy.org/en/stable/io/ascii/read.html#bad-or-missing-values for more details."
+             "Use `replace_missing_floats_with_nan` to change floats to NaN instead of <fill_value>.")
+    )
+    replace_missing_floats_with_nan = pexConfig.Field(
+        dtype=bool,
+        default=False,
+        doc="If True, replace missing data in float columns with NaN instead of zero. If `fill_values` is "
+            "set, this parameter with replace the floats identified as missing by `fill_values`, and the fill"
+            " value from `fill_values` will be overridden with NaN for floats."
+    )
 
 
 class ReadTextCatalogTask(pipeBase.Task):
@@ -84,7 +101,19 @@ class ReadTextCatalogTask(pipeBase.Task):
             # if we don't specify column names, start the header at this line.
             kwargs['header_start'] = self.config.header_lines
 
-        # return a numpy array for backwards compatibility with other readers
-        return np.array(Table.read(filename, format=self.config.format,
-                                   delimiter=self.config.delimiter,
-                                   **kwargs).as_array())
+        if self.config.fill_values:
+            kwargs['fill_values'] = [list(self.config.fill_values)]
+
+        table = Table.read(filename, format=self.config.format,
+                           delimiter=self.config.delimiter,
+                           **kwargs)
+
+        # convert to a numpy array for backwards compatibility with other readers
+        arr = np.array(table.as_array())
+
+        if self.config.replace_missing_floats_with_nan:
+            for column in table.columns:
+                if (table.dtype[column] == np.float32) or (table.dtype[column] == np.float64):
+                    arr[column][table.mask[column]] = np.nan
+
+        return arr
