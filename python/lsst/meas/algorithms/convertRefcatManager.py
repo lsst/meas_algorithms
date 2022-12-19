@@ -150,15 +150,26 @@ class ConvertRefcatManager:
             The pixel ids that were written to.
         """
         global FILE_PROGRESS
+        self.log.debug("Processing: %s", filename)
         inputData = self.file_reader.run(filename)
-        fluxes = self._getFluxes(inputData)
-        coordErr = self._getCoordErr(inputData)
-        matchedPixels = self.indexer.indexPoints(inputData[self.config.ra_name],
-                                                 inputData[self.config.dec_name])
+        try:
+            fluxes = self._getFluxes(inputData)
+            coordErr = self._getCoordErr(inputData)
+            matchedPixels = self.indexer.indexPoints(inputData[self.config.ra_name],
+                                                     inputData[self.config.dec_name])
+        except Exception:
+            self.log.error("Failure preparing data for: %s", filename)
+            raise
+
         pixel_ids = set(matchedPixels)
         for pixelId in pixel_ids:
             with fileLocks[pixelId]:
-                self._doOnePixel(inputData, matchedPixels, pixelId, fluxes, coordErr)
+                try:
+                    self._doOnePixel(inputData, matchedPixels, pixelId, fluxes, coordErr)
+                except Exception:
+                    self.log.error("Failure processing filename: %s, pixelId: %s",
+                                   filename, pixelId)
+                    raise
         with FILE_PROGRESS.get_lock():
             oldPercent = 100 * FILE_PROGRESS.value / self.nInputFiles
             FILE_PROGRESS.value += 1
