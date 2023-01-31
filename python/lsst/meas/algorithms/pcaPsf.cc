@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/geom/Point.h"
 #include "lsst/afw/table/io/python.h"
@@ -33,18 +34,23 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_MODULE(pcaPsf, mod) {
-    py::class_<PcaPsf, std::shared_ptr<PcaPsf>, KernelPsf> clsPcaPsf(mod, "PcaPsf");
+void declarePcaPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PyPcaPsf = py::class_<PcaPsf, std::shared_ptr<PcaPsf>, KernelPsf>;
+
+    auto clsPcaPsf = wrappers.wrapType(PyPcaPsf(wrappers.module, "PcaPsf"), [](auto &mod, auto &cls) {
+        cls.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
+                      "kernel"_a, "averagePosition"_a = geom::Point2D());
+
+        cls.def("clone", &PcaPsf::clone);
+        cls.def("getKernel", &PcaPsf::getKernel);
+    });
     afw::table::io::python::addPersistableMethods<PcaPsf>(clsPcaPsf);
-
-    clsPcaPsf.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
-                  "kernel"_a, "averagePosition"_a = geom::Point2D());
-
-    clsPcaPsf.def("clone", &PcaPsf::clone);
-    clsPcaPsf.def("getKernel", &PcaPsf::getKernel);
 }
 
 }  // namespace
+void wrapPcaPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declarePcaPsf(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

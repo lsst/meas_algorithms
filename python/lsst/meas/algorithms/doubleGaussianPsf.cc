@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/DoubleGaussianPsf.h"
@@ -32,22 +33,25 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_MODULE(doubleGaussianPsf, mod) {
-    py::class_<DoubleGaussianPsf, std::shared_ptr<DoubleGaussianPsf>, KernelPsf> clsDoubleGaussianPsf(
-            mod, "DoubleGaussianPsf");
-    afw::table::io::python::addPersistableMethods<DoubleGaussianPsf>(clsDoubleGaussianPsf);
+void declareDoubleGaussianPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PyDoubleGaussianPsf = py::class_<DoubleGaussianPsf, std::shared_ptr<DoubleGaussianPsf>, KernelPsf>;
+    auto clsDef = wrappers.wrapType(PyDoubleGaussianPsf(wrappers.module, "DoubleGaussianPsf"), [](auto &mod, auto &cls) {
+        cls.def(py::init<int, int, double, double, double>(), "width"_a, "height"_a, "sigma1"_a,
+                                 "sigma2"_a = 0.0, "b"_a = 0.0);
 
-    clsDoubleGaussianPsf.def(py::init<int, int, double, double, double>(), "width"_a, "height"_a, "sigma1"_a,
-                             "sigma2"_a = 0.0, "b"_a = 0.0);
-
-    clsDoubleGaussianPsf.def("clone", &DoubleGaussianPsf::clone);
-    clsDoubleGaussianPsf.def("resized", &DoubleGaussianPsf::resized, "width"_a, "height"_a);
-    clsDoubleGaussianPsf.def("getSigma1", &DoubleGaussianPsf::getSigma1);
-    clsDoubleGaussianPsf.def("getSigma2", &DoubleGaussianPsf::getSigma2);
-    clsDoubleGaussianPsf.def("getB", &DoubleGaussianPsf::getB);
+        cls.def("clone", &DoubleGaussianPsf::clone);
+        cls.def("resized", &DoubleGaussianPsf::resized, "width"_a, "height"_a);
+        cls.def("getSigma1", &DoubleGaussianPsf::getSigma1);
+        cls.def("getSigma2", &DoubleGaussianPsf::getSigma2);
+        cls.def("getB", &DoubleGaussianPsf::getB);
+    });
+    afw::table::io::python::addPersistableMethods<DoubleGaussianPsf>(clsDef);
 }
-
 }  // namespace
+
+void wrapDoubleGaussianPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareDoubleGaussianPsf(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

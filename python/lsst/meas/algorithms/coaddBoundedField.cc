@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 #include "pybind11/stl.h"
 
 #include "lsst/geom/Box.h"
@@ -34,56 +35,58 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_MODULE(coaddBoundedField, mod) {
-    py::class_<CoaddBoundedFieldElement> clsCoaddBoundedFieldElement(mod, "CoaddBoundedFieldElement");
+void declareCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PyElement = py::class_<CoaddBoundedFieldElement>;
+    static auto clsElement = wrappers.wrapType(PyElement(wrappers.module, "CoaddBoundedFieldElement"), [](auto &mod, auto &cls) {
+        cls.def(py::init([](std::shared_ptr<afw::math::BoundedField> field,
+                            std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
+                    if (polygon.is(py::none())) {
+                        return new CoaddBoundedFieldElement(field, wcs, nullptr, weight);
+                    } else {
+                        auto pgon = py::cast<std::shared_ptr<afw::geom::polygon::Polygon const>>(polygon);
+                        return new CoaddBoundedFieldElement(field, wcs, pgon, weight);
+                    }
+                }),
+                "field"_a, "wcs"_a, "validPolygon"_a, "weight"_a = 1.0);
+        cls.def_readwrite("field", &CoaddBoundedFieldElement::field);
+        cls.def_readwrite("wcs", &CoaddBoundedFieldElement::wcs);
+        cls.def_readwrite("validPolygon", &CoaddBoundedFieldElement::validPolygon);
+        cls.def_readwrite("weight", &CoaddBoundedFieldElement::weight);
 
-    clsCoaddBoundedFieldElement.def(
-            py::init([](std::shared_ptr<afw::math::BoundedField> field,
-                        std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
-                if (polygon.is(py::none())) {
-                    return new CoaddBoundedFieldElement(field, wcs, nullptr, weight);
-                } else {
-                    auto pgon = py::cast<std::shared_ptr<afw::geom::polygon::Polygon const>>(polygon);
-                    return new CoaddBoundedFieldElement(field, wcs, pgon, weight);
-                }
-            }),
-            "field"_a, "wcs"_a, "validPolygon"_a, "weight"_a = 1.0);
+        cls.def("__eq__", &CoaddBoundedFieldElement::operator==, py::is_operator());
+        cls.def("__ne__", &CoaddBoundedFieldElement::operator!=, py::is_operator());
+    });
+    using PyClass = py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>, afw::math::BoundedField>;
+    auto clsField = wrappers.wrapType(PyClass(wrappers.module, "CoaddBoundedField"), [](auto &mod, auto &cls) {
 
-    clsCoaddBoundedFieldElement.def_readwrite("field", &CoaddBoundedFieldElement::field);
-    clsCoaddBoundedFieldElement.def_readwrite("wcs", &CoaddBoundedFieldElement::wcs);
-    clsCoaddBoundedFieldElement.def_readwrite("validPolygon", &CoaddBoundedFieldElement::validPolygon);
-    clsCoaddBoundedFieldElement.def_readwrite("weight", &CoaddBoundedFieldElement::weight);
+        cls.attr("Element") = clsElement;
 
-    clsCoaddBoundedFieldElement.def("__eq__", &CoaddBoundedFieldElement::operator==, py::is_operator());
-    clsCoaddBoundedFieldElement.def("__ne__", &CoaddBoundedFieldElement::operator!=, py::is_operator());
+        /* Constructors */
+        cls.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
+                                         typename CoaddBoundedField::ElementVector const &>(),
+                                 "bbox"_a, "coaddWcs"_a, "elements"_a);
+        cls.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
+                                         typename CoaddBoundedField::ElementVector const &, double>(),
+                                 "bbox"_a, "coaddWcs"_a, "elements"_a, "default"_a);
 
-    py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>, afw::math::BoundedField>
-            clsCoaddBoundedField(mod, "CoaddBoundedField");
-    afw::table::io::python::addPersistableMethods<CoaddBoundedField>(clsCoaddBoundedField);
+        /* Operators */
+        cls.def("__eq__", &CoaddBoundedField::operator==, py::is_operator());
+        cls.def("__ne__", &CoaddBoundedField::operator!=, py::is_operator());
+        cls.def("__imul__", &CoaddBoundedField::operator*);
 
-    clsCoaddBoundedField.attr("Element") = clsCoaddBoundedFieldElement;
-
-    /* Constructors */
-    clsCoaddBoundedField.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
-                                      typename CoaddBoundedField::ElementVector const &>(),
-                             "bbox"_a, "coaddWcs"_a, "elements"_a);
-    clsCoaddBoundedField.def(py::init<geom::Box2I const &, std::shared_ptr<afw::geom::SkyWcs const>,
-                                      typename CoaddBoundedField::ElementVector const &, double>(),
-                             "bbox"_a, "coaddWcs"_a, "elements"_a, "default"_a);
-
-    /* Operators */
-    clsCoaddBoundedField.def("__eq__", &CoaddBoundedField::operator==, py::is_operator());
-    clsCoaddBoundedField.def("__ne__", &CoaddBoundedField::operator!=, py::is_operator());
-    clsCoaddBoundedField.def("__imul__", &CoaddBoundedField::operator*);
-
-    /* Members */
-    clsCoaddBoundedField.def("evaluate", &CoaddBoundedField::evaluate);
-    clsCoaddBoundedField.def("getCoaddWcs", &CoaddBoundedField::getCoaddWcs);
-    clsCoaddBoundedField.def("getDefault", &CoaddBoundedField::getDefault);
-    clsCoaddBoundedField.def("getElements", &CoaddBoundedField::getElements);
+        /* Members */
+        cls.def("evaluate", &CoaddBoundedField::evaluate);
+        cls.def("getCoaddWcs", &CoaddBoundedField::getCoaddWcs);
+        cls.def("getDefault", &CoaddBoundedField::getDefault);
+        cls.def("getElements", &CoaddBoundedField::getElements);
+    });
+    afw::table::io::python::addPersistableMethods<CoaddBoundedField>(clsField);
 }
 
 }  // namespace
+void wrapCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareCoaddBoundedField(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

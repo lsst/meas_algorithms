@@ -21,6 +21,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/meas/algorithms/CoaddTransmissionCurve.h"
 
@@ -30,16 +31,11 @@ using namespace pybind11::literals;
 namespace lsst {
 namespace meas {
 namespace algorithms {
-namespace {
 
-PYBIND11_MODULE(coaddTransmissionCurve, mod) {
-    py::module::import("lsst.afw.geom");
-    py::module::import("lsst.afw.image");
-    py::module::import("lsst.afw.table");
-    mod.def("makeCoaddTransmissionCurve", &makeCoaddTransmissionCurve, "coaddWcs"_a, "inputSensors"_a);
+void wrapCoaddTransmissionCurve(lsst::cpputils::python::WrapperCollection &wrappers) {
+    wrappers.module.def("makeCoaddTransmissionCurve", &makeCoaddTransmissionCurve, "coaddWcs"_a, "inputSensors"_a);
 }
 
-}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

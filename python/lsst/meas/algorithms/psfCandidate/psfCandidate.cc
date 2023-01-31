@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/meas/algorithms/PsfCandidate.h"
 
@@ -32,50 +33,51 @@ namespace algorithms {
 namespace {
 
 template <typename PixelT>
-void declarePsfCandidate(py::module& mod, std::string const& suffix) {
+void declarePsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers, std::string const& suffix) {
     using Class = PsfCandidate<PixelT>;
+    using PyClass = py::class_<Class, std::shared_ptr<Class>, afw::math::SpatialCellImageCandidate>;
+    std::string name = "PsfCandidate" + suffix;
 
-    py::class_<Class, std::shared_ptr<Class>, afw::math::SpatialCellImageCandidate> cls(
-            mod, ("PsfCandidate" + suffix).c_str());
+    wrappers.wrapType(PyClass(wrappers.module, name.c_str()), [](auto &mod, auto &cls) {
+        cls.def(py::init<std::shared_ptr<afw::table::SourceRecord> const &,
+                        std::shared_ptr<afw::image::Exposure<PixelT> const>>(),
+                "source"_a, "parentExposure"_a);
+        cls.def(py::init<std::shared_ptr<afw::table::SourceRecord> const &,
+                        std::shared_ptr<afw::image::Exposure<PixelT> const>, double, double>(),
+                "source"_a, "parentExposure"_a, "xCenter"_a, "yCenter"_a);
 
-    cls.def(py::init<std::shared_ptr<afw::table::SourceRecord> const&,
-                     std::shared_ptr<afw::image::Exposure<PixelT> const>>(),
-            "source"_a, "parentExposure"_a);
-    cls.def(py::init<std::shared_ptr<afw::table::SourceRecord> const&,
-                     std::shared_ptr<afw::image::Exposure<PixelT> const>, double, double>(),
-            "source"_a, "parentExposure"_a, "xCenter"_a, "yCenter"_a);
+        /* SpatialCellCandidate.getCandidateRating is defined in Python.
+         * Therefore we cannot override it from the C++ wrapper.
+         * Instead we give it a temporary name here, and assign it to the
+         * class from Python. */
+        cls.def("_getCandidateRating", &Class::getCandidateRating);
+        cls.def("getSource", &Class::getSource);
+        cls.def("getAmplitude", &Class::getAmplitude);
+        cls.def("setAmplitude", &Class::setAmplitude);
+        cls.def("getVar", &Class::getVar);
+        cls.def("setVar", &Class::setVar);
+        cls.def("getMaskedImage", (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)() const) &
+                Class::getMaskedImage);
+        cls.def("getMaskedImage",
+                (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)(int, int) const) &
+                        Class::getMaskedImage,
+                "width"_a, "height"_a);
+        cls.def("getOffsetImage", &Class::getOffsetImage);
+        cls.def_static("getBorderWidth", &Class::getBorderWidth);
+        cls.def_static("setBorderWidth", &Class::setBorderWidth);
+        cls.def_static("setPixelThreshold", &Class::setPixelThreshold);
+        cls.def_static("getPixelThreshold", &Class::getPixelThreshold);
+        cls.def_static("setMaskBlends", &Class::setMaskBlends);
+        cls.def_static("getMaskBlends", &Class::getMaskBlends);
 
-    /* SpatialCellCandidate.getCandidateRating is defined in Python.
-     * Therefore we cannot override it from the C++ wrapper.
-     * Instead we give it a temporary name here, and assign it to the
-     * class from Python. */
-    cls.def("_getCandidateRating", &Class::getCandidateRating);
-    cls.def("getSource", &Class::getSource);
-    cls.def("getAmplitude", &Class::getAmplitude);
-    cls.def("setAmplitude", &Class::setAmplitude);
-    cls.def("getVar", &Class::getVar);
-    cls.def("setVar", &Class::setVar);
-    cls.def("getMaskedImage", (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)() const) &
-                                      Class::getMaskedImage);
-    cls.def("getMaskedImage",
-            (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)(int, int) const) &
-                    Class::getMaskedImage,
-            "width"_a, "height"_a);
-    cls.def("getOffsetImage", &Class::getOffsetImage);
-    cls.def_static("getBorderWidth", &Class::getBorderWidth);
-    cls.def_static("setBorderWidth", &Class::setBorderWidth);
-    cls.def_static("setPixelThreshold", &Class::setPixelThreshold);
-    cls.def_static("getPixelThreshold", &Class::getPixelThreshold);
-    cls.def_static("setMaskBlends", &Class::setMaskBlends);
-    cls.def_static("getMaskBlends", &Class::getMaskBlends);
-
-    mod.def("makePsfCandidate", makePsfCandidate<PixelT>, "source"_a, "image"_a);
+        mod.def("makePsfCandidate", makePsfCandidate<PixelT>, "source"_a, "image"_a);
+    });
 }
 
 }  // namespace
 
-PYBIND11_MODULE(psfCandidate, mod) {
-    declarePsfCandidate<float>(mod, "F");
+void wapPsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declarePsfCandidate<float>(wrappers, "F");
 }
 
 }  // namespace algorithms

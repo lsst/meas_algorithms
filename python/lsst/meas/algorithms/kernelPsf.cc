@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/geom/Point.h"
 #include "lsst/afw/table/io/python.h"
@@ -32,20 +33,24 @@ namespace lsst {
 namespace meas {
 namespace algorithms {
 namespace {
+void declareKernelPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PyKernelPsf = py::class_<KernelPsf, std::shared_ptr<KernelPsf>, ImagePsf>;
 
-PYBIND11_MODULE(kernelPsf, mod) {
-    py::class_<KernelPsf, std::shared_ptr<KernelPsf>, ImagePsf> clsKernelPsf(mod, "KernelPsf");
+    auto clsKernelPsf = wrappers.wrapType(PyKernelPsf(wrappers.module, "KernelPsf"), [](auto &mod, auto &cls) {
+        cls.def(py::init<afw::math::Kernel const &, geom::Point2D const &>(), "kernel"_a,
+                "averagePosition"_a = geom::Point2D());
+
+        cls.def("getKernel", &KernelPsf::getKernel);
+        cls.def("getAveragePosition", &KernelPsf::getAveragePosition);
+        cls.def("clone", &KernelPsf::clone);
+    });
     afw::table::io::python::addPersistableMethods<KernelPsf>(clsKernelPsf);
-
-    clsKernelPsf.def(py::init<afw::math::Kernel const &, geom::Point2D const &>(), "kernel"_a,
-                     "averagePosition"_a = geom::Point2D());
-
-    clsKernelPsf.def("getKernel", &KernelPsf::getKernel);
-    clsKernelPsf.def("getAveragePosition", &KernelPsf::getAveragePosition);
-    clsKernelPsf.def("clone", &KernelPsf::clone);
 }
-
 }  // namespace
+
+void wrapKernelPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareKernelPsf(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

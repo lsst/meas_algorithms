@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/utils/python/PySharedPtr.h"
 #include "lsst/afw/table/io/python.h"
@@ -36,16 +37,18 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_MODULE(imagePsf, mod) {
-    py::module::import("lsst.afw.detection");
-
-    py::class_<ImagePsf, PySharedPtr<ImagePsf>, afw::detection::Psf, ImagePsfTrampoline<>> clsImagePsf(
-            mod, "ImagePsf");
-    clsImagePsf.def(py::init<bool>(), "init", "isFixed"_a = false);  // Ctor for pure python subclasses
+void declareImagePsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PyImagePsf = py::class_<ImagePsf, PySharedPtr<ImagePsf>, afw::detection::Psf, ImagePsfTrampoline<>>;
+    auto clsImagePsf = wrappers.wrapType(PyImagePsf(wrappers.module, "ImagePsf"), [](auto &mod, auto &cls) {
+        cls.def(py::init<bool>(), "init", "isFixed"_a = false);  // Ctor for pure python subclasses
+    });
     afw::table::io::python::addPersistableMethods<ImagePsf>(clsImagePsf);
 }
-
 }  // namespace
+
+void wrapImagePsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareImagePsf(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

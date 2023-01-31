@@ -21,5 +21,5 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-from .coaddPsf import *
+from .._algorithmsLib import CoaddPsfControl, CoaddPsf
 from .coaddPsfContinued import *

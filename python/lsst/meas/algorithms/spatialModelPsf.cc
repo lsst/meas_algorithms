@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 #include "pybind11/stl.h"
 
 #include "lsst/meas/algorithms/SpatialModelPsf.h"
@@ -33,9 +34,9 @@ namespace algorithms {
 namespace {
 
 template <typename PixelT>
-static void declareFunctions(py::module &mod) {
+void declareFunctions(lsst::cpputils::python::WrapperCollection &wrappers) {
     using MaskedImageT = afw::image::MaskedImage<PixelT, afw::image::MaskPixel, afw::image::VariancePixel>;
-
+    auto &mod = wrappers.module;
     mod.def("createKernelFromPsfCandidates", createKernelFromPsfCandidates<PixelT>, "psfCells"_a, "dims"_a,
             "xy0"_a, "nEigenComponents"_a, "spatialOrder"_a, "ksize"_a, "nStarPerCell"_a = -1,
             "constantWeight"_a = true, "border"_a = 3);
@@ -55,12 +56,12 @@ static void declareFunctions(py::module &mod) {
     mod.def("fitKernelParamsToImage", fitKernelParamsToImage<MaskedImageT>, "kernel"_a, "image"_a, "pos"_a);
     mod.def("fitKernelToImage", fitKernelToImage<MaskedImageT>, "kernel"_a, "image"_a, "pos"_a);
 }
+}  // namespace
 
-PYBIND11_MODULE(spatialModelPsf, mod) {
-    declareFunctions<float>(mod);
+void wrapSpatialModelPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareFunctions<float>(wrappers);
 }
 
-}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

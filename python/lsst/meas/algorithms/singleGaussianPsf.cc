@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/SingleGaussianPsf.h"
@@ -32,19 +33,23 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_MODULE(singleGaussianPsf, mod) {
-    py::class_<SingleGaussianPsf, std::shared_ptr<SingleGaussianPsf>, KernelPsf> clsSingleGaussianPsf(
-            mod, "SingleGaussianPsf");
+void declareSingleGaussianPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PySingleGaussianPsf = py::class_<SingleGaussianPsf, std::shared_ptr<SingleGaussianPsf>, KernelPsf>;
+    auto clsSingleGaussianPsf =
+            wrappers.wrapType(PySingleGaussianPsf(wrappers.module, "SingleGaussianPsf"), [](auto &mod, auto &cls) {
+
+                cls.def(py::init<int, int, double>(), "width"_a, "height"_a, "sigma"_a);
+                cls.def("clone", &SingleGaussianPsf::clone);
+                cls.def("resized", &SingleGaussianPsf::resized, "width"_a, "height"_a);
+                cls.def("getSigma", &SingleGaussianPsf::getSigma);
+            });
     afw::table::io::python::addPersistableMethods<SingleGaussianPsf>(clsSingleGaussianPsf);
-
-    clsSingleGaussianPsf.def(py::init<int, int, double>(), "width"_a, "height"_a, "sigma"_a);
-
-    clsSingleGaussianPsf.def("clone", &SingleGaussianPsf::clone);
-    clsSingleGaussianPsf.def("resized", &SingleGaussianPsf::resized, "width"_a, "height"_a);
-    clsSingleGaussianPsf.def("getSigma", &SingleGaussianPsf::getSigma);
 }
 
 }  // namespace
+void wrapSingleGaussianPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareSingleGaussianPsf(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

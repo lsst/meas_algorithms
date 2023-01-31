@@ -23,7 +23,7 @@
 __all__ = ["makeCoaddApCorrMap", ]
 
 from lsst.afw.image import ApCorrMap
-from .coaddBoundedField import CoaddBoundedField, CoaddBoundedFieldElement
+from ._algorithmsLib import CoaddBoundedField, CoaddBoundedFieldElement
 
 
 def makeCoaddApCorrMap(catalog, coaddBox, coaddWcs, weightFieldName="weight"):
