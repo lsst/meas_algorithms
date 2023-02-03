@@ -110,9 +110,8 @@ class MakePsfCandidatesTask(pipeBase.Task):
         psfCandidateList = []
         didSetSize = False
         for star in starCat:
+            psfCandidate = makePsfCandidate(star, exposure)
             try:
-                psfCandidate = makePsfCandidate(star, exposure)
-
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know exposures's pixel type
                 # (and hence psfCandidate's exact type)
