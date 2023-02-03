@@ -123,8 +123,14 @@ class MakePsfCandidatesTask(pipeBase.Task):
                     didSetSize = True
 
                 im = psfCandidate.getMaskedImage().getImage()
-            except lsst.pex.exceptions.Exception as err:
-                self.log.warning("Failed to make a psfCandidate from star %d: %s", star.getId(), err)
+            except lsst.pex.exceptions.LengthError:
+                self.log.warning("Could not get stamp for psfCandidate with source id=%s: %s",
+                                 star.getId(), psfCandidate)
+                continue
+            except lsst.pex.exceptions.Exception as e:
+                self.log.error("%s raised making psfCandidate from source id=%s: %s",
+                               e.__class__.__name__, star.getId(), psfCandidate)
+                self.log.error("psfCandidate exception: %s", e)
                 continue
 
             vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
