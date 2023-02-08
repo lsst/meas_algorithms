@@ -52,11 +52,12 @@ def makeEmptyCatalog(psfCandidateField=None):
     """
     schema = afwTable.SourceTable.makeMinimalSchema()
     lsst.afw.table.Point2DKey.addFields(schema, "centroid", "centroid", "pixels")
+    schema.addField("psfFlux_instFlux", type="D", doc="a place to link psf slot to")
     if psfCandidateField is not None:
         schema.addField(psfCandidateField, type="Flag", doc="Is a psfCandidate?")
     catalog = afwTable.SourceCatalog(schema)
     catalog.defineCentroid('centroid')
-
+    catalog.definePsfFlux("psfFlux")
     return catalog
 
 
@@ -102,6 +103,7 @@ def createFakeSource(x, y, catalog, exposure, threshold=0.1):
     assert found, "Unable to find central peak in footprint: faulty test"
 
     source.setFootprint(fp)
+    source["psfFlux_instFlux"] = exposure.image[x, y, afwImage.LOCAL]
     return source
 
 
@@ -197,6 +199,12 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
         from the one of interest, which should be masked.
         """
         self.checkCandidateMasking([(self.x + 5, self.y, 0.5)], threshold=0.9, pixelThreshold=1.0)
+
+    def testStr(self):
+        candidate = self.createCandidate()
+        candidate.setChi2(2.0)
+        expect = "center=(123.0,45.0), status=UNKNOWN, rating=1.0, size=(0, 0), chi2=2.0, amplitude=0.0"
+        self.assertEqual(str(candidate), expect)
 
 
 class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):

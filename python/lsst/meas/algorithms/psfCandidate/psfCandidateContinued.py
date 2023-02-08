@@ -23,6 +23,7 @@
 
 __all__ = []  # import only for side effects
 
+from lsst.afw.math import SpatialCellImageCandidate
 from lsst.utils import continueClass
 from .psfCandidate import PsfCandidateF
 
@@ -34,3 +35,7 @@ class PsfCandidateF:
     def setCandidateRating(self, rating):
         raise NotImplementedError(("must not exist for this type "
                                    "since getCandidateRating is calculated"))
+
+    def __repr__(self):
+        return (f"{SpatialCellImageCandidate.__repr__(self)}, "
+                f"amplitude={self.getAmplitude()}")
