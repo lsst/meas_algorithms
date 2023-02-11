@@ -34,10 +34,10 @@ import lsst.afw.geom.ellipses as afwEll
 import lsst.afw.display as afwDisplay
 import lsst.afw.math as afwMath
 from .psfDeterminer import BasePsfDeterminerTask, psfDeterminerRegistry
-from .psfCandidate import PsfCandidateF
-from .spatialModelPsf import createKernelFromPsfCandidates, countPsfCandidates, \
+from ._algorithmsLib import PsfCandidateF
+from ._algorithmsLib import createKernelFromPsfCandidates, countPsfCandidates, \
     fitSpatialKernelFromPsfCandidates, fitKernelParamsToImage
-from .pcaPsf import PcaPsf
+from ._algorithmsLib import PcaPsf
 from . import utils
 
 

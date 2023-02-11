@@ -25,7 +25,7 @@ __all__ = []  # import only for side effects
 
 from lsst.afw.math import SpatialCellImageCandidate
 from lsst.utils import continueClass
-from .psfCandidate import PsfCandidateF
+from .._algorithmsLib import PsfCandidateF
 
 
 @continueClass

@@ -26,8 +26,7 @@ __all__ = ["GaussianPsfFactory", "SigmaPerFwhm"]
 import math
 
 from lsst.pex.config import Config, Field, ConfigurableField
-from .singleGaussianPsf import SingleGaussianPsf
-from .doubleGaussianPsf import DoubleGaussianPsf
+from ._algorithmsLib import DoubleGaussianPsf, SingleGaussianPsf
 
 SigmaPerFwhm = 1.0 / (2.0 * math.sqrt(2.0 * math.log(2.0)))
 

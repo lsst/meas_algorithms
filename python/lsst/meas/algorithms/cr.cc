@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 #include "pybind11/stl.h"
 
 #include "lsst/afw/detection/Footprint.h"
@@ -35,16 +36,15 @@ namespace algorithms {
 namespace {
 
 template <typename PixelT>
-void declareFindCosmicRays(py::module& mod) {
-    mod.def("findCosmicRays", &findCosmicRays<afw::image::MaskedImage<PixelT>>, "image"_a, "psf"_a, "bkgd"_a,
+void declareFindCosmicRays(lsst::cpputils::python::WrapperCollection &wrappers) {
+    wrappers.module.def("findCosmicRays", &findCosmicRays<afw::image::MaskedImage<PixelT>>, "image"_a, "psf"_a, "bkgd"_a,
             "policy"_a, "keep"_a = false);
 }
-
-PYBIND11_MODULE(cr, mod) {
-    declareFindCosmicRays<float>(mod);
+}  // namespace
+void wrapCr(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareFindCosmicRays<float>(wrappers);
 }
 
-}  // namespace
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

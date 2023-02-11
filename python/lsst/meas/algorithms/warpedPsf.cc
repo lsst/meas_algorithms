@@ -20,6 +20,7 @@
  * see <https://www.lsstcorp.org/LegalNotices/>.
  */
 #include "pybind11/pybind11.h"
+#include "lsst/cpputils/python.h"
 
 #include "lsst/utils/python/PySharedPtr.h"
 
@@ -35,25 +36,28 @@ namespace meas {
 namespace algorithms {
 namespace {
 
-PYBIND11_MODULE(warpedPsf, mod) {
-    py::class_<WarpedPsf, PySharedPtr<WarpedPsf>, ImagePsf> clsWarpedPsf(mod, "WarpedPsf", py::is_final());
+void declareWarpedPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    using PyWarpedPsf = py::class_<WarpedPsf, PySharedPtr<WarpedPsf>, ImagePsf>;
+    wrappers.wrapType(PyWarpedPsf(wrappers.module, "WarpedPsf", py::is_final()), [](auto &mod, auto &cls) {
+        /* Constructors */
+        cls.def(py::init<std::shared_ptr<afw::detection::Psf const>,
+                                 std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const>,
+                                 std::shared_ptr<afw::math::WarpingControl const>>(),
+                         "undistortedPsf"_a, "distortion"_a, "control"_a);
+        cls.def(py::init<std::shared_ptr<afw::detection::Psf const>,
+                                 std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const>, std::string const &,
+                                 unsigned int>(),
+                         "undistortedPsf"_a, "distortion"_a, "kernelName"_a = "lanczos3", "cache"_a = 10000);
 
-    /* Constructors */
-    clsWarpedPsf.def(py::init<std::shared_ptr<afw::detection::Psf const>,
-                              std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const>,
-                              std::shared_ptr<afw::math::WarpingControl const>>(),
-                     "undistortedPsf"_a, "distortion"_a, "control"_a);
-    clsWarpedPsf.def(py::init<std::shared_ptr<afw::detection::Psf const>,
-                              std::shared_ptr<afw::geom::TransformPoint2ToPoint2 const>, std::string const &,
-                              unsigned int>(),
-                     "undistortedPsf"_a, "distortion"_a, "kernelName"_a = "lanczos3", "cache"_a = 10000);
-
-    /* Members */
-    clsWarpedPsf.def("getAveragePosition", &WarpedPsf::getAveragePosition);
-    clsWarpedPsf.def("clone", &WarpedPsf::clone);
+        /* Members */
+        cls.def("getAveragePosition", &WarpedPsf::getAveragePosition);
+        cls.def("clone", &WarpedPsf::clone);
+    });
 }
-
 }  // namespace
+void wrapWarpedPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
+    declareWarpedPsf(wrappers);
+}
 }  // namespace algorithms
 }  // namespace meas
 }  // namespace lsst

@@ -26,19 +26,9 @@
 import lsst.afw.image
 import lsst.afw.math
 
-from .cr import *
-from .coaddBoundedField import *
-from .imagePsf import *
-from .interp import *
-from .kernelPsf import *
-from .pcaPsf import *
+from._algorithmsLib import *
 from .psfCandidate import * #python
-from .singleGaussianPsf import *
-from .spatialModelPsf import *
-from .warpedPsf import *
 from .coaddPsf import *
-from .coaddTransmissionCurve import *
-from .doubleGaussianPsf import *
 from .simple_curve import *
 
 from .psfDeterminer import *

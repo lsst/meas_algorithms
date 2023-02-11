@@ -21,5 +21,5 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-from .psfCandidate import *
+from .._algorithmsLib import PsfCandidateF
 from .psfCandidateContinued import *

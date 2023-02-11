@@ -1,16 +1,18 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.pybind11(["cr",
-                                  "coaddBoundedField",
-                                  "coaddPsf/coaddPsf",
-                                  "coaddTransmissionCurve",
-                                  "doubleGaussianPsf",
-                                  "imagePsf",
-                                  "interp",
-                                  "kernelPsf",
-                                  "pcaPsf",
-                                  "psfCandidate/psfCandidate",
-                                  "singleGaussianPsf",
-                                  "spatialModelPsf",
-                                  "warpedPsf"], addUnderscore=False)
 
+scripts.BasicSConscript.python(['_algorithmsLib'], [
+    '_algorithmsLib.cc',
+    'cr.cc',
+    'coaddBoundedField.cc',
+    'coaddPsf/coaddPsf.cc',
+    'coaddTransmissionCurve.cc',
+    'doubleGaussianPsf.cc',
+    'imagePsf.cc',
+    'interp.cc',
+    'kernelPsf.cc',
+    'pcaPsf.cc',
+    'psfCandidate/psfCandidate.cc',
+    'singleGaussianPsf.cc',
+    'spatialModelPsf.cc',
+    'warpedPsf.cc'])
