@@ -47,44 +47,35 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
 
     def makeCatalog(self, apCorrScale=1.0, numSources=5):
         sourceCat = afwTable.SourceCatalog(self.schema)
-        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.sourceSelector.active.field).key
 
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
         x = np.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
         y = np.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
         for _i in range(numSources):
-            source_test_instFlux = 5.1
             source_test_centroid = lsst.geom.Point2D(x[_i], y[_i])
             source = sourceCat.addNew()
             source.set(centroidKey, source_test_centroid)
-            source.set(inputFilterFlagKey, True)
+            # All sources are unresolved.
+            source[self.unresolvedName] = 0.0
+
+        source_test_instFlux = 5.1
+        source_test_instFluxErr = 1e-3
 
         for name in self.names:
-            fluxName = name + "_instFlux"
-            flagName = name + "_flag"
-            fluxErrName = name + "_instFluxErr"
-            apFluxName = name + self.apNameStr + "_instFlux"
-            apFlagName = name + self.apNameStr + "_flag"
-            apFluxErrName = name + self.apNameStr + "_instFluxErr"
-            fluxKey = self.schema.find(fluxName).key
-            flagKey = self.schema.find(flagName).key
-            fluxErrKey = self.schema.find(fluxErrName).key
-            apFluxKey = self.schema.find(apFluxName).key
-            apFlagKey = self.schema.find(apFlagName).key
-            apFluxErrKey = self.schema.find(apFluxErrName).key
-            for source in sourceCat:
-                source.set(fluxKey, source_test_instFlux)
-                source.set(apFluxKey, source_test_instFlux * apCorrScale)
-                source.set(fluxErrKey, 0.)
-                source.set(apFluxErrKey, 0.)
-                source.set(flagKey, False)
-                source.set(apFlagKey, False)
+            sourceCat[name + "_instFlux"] = source_test_instFlux
+            sourceCat[name + "_instFluxErr"] = source_test_instFluxErr
+            sourceCat[name + "_flag"] = np.zeros(len(sourceCat), dtype=bool)
+            sourceCat[name + self.apNameStr + "_instFlux"] = source_test_instFlux * apCorrScale
+            sourceCat[name + self.apNameStr + "_instFluxErr"] = source_test_instFluxErr * apCorrScale
+            sourceCat[name + self.apNameStr + "_flag"] = np.zeros(len(sourceCat), dtype=bool)
+
         return(sourceCat)
 
     def setUp(self):
         schema = afwTable.SourceTable.makeMinimalSchema()
         apNameStr = "Ap"
-        calib_flag_name = "cal_source_use"
+        config = measureApCorr.MeasureApCorrTask.ConfigClass()
+        unresolvedName = config.sourceSelector.active.unresolved.name
         # Add fields in anti-sorted order to try to impose a need for sorting
         # in the addition of the apCorr fields (may happen by fluke, but this
         # is the best we can do to test this here.
@@ -101,15 +92,27 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         schema.addField(names[0] + "_Centroid_x", type=float)
         schema.addField(names[0] + "_Centroid_y", type=float)
         schema.getAliasMap().set("slot_Centroid", names[0] + "_Centroid")
-        schema.addField(calib_flag_name, type="Flag")
-        config = measureApCorr.MeasureApCorrTask.ConfigClass()
+        schema.addField(unresolvedName, type=float)
+        schema.addField("deblend_nChild", type=np.int32)
+        for flag in [
+            "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_interpolatedCenter",
+            "base_PixelFlags_flag_saturatedCenter",
+            "base_PixelFlags_flag_crCenter",
+            "base_PixelFlags_flag_bad",
+            "base_PixelFlags_flag_interpolated",
+            "base_PixelFlags_flag_saturated",
+        ]:
+            schema.addField(flag, type="Flag")
         config.refFluxName = names[0]
-        config.sourceSelector.active.field = calib_flag_name
+        config.sourceSelector["science"].signalToNoise.fluxField = names[0] + "_instFlux"
+        config.sourceSelector["science"].signalToNoise.errField = names[0] + "_instFluxErr"
         self.meas_apCorr_task = measureApCorr.MeasureApCorrTask(schema=schema, config=config)
         self.names = names
         self.apNameStr = apNameStr
         self.schema = schema
         self.exposure = lsst.afw.image.ExposureF(10, 10)
+        self.unresolvedName = unresolvedName
 
     def tearDown(self):
         del self.schema
@@ -147,35 +150,42 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
 
     def testTooFewSources(self):
         """ If there are too few sources, check that an exception is raised."""
+        # Create an empty catalog with no sources to process.
         catalog = afwTable.SourceCatalog(self.schema)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaisesRegex(RuntimeError, "only 0 sources, but"):
             self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
-        # With the measurement algorithm declared as something that might fail, should not get an exception
+
+        # We now try again after declaring that the aperture correction is
+        # allowed to fail. This should run cleanly without raising an exception.
         for name in self.names:
             self.meas_apCorr_task.config.allowFailure.append(name + self.apNameStr)
         self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
     def testSourceNotUsed(self):
         """ Check that a source outside the bounding box is flagged as not used (False)."""
-        fluxName = self.names[0] + "_instFlux"
-        apCorrFlagKey = self.schema.find("apcorr_" + self.names[0] + "_used").key
         sourceCat = self.makeCatalog()
         source = sourceCat.addNew()
-        source_test_instFlux = 5.1
-        source_test_centroid = lsst.geom.Point2D(15, 7.1)
-        fluxKey = self.schema.find(fluxName).key
+        nameAp = self.names[0] + "Ap"
+        source[nameAp + "_instFlux"] = 5.1
+        source[nameAp + "_instFluxErr"] = 1e-3
+        source[self.meas_apCorr_task.config.refFluxName + "_instFlux"] = 5.1
+        source[self.meas_apCorr_task.config.refFluxName + "_instFluxErr"] = 1e-3
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
-        source.set(fluxKey, source_test_instFlux)
-        source.set(centroidKey, source_test_centroid)
+        source.set(centroidKey, lsst.geom.Point2D(15, 7.1))
+        apCorrFlagName = "apcorr_" + nameAp + "_used"
+
         self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
-        self.assertFalse(sourceCat[apCorrFlagKey][-1])
+        # Check that all but the final source are used.
+        self.assertTrue(sourceCat[apCorrFlagName][0: -1].all())
+        # Check that the final source is not used.
+        self.assertFalse(sourceCat[apCorrFlagName][-1])
 
     def testSourceUsed(self):
         """Check that valid sources inside the bounding box that are used have their flags set to True."""
-        inputFilterFlagKey = self.schema.find(self.meas_apCorr_task.config.sourceSelector.active.field).key
         sourceCat = self.makeCatalog()
         self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
-        self.assertTrue(sourceCat[inputFilterFlagKey].all())
+        for name in self.names:
+            self.assertTrue(sourceCat["apcorr_" + name + self.apNameStr + "_used"].all())
 
     def testApertureMeasOnes(self):
         """ Check that sources with aperture fluxes exactly the same as their catalog fluxes
@@ -198,6 +208,50 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         test_fill = afwImage.ImageF(self.exposure.getBBox())
         struct.apCorrMap[apFluxName].fillImage(test_fill)
         np.testing.assert_allclose(test_fill.getArray(), default_fill.getArray())
+
+    def testFilterBadValue(self):
+        """Check that the aperture correction filters a bad value."""
+        sourceCat = self.makeCatalog()
+        source = sourceCat.addNew()
+        nameAp = self.names[0] + self.apNameStr
+        source[nameAp + "_instFlux"] = 100.0
+        source[nameAp + "_instFluxErr"] = 1e-3
+        source[self.meas_apCorr_task.config.refFluxName + "_instFlux"] = 5.1
+        source[self.meas_apCorr_task.config.refFluxName + "_instFluxErr"] = 1e-3
+        source[self.unresolvedName] = 0.0
+        centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
+        x = self.exposure.getX0() + 1
+        y = self.exposure.getY0() + 1
+        source.set(centroidKey, lsst.geom.Point2D(x, y))
+
+        self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
+
+        # Check that both Ap fluxes are removed as outliers; one is due
+        # to being unfilled (nan), the other is a large outlier.
+        for name in self.names:
+            apCorrFlagName = "apcorr_" + name + self.apNameStr + "_used"
+            # Check that all but the final source are used.
+            self.assertTrue(sourceCat[apCorrFlagName][0: -1].all())
+            # Check that the final source is not used.
+            self.assertFalse(sourceCat[apCorrFlagName][-1])
+
+    def testTooFewSourcesAfterFiltering(self):
+        """Check that the aperture correction fails when too many are filtered."""
+        sourceCat = self.makeCatalog()
+        self.meas_apCorr_task.config.minDegreesOfFreedom = 4
+
+        for name in self.names:
+            nameAp = name + self.apNameStr
+            sourceCat[nameAp + "_instFlux"][0] = 100.0
+
+        with self.assertRaisesRegex(RuntimeError, "only 4 sources remain"):
+            self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
+
+        # We now try again after declaring that the aperture correction is
+        # allowed to fail. This should run cleanly without raising an exception.
+        for name in self.names:
+            self.meas_apCorr_task.config.allowFailure.append(name + self.apNameStr)
+        self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
