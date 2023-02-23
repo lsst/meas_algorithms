@@ -283,7 +283,6 @@ class SourceDetectionTask(pipeBase.Task):
                     record.set(self.negativeFlagKey, True)
         if results.positive:
             results.positive.makeSources(sources)
-        results.fpSets = results.copy()  # Backward compatibility
         results.sources = sources
         return results
 

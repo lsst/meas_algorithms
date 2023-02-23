@@ -86,11 +86,10 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
         table = afwTable.SourceTable.make(schema)
         detections = detection.run(table, exposure)
         sources = detections.sources
-        fpSets = detections.fpSets
 
         self.assertEqual(len(sources), numX*numY)
-        self.assertEqual(fpSets.numPos, numX*numY/2)
-        self.assertEqual(fpSets.numNeg, numX*numY/2)
+        self.assertEqual(detections.numPos, numX*numY/2)
+        self.assertEqual(detections.numNeg, numX*numY/2)
 
         measurement.run(sources, exposure)
 
