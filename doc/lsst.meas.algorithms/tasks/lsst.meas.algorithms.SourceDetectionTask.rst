@@ -88,8 +88,8 @@ We can then unpack the results:
 .. code-block:: py
 
    sources = result.sources
-   print("Found %d sources (%d +ve, %d -ve)" % (len(sources), result.fpSets.numPos,
-   result.fpSets.numNeg))
+   print("Found %d sources (%d +ve, %d -ve)" % (len(sources), result.numPos,
+   result.numNeg))
 
 .. _lsst.meas.algorithms.SourceDetectionTask-debug:
 
