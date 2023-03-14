@@ -48,7 +48,6 @@ from .astrometrySourceSelector import *
 from .matcherSourceSelector import *
 from .convertReferenceCatalog import *
 from .convertRefcatManager import *
-from .loadIndexedReferenceObjects import *
 from .readFitsCatalogTask import *
 from .readTextCatalogTask import *
 from .indexerRegistry import *
