@@ -91,7 +91,8 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         self.check(1.0)
 
     def testNoSources(self):
-        self.config.skyObjects.nSources = self.config.minNumSources - 1
+        self.config.skyObjects.nSources = (
+            int(self.config.minFractionSources*self.config.skyObjects.nSources) - 1)
         self.check(1.0)
 
 
