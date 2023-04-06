@@ -4,7 +4,7 @@ __all__ = ["DynamicDetectionConfig", "DynamicDetectionTask"]
 import numpy as np
 
 from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Struct
+from lsst.pipe.base import Struct, NoWorkFound
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -33,7 +33,9 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                               doc="Tweak background level so median PSF flux of sky objects is zero?")
     minFractionSources = Field(dtype=float, default=0.02,
                                doc="Minimum fraction of the requested number of sky sources for dynamic "
-                               "detection. If below this number, we refuse to modify the threshold.")
+                               "detection to be considered a success. If the number of good sky sources "
+                               "identified falls below this threshold, a NoWorkFound error is raised so "
+                               "that this dataId is no longer considered in downstream processing.")
     doBrightPrelimDetection = Field(dtype=bool, default=True,
                                     doc="Do initial bright detection pass where footprints are grown "
                                     "by brightGrowFactor?")
@@ -133,6 +135,13 @@ class DynamicDetectionTask(SourceDetectionTask):
             ``additive``
                 Additive factor to be applied to the background
                 level (`float`).
+
+        Raises
+        ------
+        NoWorkFound
+            Raised if the number of good sky sources found is less than the
+            minimum fraction (``self.config.minFractionSources``) of the number
+            requested (``self.skyObjects.config.nSources``).
         """
         wcsIsNone = exposure.getWcs() is None
         if wcsIsNone:  # create a dummy WCS as needed by ForcedMeasurementTask
@@ -167,9 +176,8 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         minNumSources = int(self.config.minFractionSources*self.skyObjects.config.nSources)
         if good.sum() < minNumSources:
-            self.log.warning("Insufficient good flux measurements (%d < %d) for dynamic threshold"
-                             " calculation", good.sum(), self.config.minNumSources)
-            return Struct(multiplicative=1.0, additive=0.0)
+            raise NoWorkFound(f"Insufficient good sky source flux measurements ({good.sum()} < "
+                              f"{minNumSources}) for dynamic threshold calculation.")
 
         self.log.info("Number of good sky sources used for dynamic detection: %d (of %d requested).",
                       good.sum(), self.skyObjects.config.nSources)
