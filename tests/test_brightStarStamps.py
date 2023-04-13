@@ -37,7 +37,7 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         np.random.seed(12)
         stampSize = (25, 25)
         # create dummy star stamps
-        starImages = [afwImage.maskedImage.MaskedImageF(*stampSize)
+        starImages = [afwImage.MaskedImageF(*stampSize)
                       for _ in range(3)]
         for starIm in starImages:
             starImArray = starIm.image.array

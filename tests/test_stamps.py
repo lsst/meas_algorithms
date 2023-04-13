@@ -38,7 +38,7 @@ np.random.seed(90210)
 def make_stamps(n_stamps=3, use_archive=False):
     stampSize = 25
     # create dummy stamp stamps
-    stampImages = [afwImage.maskedImage.MaskedImageF(stampSize, stampSize)
+    stampImages = [afwImage.MaskedImageF(stampSize, stampSize)
                    for _ in range(n_stamps)]
     for stampIm in stampImages:
         stampImArray = stampIm.image.array

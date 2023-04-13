@@ -227,7 +227,7 @@ class Stamp(AbstractStamp):
         Position of the center of the stamp.  Note the user
         must keep track of the coordinate system
     """
-    stamp_im: afwImage.maskedImage.MaskedImageF
+    stamp_im: afwImage.MaskedImageF
     archive_element: Optional[afwTable.io.Persistable] = None
     position: Optional[SpherePoint] = SpherePoint(Angle(numpy.nan), Angle(numpy.nan))
 
