@@ -29,6 +29,7 @@ import esutil
 
 import lsst.geom
 import lsst.afw.image as afwImage
+from lsst.pipe.base import InMemoryDatasetHandle
 from lsst import sphgeom
 from . import SingleGaussianPsf
 from . import Defect
@@ -206,46 +207,6 @@ class MockRefcatDataId:
         return self._region
 
 
-class MockRefcatDeferredDatasetHandle:
-    """Mock reference catalog dataset handle.
-
-    The mock handle needs a get() and a name for logging.
-
-    Parameters
-    ----------
-    catalog : `lsst.afw.table.SourceCatalog`
-        Reference catalog.
-    name : `str`
-        Name of reference catalog.
-    """
-    def __init__(self, catalog, name):
-        self._catalog = catalog
-        self._name = name
-
-    def get(self):
-        return self._catalog
-
-    class MockRef:
-        def __init__(self, name):
-            self._name = name
-
-        class MockDatasetType:
-            def __init__(self, name):
-                self._name = name
-
-            @property
-            def name(self):
-                return self._name
-
-        @property
-        def datasetType(self):
-            return self.MockDatasetType(self._name)
-
-    @property
-    def ref(self):
-        return self.MockRef(self._name)
-
-
 class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
     """A simple mock of ReferenceObjectLoader.
 
@@ -284,7 +245,7 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
         -------
         dataIds : `list` [`MockRefcatDataId`]
             List of mock dataIds.
-        refCats : `list` [`MockRefcatDeferredDatasetHandle`]
+        refCats : `list` [`lsst.pipe.base.InMemoryDatasetHandle`]
             List of mock deferred dataset handles.
 
         Raises
@@ -307,6 +268,6 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
                 raise RuntimeError(f"File {filename} contains more than one pixel at level {htmLevel}")
 
             dataIds.append(MockRefcatDataId(pixelization, ids[0]))
-            refCats.append(MockRefcatDeferredDatasetHandle(cat, name))
+            refCats.append(InMemoryDatasetHandle(cat, name=name))
 
         return dataIds, refCats
