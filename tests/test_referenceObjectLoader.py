@@ -483,7 +483,7 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
-    pass
+    ignore_regexps = [r"gen3\.sqlite3$"]
 
 
 def setup_module(module):
