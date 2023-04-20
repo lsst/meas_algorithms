@@ -22,7 +22,7 @@
 #
 
 __all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList",
-           "MockReferenceObjectLoaderFromFiles"]
+           "MockReferenceObjectLoaderFromFiles", "MockRefcatDataId"]
 
 import numpy as np
 import esutil
@@ -194,13 +194,11 @@ class MockRefcatDataId:
 
     Parameters
     ----------
-    pixelization : `lsst.sphgeom.Pixelization`
-        Pixelization object.
-    index : `int`
-        Pixel index number.
+    region : `lsst.sphgeom.Region`
+        The region associated with this mock dataId.
     """
-    def __init__(self, pixelization, index):
-        self._region = pixelization.pixel(index)
+    def __init__(self, region):
+        self._region = region
 
     @property
     def region(self):
@@ -267,7 +265,7 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
             if len(np.unique(ids)) != 1:
                 raise RuntimeError(f"File {filename} contains more than one pixel at level {htmLevel}")
 
-            dataIds.append(MockRefcatDataId(pixelization, ids[0]))
+            dataIds.append(MockRefcatDataId(pixelization.pixel(ids[0])))
             refCats.append(InMemoryDatasetHandle(cat, name=name))
 
         return dataIds, refCats
