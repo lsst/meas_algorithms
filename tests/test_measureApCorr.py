@@ -152,7 +152,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         """ If there are too few sources, check that an exception is raised."""
         # Create an empty catalog with no sources to process.
         catalog = afwTable.SourceCatalog(self.schema)
-        with self.assertRaisesRegex(RuntimeError, "only 0 sources, but"):
+        with self.assertRaisesRegex(measureApCorr.MeasureApCorrError, "failed on required algorithm"):
             self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
         # We now try again after declaring that the aperture correction is

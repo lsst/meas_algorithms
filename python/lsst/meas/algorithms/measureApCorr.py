@@ -21,7 +21,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ("MeasureApCorrConfig", "MeasureApCorrTask")
+__all__ = ("MeasureApCorrConfig", "MeasureApCorrTask", "MeasureApCorrError")
 
 import numpy as np
 from scipy.stats import median_abs_deviation
@@ -33,6 +33,10 @@ from lsst.pipe.base import Task, Struct
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
 from .sourceSelector import sourceSelectorRegistry
+
+
+class MeasureApCorrError(RuntimeError):
+    pass
 
 
 class _FluxNames:
@@ -225,13 +229,15 @@ class MeasureApCorrTask(Task):
             if (isGood.sum() - 1) < self.config.minDegreesOfFreedom:
                 if name in self.config.allowFailure:
                     self.log.warning("Unable to measure aperture correction for '%s': "
-                                     "only %d sources, but require at least %d." %
-                                     (name, isGood.sum(), self.config.minDegreesOfFreedom + 1))
+                                     "only %d sources, but require at least %d.",
+                                     name, isGood.sum(), self.config.minDegreesOfFreedom + 1)
                     continue
                 else:
-                    raise RuntimeError("Unable to measure aperture correction for required algorithm '%s': "
-                                       "only %d sources, but require at least %d." %
-                                       (name, isGood.sum(), self.config.minDegreesOfFreedom + 1))
+                    msg = ("Unable to measure aperture correction for required algorithm '%s': "
+                           "only %d sources, but require at least %d." %
+                           (name, isGood.sum(), self.config.minDegreesOfFreedom + 1))
+                    self.log.warning(msg)
+                    raise MeasureApCorrError("Aperture correction failed on required algorithm.")
 
             goodCat = goodRefCat[isGood].copy()
 
