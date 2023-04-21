@@ -22,13 +22,14 @@
 #
 
 __all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList",
-           "MockReferenceObjectLoaderFromFiles"]
+           "MockReferenceObjectLoaderFromFiles", "MockRefcatDataId"]
 
 import numpy as np
 import esutil
 
 import lsst.geom
 import lsst.afw.image as afwImage
+from lsst.pipe.base import InMemoryDatasetHandle
 from lsst import sphgeom
 from . import SingleGaussianPsf
 from . import Defect
@@ -193,57 +194,15 @@ class MockRefcatDataId:
 
     Parameters
     ----------
-    pixelization : `lsst.sphgeom.Pixelization`
-        Pixelization object.
-    index : `int`
-        Pixel index number.
+    region : `lsst.sphgeom.Region`
+        The region associated with this mock dataId.
     """
-    def __init__(self, pixelization, index):
-        self._region = pixelization.pixel(index)
+    def __init__(self, region):
+        self._region = region
 
     @property
     def region(self):
         return self._region
-
-
-class MockRefcatDeferredDatasetHandle:
-    """Mock reference catalog dataset handle.
-
-    The mock handle needs a get() and a name for logging.
-
-    Parameters
-    ----------
-    catalog : `lsst.afw.table.SourceCatalog`
-        Reference catalog.
-    name : `str`
-        Name of reference catalog.
-    """
-    def __init__(self, catalog, name):
-        self._catalog = catalog
-        self._name = name
-
-    def get(self):
-        return self._catalog
-
-    class MockRef:
-        def __init__(self, name):
-            self._name = name
-
-        class MockDatasetType:
-            def __init__(self, name):
-                self._name = name
-
-            @property
-            def name(self):
-                return self._name
-
-        @property
-        def datasetType(self):
-            return self.MockDatasetType(self._name)
-
-    @property
-    def ref(self):
-        return self.MockRef(self._name)
 
 
 class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
@@ -284,7 +243,7 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
         -------
         dataIds : `list` [`MockRefcatDataId`]
             List of mock dataIds.
-        refCats : `list` [`MockRefcatDeferredDatasetHandle`]
+        refCats : `list` [`lsst.pipe.base.InMemoryDatasetHandle`]
             List of mock deferred dataset handles.
 
         Raises
@@ -306,7 +265,7 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
             if len(np.unique(ids)) != 1:
                 raise RuntimeError(f"File {filename} contains more than one pixel at level {htmLevel}")
 
-            dataIds.append(MockRefcatDataId(pixelization, ids[0]))
-            refCats.append(MockRefcatDeferredDatasetHandle(cat, name))
+            dataIds.append(MockRefcatDataId(pixelization.pixel(ids[0])))
+            refCats.append(InMemoryDatasetHandle(cat, name=name))
 
         return dataIds, refCats
