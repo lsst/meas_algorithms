@@ -23,6 +23,7 @@
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
+import logging
 from collections.abc import Collection
 from dataclasses import dataclass
 from functools import reduce
@@ -64,9 +65,10 @@ class BrightStarStamp(AbstractStamp):
     position: Point2I
     archive_element: Persistable | None = None
     annularFlux: float | None = None
+    minPixelsWithinAnnulus: float = 0.0
 
     @classmethod
-    def factory(cls, stamp_im, metadata, idx, archive_element=None):
+    def factory(cls, stamp_im, metadata, idx, archive_element=None, minPixelsWithinAnnulus=0.0):
         """This method is needed to service the FITS reader. We need a standard
         interface to construct objects like this. Parameters needed to
         construct this object are passed in via a metadata dictionary and then
@@ -85,6 +87,8 @@ class BrightStarStamp(AbstractStamp):
             Index into the lists in ``metadata``
         archive_element : `~lsst.afw.table.io.Persistable` or None, optional
             Archive element (e.g. Transform or WCS) associated with this stamp.
+        minPixelsWithinAnnulus: float
+            The fraction of valid pixels within the normalization annulus of a star.
 
         Returns
         -------
@@ -104,6 +108,7 @@ class BrightStarStamp(AbstractStamp):
             position=position,
             archive_element=archive_element,
             annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
+            minPixelsWithinAnnulus=minPixelsWithinAnnulus,
         )
 
     def measureAndNormalize(
@@ -144,14 +149,54 @@ class BrightStarStamp(AbstractStamp):
         # set mask planes to be ignored
         andMask = reduce(ior, (annulusMask.getPlaneBitMask(bm) for bm in badMaskPlanes))
         statsControl.setAndMask(andMask)
-        # compute annularFlux
         annulusStat = makeStatistics(annulusImage, statsFlag, statsControl)
-        self.annularFlux = annulusStat.getValue()
+        # determining the number of valid (unmasked) pixels within the annulus
+        unMasked = annulusMask.array.size - np.count_nonzero(annulusMask.array)
+        # should we have some messages printed here?
+        self._set_logger()
+        self.log.info(
+            "The Star's annulus contains {} valid pixels and the annulus itself contains {} pixels".format(
+                unMasked, annulus.getArea()
+            )
+        )
+        if unMasked > annulus.getArea() * self.minPixelsWithinAnnulus:
+            # compute annularFlux
+            self.annularFlux = annulusStat.getValue()
+            self.log.info("Annular flux is: {}".format(self.annularFlux))
+        else:
+            self.log.info(
+                "The number of valid pixels is less than the {} percent of the pixels within the \
+annulus".format(
+                    self.minPixelsWithinAnnulus * 100
+                )
+            )
+            raise RuntimeError("The chosen annulus contains unsufficient valid pixels")
         if np.isnan(self.annularFlux):
+            self.log.info("annular flux is nan")
             raise RuntimeError("Annular flux computation failed, likely because no pixels were valid.")
+        if self.annularFlux < 0:
+            self.log.info("With a negative annular flux, this stamp seems to be a bad one!")
+            raise RuntimeError("The annular flux is negative. The stamp will not be normalized!")
         # normalize stamps
         self.stamp_im.image.array /= self.annularFlux
         return None
+
+    def _set_logger(self):
+        if "lsst.meas.algorithms.brightStarStamps" in logging.Logger.manager.loggerDict:
+            logging.Logger.manager.loggerDict.pop("lsst.meas.algorithms.brightStarStamps")
+        # creating logger and setting level to INFO
+        self.log = logging.getLogger("lsst.meas.algorithms.brightStarStamps")
+        self.log.setLevel(logging.INFO)
+        # creating console handler
+        ch = logging.StreamHandler()
+        # creating formatter
+        formatter = logging.Formatter(
+            "%(levelname)s - %(asctime)s - %(name)s - %(filename)s:%(lineno)d - %(message)s"
+        )
+        # adding the formatter to the handler
+        ch.setFormatter(formatter)
+        # adding the handler to the logger
+        self.log.addHandler(ch)
 
 
 class BrightStarStamps(Stamps):
@@ -174,6 +219,12 @@ class BrightStarStamps(Stamps):
         Number of 90 degree rotations required to compensate for detector
         orientation.
     metadata : `~lsst.daf.base.PropertyList`, optional
+        Metadata associated with the bright stars.
+    use_mask : `bool`
+        If `True` read and write mask data. Default `True`.
+    use_variance : `bool`
+        If ``True`` read and write variance data. Default ``False``.
+    metadata : `lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
     use_mask : `bool`
         If `True` read and write mask data. Default `True`.
@@ -327,20 +378,24 @@ class BrightStarStamps(Stamps):
         # Ensure no stamps had already been normalized
         bss._checkNormalization(True, innerRadius, outerRadius)
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
+        if discardNanFluxObjects:
+            # creating a list to contain rejected stamps
+            rejecteds = list()
         # Apply normalization
-        for j, stamp in enumerate(bss._stamps):
+        for stamp in bss._stamps:
             try:
                 stamp.measureAndNormalize(
                     annulus, statsControl=statsControl, statsFlag=statsFlag, badMaskPlanes=badMaskPlanes
                 )
             except RuntimeError:
-                # Optionally keep NaN flux objects, for bookkeeping purposes,
-                # and to avoid having to re-find and redo the preprocessing
-                # steps needed before bright stars can be subtracted.
                 if discardNanFluxObjects:
-                    bss._stamps.pop(j)
+                    rejecteds.append(stamp)
                 else:
                     stamp.annularFlux = np.nan
+        # removing rejected stamps
+        if discardNanFluxObjects:
+            for rejected in rejecteds:
+                bss._stamps.remove(rejected)
         bss.normalized = True
         return bss
 
