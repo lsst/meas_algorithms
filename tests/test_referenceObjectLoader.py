@@ -399,11 +399,39 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
 
         self.assertFloatsEqual(cat_pm['pm_raErr'], cat['pm_raErr'])
         self.assertFloatsEqual(cat_pm['pm_decErr'], cat['pm_decErr'])
-        for orig, ref in zip(cat, cat_pm):
-            self.assertAnglesAlmostEqual(orig.getCoord().separation(ref.getCoord()),
-                                         self.properMotionAmt, maxDiff=1.0e-6*lsst.geom.arcseconds)
-            self.assertAnglesAlmostEqual(orig.getCoord().bearingTo(ref.getCoord()),
-                                         self.properMotionDir, maxDiff=1.0e-4*lsst.geom.arcseconds)
+
+        separations = np.array([cat[i].getCoord().separation(cat_pm[i].getCoord()).asArcseconds()
+                                for i in range(len(cat))])
+        bearings = np.array([cat[i].getCoord().bearingTo(cat_pm[i].getCoord()).asArcseconds()
+                             for i in range(len(cat))])
+        self.assertFloatsAlmostEqual(separations, self.properMotionAmt.asArcseconds(), rtol=1.0e-10)
+        self.assertFloatsAlmostEqual(bearings, self.properMotionDir.asArcseconds(), rtol=1.0e-10)
+
+        predictedRaErr = np.hypot(cat["coord_raErr"], cat["pm_raErr"])
+        predictedDecErr = np.hypot(cat["coord_decErr"], cat["pm_decErr"])
+        self.assertFloatsAlmostEqual(cat_pm["coord_raErr"], predictedRaErr)
+        self.assertFloatsAlmostEqual(cat_pm["coord_decErr"], predictedDecErr)
+
+        # One year negative difference. This demonstrates a fix for DM-38808,
+        # when the refcat epoch is later in time than the data.
+        cat_pm = loader.loadSkyCircle(
+            center,
+            30.0*lsst.geom.degrees,
+            filterName='a',
+            epoch=self.epoch - 1.0*astropy.units.yr
+        ).refCat
+
+        self.assertFloatsEqual(cat_pm['pm_raErr'], cat['pm_raErr'])
+        self.assertFloatsEqual(cat_pm['pm_decErr'], cat['pm_decErr'])
+
+        separations = np.array([cat[i].getCoord().separation(cat_pm[i].getCoord()).asArcseconds()
+                                for i in range(len(cat))])
+        bearings = np.array([cat[i].getCoord().bearingTo(cat_pm[i].getCoord()).asArcseconds()
+                             for i in range(len(cat))])
+        reverse_proper_motion_dir = self.properMotionDir + 180 * lsst.geom.degrees
+        self.assertFloatsAlmostEqual(separations, self.properMotionAmt.asArcseconds(), rtol=1.0e-10)
+        self.assertFloatsAlmostEqual(bearings, reverse_proper_motion_dir.asArcseconds(), rtol=1.0e-10)
+
         predictedRaErr = np.hypot(cat["coord_raErr"], cat["pm_raErr"])
         predictedDecErr = np.hypot(cat["coord_decErr"], cat["pm_decErr"])
         self.assertFloatsAlmostEqual(cat_pm["coord_raErr"], predictedRaErr)

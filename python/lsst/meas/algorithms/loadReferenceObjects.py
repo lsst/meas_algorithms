@@ -1040,13 +1040,13 @@ def applyProperMotionsImpl(log, catalog, epoch):
     offsetsRaRad = pmRaRad*timeDiffsYears
     offsetsDecRad = pmDecRad*timeDiffsYears
     # Compute the corresponding bearing and arc length of each offset
-    # due to proper motion, and apply the offset
+    # due to proper motion, and apply the offset.
     # The factor of 1e6 for computing bearing is intended as
     # a reasonable scale for typical values of proper motion
     # in order to avoid large errors for small values of proper motion;
     # using the offsets is another option, but it can give
-    # needlessly large errors for short duration
-    offsetBearingsRad = numpy.arctan2(pmDecRad*1e6, pmRaRad*1e6)
+    # needlessly large errors for short duration.
+    offsetBearingsRad = numpy.arctan2(offsetsDecRad*1e6, offsetsRaRad*1e6)
     offsetAmountsRad = numpy.hypot(offsetsRaRad, offsetsDecRad)
     for record, bearingRad, amountRad in zip(catalog, offsetBearingsRad, offsetAmountsRad):
         record.set(coordKey,
