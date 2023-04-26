@@ -64,8 +64,9 @@ class BrightStarStamp(AbstractStamp):
     gaiaId: int
     position: Point2I
     archive_element: Persistable | None = None
-    annularFlux: float | None = None
+    # annularFlux: float | None = None
     minPixelsWithinAnnulus: float = 0.0
+    log.configure()
 
     @classmethod
     def factory(cls, stamp_im, metadata, idx, archive_element=None, minPixelsWithinAnnulus=0.0):
