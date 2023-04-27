@@ -18,71 +18,72 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-"""Collection of small images (stamps), each centered on a bright star.
-"""
+
+"""Collection of small images (stamps), each centered on a bright star."""
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
+from collections.abc import Collection
 from dataclasses import dataclass
-from operator import ior
 from functools import reduce
-from typing import Optional
-import numpy as np
+from operator import ior
 
+import numpy as np
+from lsst.afw.geom import SpanSet, Stencil
 from lsst.afw.image import MaskedImageF
-from lsst.afw import geom as afwGeom
-from lsst.afw import math as afwMath
-from lsst.afw import table as afwTable
+from lsst.afw.math import Property, StatisticsControl, makeStatistics, stringToStatisticsProperty
+from lsst.afw.table.io import Persistable
 from lsst.geom import Point2I
-from .stamps import Stamps, AbstractStamp, readFitsWithOptions
+
+from .stamps import AbstractStamp, Stamps, readFitsWithOptions
 
 
 @dataclass
 class BrightStarStamp(AbstractStamp):
-    """Single stamp centered on a bright star, normalized by its
-    annularFlux.
+    """Single stamp centered on a bright star, normalized by its annularFlux.
 
     Parameters
     ----------
-    stamp_im : `lsst.afw.image.MaskedImage`
+    stamp_im : `~lsst.afw.image.MaskedImage`
         Pixel data for this postage stamp
-    position : `lsst.geom.Point2I`
-        Origin of the stamps in its origin exposure (pixels)
     gaiaGMag : `float`
         Gaia G magnitude for the object in this stamp
     gaiaId : `int`
         Gaia object identifier
-    annularFlux : `Optional[float]`
+    position : `~lsst.geom.Point2I`
+        Origin of the stamps in its origin exposure (pixels)
+    archive_element : `~lsst.afw.table.io.Persistable` or None, optional
+        Archive element (e.g. Transform or WCS) associated with this stamp.
+    annularFlux : `float` or None, optional
         Flux in an annulus around the object
     """
+
     stamp_im: MaskedImageF
     gaiaGMag: float
     gaiaId: int
     position: Point2I
-    archive_element: Optional[afwTable.io.Persistable] = None
-    annularFlux: Optional[float] = None
+    archive_element: Persistable | None = None
+    annularFlux: float | None = None
 
     @classmethod
     def factory(cls, stamp_im, metadata, idx, archive_element=None):
-        """This method is needed to service the FITS reader.
-        We need a standard interface to construct objects like this.
-        Parameters needed to construct this object are passed in via
-        a metadata dictionary and then passed to the constructor of
-        this class.  This particular factory method requires keys:
-        G_MAGS, GAIA_IDS, and ANNULAR_FLUXES.  They should each
-        point to lists of values.
+        """This method is needed to service the FITS reader. We need a standard
+        interface to construct objects like this. Parameters needed to
+        construct this object are passed in via a metadata dictionary and then
+        passed to the constructor of this class.  This particular factory
+        method requires keys: G_MAGS, GAIA_IDS, and ANNULAR_FLUXES. They should
+        each point to lists of values.
 
         Parameters
         ----------
-        stamp_im : `lsst.afw.image.MaskedImage`
+        stamp_im : `~lsst.afw.image.MaskedImage`
             Pixel data to pass to the constructor
         metadata : `dict`
             Dictionary containing the information
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
-        archive_element : `lsst.afwTable.io.Persistable`, optional
+        archive_element : `~lsst.afw.table.io.Persistable` or None, optional
             Archive element (e.g. Transform or WCS) associated with this stamp.
 
         Returns
@@ -90,22 +91,28 @@ class BrightStarStamp(AbstractStamp):
         brightstarstamp : `BrightStarStamp`
             An instance of this class
         """
-        if 'X0S' in metadata and 'Y0S' in metadata:
-            x0 = metadata.getArray('X0S')[idx]
-            y0 = metadata.getArray('Y0S')[idx]
+        if "X0S" in metadata and "Y0S" in metadata:
+            x0 = metadata.getArray("X0S")[idx]
+            y0 = metadata.getArray("Y0S")[idx]
             position = Point2I(x0, y0)
         else:
             position = None
-        return cls(stamp_im=stamp_im,
-                   gaiaGMag=metadata.getArray('G_MAGS')[idx],
-                   gaiaId=metadata.getArray('GAIA_IDS')[idx],
-                   position=position,
-                   archive_element=archive_element,
-                   annularFlux=metadata.getArray('ANNULAR_FLUXES')[idx])
+        return cls(
+            stamp_im=stamp_im,
+            gaiaGMag=metadata.getArray("G_MAGS")[idx],
+            gaiaId=metadata.getArray("GAIA_IDS")[idx],
+            position=position,
+            archive_element=archive_element,
+            annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
+        )
 
-    def measureAndNormalize(self, annulus, statsControl=afwMath.StatisticsControl(),
-                            statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
-                            badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
+    def measureAndNormalize(
+        self,
+        annulus: SpanSet,
+        statsControl: StatisticsControl = StatisticsControl(),
+        statsFlag: Property = stringToStatisticsProperty("MEAN"),
+        badMaskPlanes: Collection[str] = ("BAD", "SAT", "NO_DATA"),
+    ):
         """Compute "annularFlux", the integrated flux within an annulus
         around an object's center, and normalize it.
 
@@ -116,30 +123,29 @@ class BrightStarStamp(AbstractStamp):
 
         Parameters
         ----------
-        annulus : `lsst.afw.geom.spanSet.SpanSet`
+        annulus : `~lsst.afw.geom.spanSet.SpanSet`
             SpanSet containing the annulus to use for normalization.
-        statsControl : `lsst.afw.math.statistics.StatisticsControl`, optional
+        statsControl : `~lsst.afw.math.statistics.StatisticsControl`, optional
             StatisticsControl to be used when computing flux over all pixels
             within the annulus.
-        statsFlag : `lsst.afw.math.statistics.Property`, optional
+        statsFlag : `~lsst.afw.math.statistics.Property`, optional
             statsFlag to be passed on to ``afwMath.makeStatistics`` to compute
             annularFlux. Defaults to a simple MEAN.
         badMaskPlanes : `collections.abc.Collection` [`str`]
             Collection of mask planes to ignore when computing annularFlux.
         """
         stampSize = self.stamp_im.getDimensions()
-        # create image with the same pixel values within annulus, NO_DATA
-        # elsewhere
+        # create image: same pixel values within annulus, NO_DATA elsewhere
         maskPlaneDict = self.stamp_im.mask.getMaskPlaneDict()
         annulusImage = MaskedImageF(stampSize, planeDict=maskPlaneDict)
         annulusMask = annulusImage.mask
-        annulusMask.array[:] = 2**maskPlaneDict['NO_DATA']
+        annulusMask.array[:] = 2 ** maskPlaneDict["NO_DATA"]
         annulus.copyMaskedImage(self.stamp_im, annulusImage)
         # set mask planes to be ignored
         andMask = reduce(ior, (annulusMask.getPlaneBitMask(bm) for bm in badMaskPlanes))
         statsControl.setAndMask(andMask)
         # compute annularFlux
-        annulusStat = afwMath.makeStatistics(annulusImage, statsFlag, statsControl)
+        annulusStat = makeStatistics(annulusImage, statsFlag, statsControl)
         self.annularFlux = annulusStat.getValue()
         if np.isnan(self.annularFlux):
             raise RuntimeError("Annular flux computation failed, likely because no pixels were valid.")
@@ -167,7 +173,7 @@ class BrightStarStamps(Stamps):
     nb90Rots : `int`, optional
         Number of 90 degree rotations required to compensate for detector
         orientation.
-    metadata : `lsst.daf.base.PropertyList`, optional
+    metadata : `~lsst.daf.base.PropertyList`, optional
         Metadata associated with the bright stars.
     use_mask : `bool`
         If `True` read and write mask data. Default `True`.
@@ -189,17 +195,29 @@ class BrightStarStamps(Stamps):
         stamps, stamps normalized with different annulus definitions, or if
         stamps are to be normalized but annular radii were not provided.
 
-
     Notes
     -----
     A butler can be used to read only a part of the stamps, specified by a
     bbox:
 
-    >>> starSubregions = butler.get("brightStarStamps", dataId, parameters={'bbox': bbox})
+    >>> starSubregions = butler.get(
+            "brightStarStamps",
+            dataId,
+            parameters={"bbox": bbox}
+        )
     """
 
-    def __init__(self, starStamps, innerRadius=None, outerRadius=None, nb90Rots=None,
-                 metadata=None, use_mask=True, use_variance=False, use_archive=False):
+    def __init__(
+        self,
+        starStamps,
+        innerRadius=None,
+        outerRadius=None,
+        nb90Rots=None,
+        metadata=None,
+        use_mask=True,
+        use_variance=False,
+        use_archive=False,
+    ):
         super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
         # Ensure stamps contain a flux measurement if and only if they are
         # already expected to be normalized
@@ -212,13 +230,22 @@ class BrightStarStamps(Stamps):
         self.nb90Rots = nb90Rots
 
     @classmethod
-    def initAndNormalize(cls, starStamps, innerRadius, outerRadius, nb90Rots=None,
-                         metadata=None, use_mask=True, use_variance=False,
-                         use_archive=False, imCenter=None,
-                         discardNanFluxObjects=True,
-                         statsControl=afwMath.StatisticsControl(),
-                         statsFlag=afwMath.stringToStatisticsProperty("MEAN"),
-                         badMaskPlanes=('BAD', 'SAT', 'NO_DATA')):
+    def initAndNormalize(
+        cls,
+        starStamps,
+        innerRadius,
+        outerRadius,
+        nb90Rots=None,
+        metadata=None,
+        use_mask=True,
+        use_variance=False,
+        use_archive=False,
+        imCenter=None,
+        discardNanFluxObjects=True,
+        statsControl=StatisticsControl(),
+        statsFlag=stringToStatisticsProperty("MEAN"),
+        badMaskPlanes=("BAD", "SAT", "NO_DATA"),
+    ):
         """Normalize a set of bright star stamps and initialize a
         BrightStarStamps instance.
 
@@ -243,7 +270,7 @@ class BrightStarStamps(Stamps):
         nb90Rots : `int`, optional
             Number of 90 degree rotations required to compensate for detector
             orientation.
-        metadata : `lsst.daf.base.PropertyList`, optional
+        metadata : `~lsst.daf.base.PropertyList`, optional
             Metadata associated with the bright stars.
         use_mask : `bool`
             If `True` read and write mask data. Default `True`.
@@ -260,12 +287,12 @@ class BrightStarStamps(Stamps):
         discardNanFluxObjects : `bool`
             Whether objects with NaN annular flux should be discarded.
             If False, these objects will not be normalized.
-        statsControl : `lsst.afw.math.statistics.StatisticsControl`, optional
+        statsControl : `~lsst.afw.math.statistics.StatisticsControl`, optional
             StatisticsControl to be used when computing flux over all pixels
             within the annulus.
-        statsFlag : `lsst.afw.math.statistics.Property`, optional
-            statsFlag to be passed on to ``afwMath.makeStatistics`` to compute
-            annularFlux. Defaults to a simple MEAN.
+        statsFlag : `~lsst.afw.math.statistics.Property`, optional
+            statsFlag to be passed on to ``~lsst.afw.math.makeStatistics`` to
+            compute annularFlux. Defaults to a simple MEAN.
         badMaskPlanes : `collections.abc.Collection` [`str`]
             Collection of mask planes to ignore when computing annularFlux.
 
@@ -281,23 +308,31 @@ class BrightStarStamps(Stamps):
         """
         if imCenter is None:
             stampSize = starStamps[0].stamp_im.getDimensions()
-            imCenter = stampSize[0]//2, stampSize[1]//2
+            imCenter = stampSize[0] // 2, stampSize[1] // 2
         # Create SpanSet of annulus
-        outerCircle = afwGeom.SpanSet.fromShape(outerRadius, afwGeom.Stencil.CIRCLE, offset=imCenter)
-        innerCircle = afwGeom.SpanSet.fromShape(innerRadius, afwGeom.Stencil.CIRCLE, offset=imCenter)
+        outerCircle = SpanSet.fromShape(outerRadius, Stencil.CIRCLE, offset=imCenter)
+        innerCircle = SpanSet.fromShape(innerRadius, Stencil.CIRCLE, offset=imCenter)
         annulus = outerCircle.intersectNot(innerCircle)
         # Initialize (unnormalized) brightStarStamps instance
-        bss = cls(starStamps, innerRadius=None, outerRadius=None, nb90Rots=nb90Rots,
-                  metadata=metadata, use_mask=use_mask,
-                  use_variance=use_variance, use_archive=use_archive)
+        bss = cls(
+            starStamps,
+            innerRadius=None,
+            outerRadius=None,
+            nb90Rots=nb90Rots,
+            metadata=metadata,
+            use_mask=use_mask,
+            use_variance=use_variance,
+            use_archive=use_archive,
+        )
         # Ensure no stamps had already been normalized
         bss._checkNormalization(True, innerRadius, outerRadius)
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
         # Apply normalization
         for j, stamp in enumerate(bss._stamps):
             try:
-                stamp.measureAndNormalize(annulus, statsControl=statsControl, statsFlag=statsFlag,
-                                          badMaskPlanes=badMaskPlanes)
+                stamp.measureAndNormalize(
+                    annulus, statsControl=statsControl, statsFlag=statsFlag, badMaskPlanes=badMaskPlanes
+                )
             except RuntimeError:
                 # Optionally keep NaN flux objects, for bookkeeping purposes,
                 # and to avoid having to re-find and redo the preprocessing
@@ -310,9 +345,7 @@ class BrightStarStamps(Stamps):
         return bss
 
     def _refresh_metadata(self):
-        """Refresh the metadata. Should be called before writing this object
-        out.
-        """
+        """Refresh metadata. Should be called before writing the object out."""
         # add full list of positions, Gaia magnitudes, IDs and annularFlxes to
         # shared metadata
         self._metadata["G_MAGS"] = self.getMagnitudes()
@@ -353,13 +386,25 @@ class BrightStarStamps(Stamps):
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
         nb90Rots = metadata["NB_90_ROTS"] if "NB_90_ROTS" in metadata else None
         if metadata["NORMALIZED"]:
-            return cls(stamps,
-                       innerRadius=metadata["INNER_RADIUS"], outerRadius=metadata["OUTER_RADIUS"],
-                       nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
-                       use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
+            return cls(
+                stamps,
+                innerRadius=metadata["INNER_RADIUS"],
+                outerRadius=metadata["OUTER_RADIUS"],
+                nb90Rots=nb90Rots,
+                metadata=metadata,
+                use_mask=metadata["HAS_MASK"],
+                use_variance=metadata["HAS_VARIANCE"],
+                use_archive=metadata["HAS_ARCHIVE"],
+            )
         else:
-            return cls(stamps, nb90Rots=nb90Rots, metadata=metadata, use_mask=metadata['HAS_MASK'],
-                       use_variance=metadata['HAS_VARIANCE'], use_archive=metadata['HAS_ARCHIVE'])
+            return cls(
+                stamps,
+                nb90Rots=nb90Rots,
+                metadata=metadata,
+                use_mask=metadata["HAS_MASK"],
+                use_variance=metadata["HAS_VARIANCE"],
+                use_archive=metadata["HAS_ARCHIVE"],
+            )
 
     def append(self, item, innerRadius=None, outerRadius=None):
         """Add an additional bright star stamp.
@@ -380,8 +425,10 @@ class BrightStarStamps(Stamps):
         if not isinstance(item, BrightStarStamp):
             raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}.")
         if (item.annularFlux is None) == self.normalized:
-            raise AttributeError("Trying to append an unnormalized stamp to a normalized BrightStarStamps "
-                                 "instance, or vice-versa.")
+            raise AttributeError(
+                "Trying to append an unnormalized stamp to a normalized BrightStarStamps "
+                "instance, or vice-versa."
+            )
         else:
             self._checkRadius(innerRadius, outerRadius)
         self._stamps.append(item)
@@ -397,8 +444,7 @@ class BrightStarStamps(Stamps):
             Other instance to concatenate.
         """
         if not isinstance(bss, BrightStarStamps):
-            raise ValueError('Can only extend with a BrightStarStamps object.  '
-                             f'Got {type(bss)}.')
+            raise ValueError(f"Can only extend with a BrightStarStamps object. Got {type(bss)}.")
         self._checkRadius(bss._innerRadius, bss._outerRadius)
         self._stamps += bss._stamps
 
@@ -445,14 +491,16 @@ class BrightStarStamps(Stamps):
         magMax : `float`, optional
             Keep only stars brighter than this value.
         """
-        subset = [stamp for stamp in self._stamps
-                  if (magMin is None or stamp.gaiaGMag > magMin)
-                  and (magMax is None or stamp.gaiaGMag < magMax)]
+        subset = [
+            stamp
+            for stamp in self._stamps
+            if (magMin is None or stamp.gaiaGMag > magMin) and (magMax is None or stamp.gaiaGMag < magMax)
+        ]
         # This is an optimization to save looping over the init argument when
         # it is already guaranteed to be the correct type
-        instance = BrightStarStamps((),
-                                    innerRadius=self._innerRadius, outerRadius=self._outerRadius,
-                                    metadata=self._metadata)
+        instance = BrightStarStamps(
+            (), innerRadius=self._innerRadius, outerRadius=self._outerRadius, metadata=self._metadata
+        )
         instance._stamps = subset
         return instance
 
@@ -461,9 +509,11 @@ class BrightStarStamps(Stamps):
         present in the instance, or with arguments passed on at initialization.
         """
         if innerRadius != self._innerRadius or outerRadius != self._outerRadius:
-            raise AttributeError("Trying to mix stamps normalized with annulus radii "
-                                 f"{innerRadius, outerRadius} with those of BrightStarStamp instance\n"
-                                 f"(computed with annular radii {self._innerRadius, self._outerRadius}).")
+            raise AttributeError(
+                "Trying to mix stamps normalized with annulus radii "
+                f"{innerRadius, outerRadius} with those of BrightStarStamp instance\n"
+                f"(computed with annular radii {self._innerRadius, self._outerRadius})."
+            )
 
     def _checkNormalization(self, normalize, innerRadius, outerRadius):
         """Ensure there is no mixing of normalized and unnormalized stars, and
@@ -475,30 +525,40 @@ class BrightStarStamps(Stamps):
         if noneFluxCount and noneFluxCount < nStamps:
             # at least one stamp contains an annularFlux value (i.e. has been
             # normalized), but not all of them do
-            raise AttributeError(f"Only {nFluxVals} stamps contain an annularFlux value.\nAll stamps in a "
-                                 "BrightStarStamps instance must either be normalized with the same annulus "
-                                 "definition, or none of them can contain an annularFlux value.")
+            raise AttributeError(
+                f"Only {nFluxVals} stamps contain an annularFlux value.\nAll stamps in a "
+                "BrightStarStamps instance must either be normalized with the same annulus "
+                "definition, or none of them can contain an annularFlux value."
+            )
         elif normalize:
             # stamps are to be normalized; ensure annular radii are specified
             # and they have no annularFlux
             if innerRadius is None or outerRadius is None:
-                raise AttributeError("For stamps to be normalized (normalize=True), please provide a valid "
-                                     "value (in pixels) for both innerRadius and outerRadius.")
+                raise AttributeError(
+                    "For stamps to be normalized (normalize=True), please provide a valid "
+                    "value (in pixels) for both innerRadius and outerRadius."
+                )
             elif noneFluxCount < nStamps:
-                raise AttributeError(f"{nFluxVals} stamps already contain an annularFlux value. For stamps to"
-                                     " be normalized, all their annularFlux must be None.")
+                raise AttributeError(
+                    f"{nFluxVals} stamps already contain an annularFlux value. For stamps to "
+                    "be normalized, all their annularFlux must be None."
+                )
         elif innerRadius is not None and outerRadius is not None:
             # Radii provided, but normalize=False; check that stamps
             # already contain annularFluxes
             if noneFluxCount:
-                raise AttributeError(f"{noneFluxCount} stamps contain no annularFlux, but annular radius "
-                                     "values were provided and normalize=False.\nTo normalize stamps, set "
-                                     "normalize to True.")
+                raise AttributeError(
+                    f"{noneFluxCount} stamps contain no annularFlux, but annular radius "
+                    "values were provided and normalize=False.\nTo normalize stamps, set "
+                    "normalize to True."
+                )
         else:
             # At least one radius value is missing; ensure no stamps have
             # already been normalized
             if nFluxVals:
-                raise AttributeError(f"{nFluxVals} stamps contain an annularFlux value. If stamps have "
-                                     "been normalized, the innerRadius and outerRadius values used must "
-                                     "be provided.")
+                raise AttributeError(
+                    f"{nFluxVals} stamps contain an annularFlux value. If stamps have "
+                    "been normalized, the innerRadius and outerRadius values used must "
+                    "be provided."
+                )
         return None
