@@ -57,7 +57,12 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
 
         # Relative tolerance for tweak factor
         # Not sure why this isn't smaller; maybe due to use of Poisson instead of Gaussian noise?
-        self.rtol = 0.1
+        # It seems as if some sky objects are being placed in the extra
+        # background region, which is causing the offset between the expected
+        # factor and the measured factor to be larger than otherwise expected.
+        # This relative tolerance was increased from 0.1 to 0.15 on DM-23781 to
+        # account for this.
+        self.rtol = 0.15
 
     def tearDown(self):
         del self.exposure

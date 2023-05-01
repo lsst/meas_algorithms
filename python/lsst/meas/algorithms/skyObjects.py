@@ -1,6 +1,8 @@
 
 __all__ = ["SkyObjectsConfig", "SkyObjectsTask", "generateSkyObjects"]
 
+from scipy.stats import qmc
+
 from lsst.pex.config import Config, Field, ListField
 from lsst.pipe.base import Task
 
@@ -33,9 +35,11 @@ def generateSkyObjects(mask, seed, config):
     through the provided `mask` (in which objects are typically flagged
     as `DETECTED`).
 
-    The algorithm for determining sky objects is random trial and error:
-    we try up to `nTrialSkySources` random positions to find `nSources`
-    sky objects.
+    Sky objects are positioned using a quasi-random Halton sequence number
+    generator. This is a deterministic sequence that mimics a random trial and
+    error approach whilst acting to minimize clustering of points for a given
+    field of view. Up to `nTrialSources` points are generated, returning the
+    first `nSources` that do not overlap with the mask.
 
     Parameters
     ----------
@@ -71,15 +75,14 @@ def generateSkyObjects(mask, seed, config):
     if config.growMask > 0:
         avoid = avoid.dilated(config.growMask)
 
-    rng = lsst.afw.math.Random(seed=seed)
+    sampler = qmc.Halton(d=2, seed=seed).random(nTrialSkySources)
+    sample = qmc.scale(sampler, [xMin, yMin], [xMax, yMax])
 
     skyFootprints = []
-    for _ in range(nTrialSkySources):
+    for x, y in zip(sample[:, 0].astype(int), sample[:, 1].astype(int)):
         if len(skyFootprints) == nSkySources:
             break
 
-        x = int(rng.flat(xMin, xMax))
-        y = int(rng.flat(yMin, yMax))
         spans = lsst.afw.geom.SpanSet.fromShape(int(skySourceRadius), offset=(x, y))
         if spans.overlaps(avoid):
             continue
@@ -87,6 +90,9 @@ def generateSkyObjects(mask, seed, config):
         fp = lsst.afw.detection.Footprint(spans, mask.getBBox())
         fp.addPeak(x, y, 0)
         skyFootprints.append(fp)
+
+        # Add doubled-in-size sky object spanSet to the avoid mask.
+        avoid = avoid.union(spans.dilated(int(skySourceRadius)))
 
     return skyFootprints
 
@@ -103,9 +109,11 @@ class SkyObjectsTask(Task):
         through the provided `mask` (in which objects are typically flagged
         as `DETECTED`).
 
-        The algorithm for determining sky objects is random trial and error:
-        we try up to `nTrialSkySources` random positions to find `nSources`
-        sky objects.
+        Sky objects are positioned using a quasi-random Halton sequence
+        number generator. This is a deterministic sequence that mimics a random
+        trial and error approach whilst acting to minimize clustering of points
+        for a given field of view. Up to `nTrialSources` points are generated,
+        returning the first `nSources` that do not overlap with the mask.
 
         Parameters
         ----------
