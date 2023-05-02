@@ -38,12 +38,15 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
                                         crval=SpherePoint(0, 0, degrees),
                                         cdMatrix=makeCdMatrix(scale=scale)))
 
-        # Make a large area of extra background; we should be robust against it
-        # Unfortunately, some tuning is required here to get something challenging but not impossible:
-        # * A very large box will cause failures because the "extra" and the "normal" are reversed.
-        # * A small box will not be challenging because it's simple to clip out.
-        # * A large value will cause failures because it produces large edges in background-subtrction that
-        #     broaden flux distributions.
+        # Make a large area of extra background; we should be robust against
+        # it. Unfortunately, some tuning is required here to get something
+        # challenging but not impossible:
+        # * A very large box will cause failures because the "extra" and the
+        #   "normal" are reversed.
+        # * A small box will not be challenging because it's simple to clip
+        #   out.
+        # * A large value will cause failures because it produces large edges
+        #   in background-subtrction that broaden flux distributions.
         # * A small value will not be challenging because it has little effect.
         extraBox = Box2I(xy0 + Extent2I(345, 456), Extent2I(1234, 1234))  # Box for extra background
         extraValue = 0.5*noise  # Extra background value to add in
@@ -55,8 +58,9 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         self.config.doTempWideBackground = True
         self.config.thresholdType = "pixel_stdev"
 
-        # Relative tolerance for tweak factor
-        # Not sure why this isn't smaller; maybe due to use of Poisson instead of Gaussian noise?
+        # Relative tolerance for tweak factor.
+        # Not sure why this isn't smaller; maybe due to use of Poisson instead
+        # of Gaussian noise?
         # It seems as if some sky objects are being placed in the extra
         # background region, which is causing the offset between the expected
         # factor and the measured factor to be larger than otherwise expected.
@@ -76,17 +80,20 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         self.assertFloatsAlmostEqual(results.factor, expectFactor, rtol=self.rtol)
 
     def testVanilla(self):
-        """Dynamic detection used as normal detection"""
+        """Dynamic detection used as normal detection."""
         self.check(1.0)
 
     def testDynamic(self):
-        """Modify the variance plane, and see if the task is able to determine what we did"""
+        """Modify the variance plane, and see if the task is able to determine
+        what we did.
+        """
         factor = 2.0
         self.exposure.maskedImage.variance /= factor
         self.check(1.0/np.sqrt(factor))
 
     def testNoSources(self):
-        self.config.skyObjects.nSources = self.config.minNumSources - 1
+        self.config.skyObjects.nSources = (
+            int(self.config.minFractionSources*self.config.skyObjects.nSources) - 1)
         self.check(1.0)
 
 
