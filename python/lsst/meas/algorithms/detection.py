@@ -482,7 +482,7 @@ class SourceDetectionTask(pipeBase.Task):
 
         return pipeBase.Struct(middle=middle, sigma=sigma)
 
-    def applyThreshold(self, middle, bbox, factor=1.0):
+    def applyThreshold(self, middle, bbox, factor=1.0, factorNeg=None):
         r"""Apply thresholds to the convolved image
 
         Identifies ``Footprint``\ s, both positive and negative.
@@ -498,6 +498,10 @@ class SourceDetectionTask(pipeBase.Task):
             Bounding box of unconvolved image.
         factor : `float`
             Multiplier for the configured threshold.
+        factorNeg : `float` or `None`
+            Multiplier for the configured threshold for negative detection polarity.
+            If `None`, will be set equal to ``factor`` (i.e. equal to the factor used
+            for positive detection polarity).
 
         Returns
         -------
@@ -513,8 +517,15 @@ class SourceDetectionTask(pipeBase.Task):
             ``factor``
                 Multiplier for the configured threshold.
                 (`float`)
+            ``factorNeg``
+                Multiplier for the configured threshold for negative detection polarity.
+                (`float`)
         """
-        results = pipeBase.Struct(positive=None, negative=None, factor=factor,
+        if factorNeg is None:
+            factorNeg = factor
+            self.log.info("Setting factor for negative detections equal to that for positive "
+                          "detections: %f", factor)
+        results = pipeBase.Struct(positive=None, negative=None, factor=factor, factorNeg=factorNeg,
                                   positiveThreshold=None, negativeThreshold=None)
         # Detect the Footprints (peaks may be replaced if doTempLocalBackground)
         if self.config.reEstimateBackground or self.config.thresholdPolarity != "negative":
@@ -527,7 +538,7 @@ class SourceDetectionTask(pipeBase.Task):
             )
             results.positive.setRegion(bbox)
         if self.config.reEstimateBackground or self.config.thresholdPolarity != "positive":
-            results.negativeThreshold = self.makeThreshold(middle, "negative", factor=factor)
+            results.negativeThreshold = self.makeThreshold(middle, "negative", factor=factorNeg)
             results.negative = afwDet.FootprintSet(
                 middle,
                 results.negativeThreshold,
@@ -538,8 +549,8 @@ class SourceDetectionTask(pipeBase.Task):
 
         return results
 
-    def finalizeFootprints(self, mask, results, sigma, factor=1.0):
-        """Finalize the detected footprints
+    def finalizeFootprints(self, mask, results, sigma, factor=1.0, factorNeg=None):
+        """Finalize the detected footprints.
 
         Grows the footprints, sets the ``DETECTED`` and ``DETECTED_NEGATIVE``
         mask planes, and logs the results.
@@ -559,8 +570,15 @@ class SourceDetectionTask(pipeBase.Task):
         sigma : `float`
             Gaussian sigma of PSF.
         factor : `float`
-            Multiplier for the configured threshold.
+            Multiplier for the configured threshold. Note that this is only
+            used here for logging purposes.
+        factorNeg : `float` or `None`
+            Multiplier used for the negative detection polarity threshold.
+            If `None`, a factor equal to ``factor`` (i.e. equal to the one used
+            for positive detection polarity) is assumed. Note that this is only
+            used here for logging purposes.
         """
+        factorNeg = factor if factorNeg is None else factorNeg
         for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
             fpSet = getattr(results, polarity)
             if fpSet is None:
@@ -595,9 +613,10 @@ class SourceDetectionTask(pipeBase.Task):
             results.numNegPeaks = sum(len(fp.getPeaks()) for fp in results.negative.getFootprints())
             negative = " %d negative peaks in %d footprints" % (results.numNegPeaks, results.numNeg)
 
-        self.log.info("Detected%s%s%s to %g %s",
+        self.log.info("Detected%s%s%s to %g +ve and %g -ve %s",
                       positive, " and" if positive and negative else "", negative,
                       self.config.thresholdValue*self.config.includeThresholdMultiplier*factor,
+                      self.config.thresholdValue*self.config.includeThresholdMultiplier*factorNeg,
                       "DN" if self.config.thresholdType == "value" else "sigma")
 
     def reEstimateBackground(self, maskedImage, backgrounds):
