@@ -67,6 +67,8 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         for x in self.src['id']:
             self.assertIn(x, result.sourceCat['id'])
 
+        self.assertTrue(result.sourceCat.isContiguous())
+
     def testSelectSourcesBad(self):
         """Add a source that fails the source selector test and check
         that our output array is indeed empty.
@@ -75,6 +77,8 @@ class TestFlaggedSourceSelector(lsst.utils.tests.TestCase):
         self.src[0].set('calib_psf_used', False)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+
+        self.assertTrue(result.sourceCat.isContiguous())
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

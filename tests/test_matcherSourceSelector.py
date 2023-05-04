@@ -76,18 +76,21 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         # self.assertEqual(result.sourceCat, self.src)
         for x in self.src['id']:
             self.assertIn(x, result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_bad_centroid(self):
         add_good_source(self.src, 1)
         self.src[0].set('slot_Centroid_x', np.nan)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_is_parent(self):
         add_good_source(self.src, 1)
         self.src[0].set('parent', 1)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_highSN_cut(self):
         add_good_source(self.src, 1)
@@ -99,6 +102,7 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src[0]['id'], result.sourceCat['id'])
         self.assertIn(self.src[1]['id'], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_no_SN_cut(self):
         self.sourceSelector.config.minSnr = 0
@@ -106,24 +110,28 @@ class TestMatcherSourceSelector(lsst.utils.tests.TestCase):
         self.src['slot_ApFlux_instFlux'][0] = 0
         result = self.sourceSelector.run(self.src)
         self.assertIn(self.src[0]['id'], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_is_edge(self):
         add_good_source(self.src, 1)
         self.src[0].set('base_PixelFlags_flag_edge', 1)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_is_interpolated(self):
         add_good_source(self.src, 1)
         self.src[0].set('base_PixelFlags_flag_interpolatedCenter', 1)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSources_is_saturated(self):
         add_good_source(self.src, 1)
         self.src[0].set('base_PixelFlags_flag_saturated', 1)
         result = self.sourceSelector.run(self.src)
         self.assertNotIn(self.src['id'][0], result.sourceCat['id'])
+        self.assertTrue(result.sourceCat.isContiguous())
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

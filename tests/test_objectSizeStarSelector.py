@@ -116,6 +116,8 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         self.assertIn(self.sourceCat[1]["id"], result.sourceCat["id"])
         self.assertNotIn(self.sourceCat[2]["id"], result.sourceCat["id"])
 
+        self.assertTrue(result.sourceCat.isContiguous())
+
     def testSelectSourcesNoSignalToNoiseCut(self):
         for i in range(5):
             addGoodSource(self.sourceCat, i)
@@ -123,6 +125,8 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         self.sourceSelector.config.signalToNoiseMin = 0
         result = self.sourceSelector.run(self.sourceCat)
         self.assertIn(self.sourceCat[0]["id"], result.sourceCat["id"])
+
+        self.assertTrue(result.sourceCat.isContiguous())
 
     def testSelectSourcesFluxCuts(self):
         for i in range(10):
@@ -138,6 +142,8 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         self.assertNotIn(self.sourceCat[0]["id"], result.sourceCat["id"])
         self.assertIn(self.sourceCat[1]["id"], result.sourceCat["id"])
         self.assertNotIn(self.sourceCat[2]["id"], result.sourceCat["id"])
+
+        self.assertTrue(result.sourceCat.isContiguous())
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

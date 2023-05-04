@@ -66,6 +66,7 @@ class SourceSelectorTester:
         self.assertListEqual(results.selected.tolist(), expected)
         self.assertListEqual([src.getId() for src in results.sourceCat],
                              [src.getId() for src, ok in zip(self.catalog, expected) if ok])
+        self.assertTrue(results.sourceCat.isContiguous())
 
         # Check with pandas.DataFrame version of catalog
         results = task.run(self.catalog.asAstropy().to_pandas())
