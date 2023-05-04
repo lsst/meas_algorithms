@@ -96,7 +96,6 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
             ``sourceCat``
                 The catalog of sources that were selected.
-                (may not be memory-contiguous)
                 (`lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
                 or `astropy.table.Table`)
             ``selected``
@@ -109,8 +108,10 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
         RuntimeError
             Raised if ``sourceCat`` is not contiguous.
         """
+        isAfwCatalog = False
         if hasattr(sourceCat, 'isContiguous'):
             # Check for continuity on afwTable catalogs
+            isAfwCatalog = True
             if not sourceCat.isContiguous():
                 raise RuntimeError("Input catalogs for source selection must be contiguous.")
 
@@ -127,7 +128,13 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
                 # TODO: Remove for loop when DM-6981 is completed.
                 for source, flag in zip(sourceCat, result.selected):
                     source.set(source_selected_key, bool(flag))
-        return pipeBase.Struct(sourceCat=sourceCat[result.selected],
+
+        sourceCat = sourceCat[result.selected]
+        if isAfwCatalog:
+            if not sourceCat.isContiguous():
+                sourceCat = sourceCat.copy(deep=True)
+
+        return pipeBase.Struct(sourceCat=sourceCat,
                                selected=result.selected)
 
     @abc.abstractmethod
