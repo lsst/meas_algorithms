@@ -22,7 +22,8 @@
 #
 
 __all__ = ["plantSources", "makeRandomTransmissionCurve", "makeDefectList",
-           "MockReferenceObjectLoaderFromFiles", "MockRefcatDataId"]
+           "MockReferenceObjectLoaderFromFiles", "MockRefcatDataId",
+           "MockReferenceObjectLoaderFromMemory"]
 
 import numpy as np
 import esutil
@@ -206,7 +207,7 @@ class MockRefcatDataId:
 
 
 class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
-    """A simple mock of ReferenceObjectLoader.
+    """A mock of ReferenceObjectLoader using files on disk.
 
     This mock ReferenceObjectLoader uses a set of files on disk to create
     mock dataIds and data reference handles that can be accessed
@@ -267,5 +268,40 @@ class MockReferenceObjectLoaderFromFiles(ReferenceObjectLoader):
 
             dataIds.append(MockRefcatDataId(pixelization.pixel(ids[0])))
             refCats.append(InMemoryDatasetHandle(cat, name=name))
+
+        return dataIds, refCats
+
+
+class MockReferenceObjectLoaderFromMemory(ReferenceObjectLoader):
+    """A mock of ReferenceObjectLoader using catalogs in memory.
+
+    Parameters
+    ----------
+    catalogs : `list` [`lsst.afw.table.SimpleCatalog`]
+        In-memory catalogs to use to mock dataIds.
+    config : `lsst.meas.astrom.LoadReferenceObjectsConfig`, optional
+        Configuration object if necessary to override defaults.
+    htmLevel : `int`, optional
+        HTM level to use for the loader.
+    """
+    def __init__(self, catalogs, name='mock_ref_cat', config=None, htmLevel=4):
+        dataIds, refCats = self._createDataIdsAndRefcats(catalogs, htmLevel, name)
+        super().__init__(dataIds, refCats, name=name, config=config)
+
+    def _createDataIdsAndRefcats(self, catalogs, htmLevel, name):
+        pixelization = sphgeom.HtmPixelization(htmLevel)
+        htm = esutil.htm.HTM(htmLevel)
+
+        dataIds = []
+        refCats = []
+
+        for i, catalog in enumerate(catalogs):
+            ids = htm.lookup_id(np.rad2deg(catalog['coord_ra']), np.rad2deg(catalog['coord_dec']))
+
+            if len(np.unique(ids)) != 1:
+                raise RuntimeError(f"Catalog number {i} contains more than one pixel at level {htmLevel}")
+
+            dataIds.append(MockRefcatDataId(pixelization.pixel(ids[0])))
+            refCats.append(InMemoryDatasetHandle(catalog, name=name))
 
         return dataIds, refCats
