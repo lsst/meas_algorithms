@@ -494,18 +494,18 @@ class RequireFiniteRaDec(pexConfig.Config):
     """Select sources that have finite RA and Dec sky coordinate values
 
     This object can be used as a `lsst.pex.config.Config` for configuring
-    the column names to check for "coore_ra" and "coord_dec" keys.
+    the column names to check for "coord_ra" and "coord_dec" keys.
 
     This will select against objects for which either the RA or Dec coordinate
     entries are not numpy.isfinite().
     """
     raColName = pexConfig.Field(dtype=str, default="coord_ra", doc="Name of column for RA coordinate")
-    decColName = pexConfig.Field(dtype=str, default="coord_dec", doc="Name of column for Dec coordiante")
+    decColName = pexConfig.Field(dtype=str, default="coord_dec", doc="Name of column for Dec coordinate")
 
     def apply(self, catalog):
         """Apply the sky coordinate requirements to a catalog
 
-        Returns whether the source is selected.
+        Returns whether the sources were selected.
 
         Parameters
         ----------
