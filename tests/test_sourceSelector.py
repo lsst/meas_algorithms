@@ -53,6 +53,7 @@ class SourceSelectorTester:
         schema.addField("badFlag", "Flag", "Flagged if bad")
         schema.addField("starGalaxy", float, "0=star, 1=galaxy")
         schema.addField("nChild", np.int32, "Number of children")
+        schema.addField("detect_isPrimary", "Flag", "Is primary detection?")
         self.catalog = lsst.afw.table.SourceCatalog(schema)
         self.catalog.reserve(10)
         self.config = self.Task.ConfigClass()
@@ -203,6 +204,16 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.requireFiniteRaDec.raColName = "coord_ra"
         self.config.requireFiniteRaDec.decColName = "coord_dec"
         self.check((np.isfinite(ra) & np.isfinite(dec)).tolist())
+
+    def testRequirePrimary(self):
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
+        primary = np.array([True, True, False, True, False], dtype=bool)
+        self.catalog["detect_isPrimary"] = primary
+        self.config.doRequirePrimary = True
+        self.config.requirePrimary.primaryColName = "detect_isPrimary"
+        self.check(primary.tolist())
 
 
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
