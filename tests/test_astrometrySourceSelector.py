@@ -63,6 +63,7 @@ def add_good_source(src, num=0):
     src['slot_Centroid_x_y_Cov'][-1] = 3. + num
     src['slot_ApFlux_instFlux'][-1] = 100. + num
     src['slot_ApFlux_instFluxErr'][-1] = 1.
+    src['detect_isPrimary'] = True
 
 
 class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
@@ -71,6 +72,7 @@ class TestAstrometrySourceSelector(lsst.utils.tests.TestCase):
         schema = lsst.meas.base.tests.TestDataset.makeMinimalSchema()
         schema.addField("slot_ApFlux_instFlux", type=np.float64)
         schema.addField("slot_ApFlux_instFluxErr", type=np.float64)
+        schema.addField("detect_isPrimary", type="Flag")
         for flag in badFlags + goodFlags:
             schema.addField(flag, type="Flag")
 

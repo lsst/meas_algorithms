@@ -31,6 +31,7 @@ __all__ = ["AstrometrySourceSelectorConfig", "AstrometrySourceSelectorTask"]
 import numpy as np
 
 import lsst.pex.config as pexConfig
+from lsst.pex.exceptions import NotFoundError
 from .sourceSelector import BaseSourceSelectorConfig, BaseSourceSelectorTask, sourceSelectorRegistry
 from lsst.pipe.base import Struct
 from functools import reduce
@@ -112,6 +113,10 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         self.centroidXErrKey = schema["slot_Centroid_xErr"].asKey()
         self.centroidYErrKey = schema["slot_Centroid_yErr"].asKey()
         self.centroidFlagKey = schema["slot_Centroid_flag"].asKey()
+        try:
+            self.primaryKey = schema["detect_isPrimary"].asKey()
+        except NotFoundError:
+            self.primaryKey = None
 
         self.edgeKey = schema["base_PixelFlags_flag_edge"].asKey()
         self.interpolatedCenterKey = schema["base_PixelFlags_flag_interpolatedCenter"].asKey()
@@ -171,6 +176,14 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             & self._goodSN(sourceCat) \
             & ~sourceCat.get(self.fluxFlagKey)
 
+    def _isPrimary(self, sourceCat):
+        """Return True if this is a primary source.
+        """
+        if self.primaryKey:
+            return sourceCat.get(self.primaryKey)
+        else:
+            return np.ones(len(sourceCat), dtype=bool)
+
     def _isGood(self, sourceCat):
         """Return True for each source that is usable for matching and likely has a
         good centroid.
@@ -182,6 +195,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         """
 
         return self._isUsable(sourceCat) \
+            & self._isPrimary(sourceCat) \
             & ~sourceCat.get(self.saturatedKey) \
             & ~sourceCat.get(self.interpolatedCenterKey) \
             & ~sourceCat.get(self.edgeKey)
