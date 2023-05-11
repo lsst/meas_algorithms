@@ -23,6 +23,7 @@
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
+import logging
 from collections.abc import Collection
 from dataclasses import dataclass
 from functools import reduce
@@ -36,6 +37,8 @@ from lsst.afw.table.io import Persistable
 from lsst.geom import Point2I
 
 from .stamps import AbstractStamp, Stamps, readFitsWithOptions
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,9 +67,10 @@ class BrightStarStamp(AbstractStamp):
     position: Point2I
     archive_element: Persistable | None = None
     annularFlux: float | None = None
+    minValidAnnulusFraction: float = 0.0
 
     @classmethod
-    def factory(cls, stamp_im, metadata, idx, archive_element=None):
+    def factory(cls, stamp_im, metadata, idx, archive_element=None, minValidAnnulusFraction=0.0):
         """This method is needed to service the FITS reader. We need a standard
         interface to construct objects like this. Parameters needed to
         construct this object are passed in via a metadata dictionary and then
@@ -85,6 +89,9 @@ class BrightStarStamp(AbstractStamp):
             Index into the lists in ``metadata``
         archive_element : `~lsst.afw.table.io.Persistable` or None, optional
             Archive element (e.g. Transform or WCS) associated with this stamp.
+        minValidAnnulusFraction : `float`, optional
+            The fraction of valid pixels within the normalization annulus of a
+            star.
 
         Returns
         -------
@@ -104,6 +111,7 @@ class BrightStarStamp(AbstractStamp):
             position=position,
             archive_element=archive_element,
             annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
+            minValidAnnulusFraction=minValidAnnulusFraction,
         )
 
     def measureAndNormalize(
@@ -144,11 +152,28 @@ class BrightStarStamp(AbstractStamp):
         # set mask planes to be ignored
         andMask = reduce(ior, (annulusMask.getPlaneBitMask(bm) for bm in badMaskPlanes))
         statsControl.setAndMask(andMask)
-        # compute annularFlux
+
         annulusStat = makeStatistics(annulusImage, statsFlag, statsControl)
-        self.annularFlux = annulusStat.getValue()
+        # determining the number of valid (unmasked) pixels within the annulus
+        unMasked = annulusMask.array.size - np.count_nonzero(annulusMask.array)
+        # should we have some messages printed here?
+        logger.info(
+            "The Star's annulus contains %s valid pixels and the annulus itself contains %s pixels.",
+            unMasked,
+            annulus.getArea(),
+        )
+        if unMasked > (annulus.getArea() * self.minValidAnnulusFraction):
+            # compute annularFlux
+            self.annularFlux = annulusStat.getValue()
+            logger.info("Annular flux is: %s", self.annularFlux)
+        else:
+            raise RuntimeError(
+                f"Less than {self.minValidAnnulusFraction * 100}% of pixels within the annulus are valid."
+            )
         if np.isnan(self.annularFlux):
-            raise RuntimeError("Annular flux computation failed, likely because no pixels were valid.")
+            raise RuntimeError("Annular flux computation failed, likely because there are no valid pixels.")
+        if self.annularFlux < 0:
+            raise RuntimeError("The annular flux is negative. The stamp can not be normalized!")
         # normalize stamps
         self.stamp_im.image.array /= self.annularFlux
         return None
@@ -324,23 +349,30 @@ class BrightStarStamps(Stamps):
             use_variance=use_variance,
             use_archive=use_archive,
         )
-        # Ensure no stamps had already been normalized
+        # Ensure no stamps had already been normalized.
         bss._checkNormalization(True, innerRadius, outerRadius)
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
+        # Create a list to contain rejected stamps.
+        rejects = []
         # Apply normalization
-        for j, stamp in enumerate(bss._stamps):
+        for stamp in bss._stamps:
             try:
                 stamp.measureAndNormalize(
                     annulus, statsControl=statsControl, statsFlag=statsFlag, badMaskPlanes=badMaskPlanes
                 )
-            except RuntimeError:
+            except RuntimeError as err:
+                logger.error(err)
                 # Optionally keep NaN flux objects, for bookkeeping purposes,
                 # and to avoid having to re-find and redo the preprocessing
                 # steps needed before bright stars can be subtracted.
                 if discardNanFluxObjects:
-                    bss._stamps.pop(j)
+                    rejects.append(stamp)
                 else:
                     stamp.annularFlux = np.nan
+        # Remove rejected stamps.
+        if discardNanFluxObjects:
+            for reject in rejects:
+                bss._stamps.remove(reject)
         bss.normalized = True
         return bss
 
