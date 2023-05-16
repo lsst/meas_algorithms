@@ -143,6 +143,11 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="Mask planes to ignore when calculating statistics of image (for thresholdType=stdev)",
         default=['BAD', 'SAT', 'EDGE', 'NO_DATA'],
     )
+    excludeMaskPlanes = lsst.pex.config.ListField(
+        dtype=str,
+        default=("EDGE",),
+        doc="Mask planes to exclude when detecting sources."
+    )
 
     def setDefaults(self):
         self.tempLocalBackground.binSize = 64
@@ -756,6 +761,7 @@ class SourceDetectionTask(pipeBase.Task):
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
             middle = convolveResults.middle
             sigma = convolveResults.sigma
+            self.removeBadPixels(middle)
 
             results = self.applyThreshold(middle, maskedImage.getBBox())
             results.background = afwMath.BackgroundList()
@@ -778,6 +784,19 @@ class SourceDetectionTask(pipeBase.Task):
             self.display(exposure, results, middle)
 
         return results
+
+    def removeBadPixels(self, middle):
+        """Set the significance of flagged pixels to zero.
+
+        Parameters
+        ----------
+        middle : `lsst.afw.image.ExposureF`
+            Score or maximum likelihood difference image.
+            The image plane will be modified in place.
+        """
+        badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(self.config.excludeMaskPlanes)
+        badPixels = middle.mask.array & badPixelMask > 0
+        middle.image.array[badPixels] = 0
 
     def setPeakSignificance(self, exposure, footprints, threshold, negative=False):
         """Set the significance of each detected peak to the pixel value divided
