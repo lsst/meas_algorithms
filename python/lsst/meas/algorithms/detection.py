@@ -145,7 +145,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     excludeMaskPlanes = lsst.pex.config.ListField(
         dtype=str,
-        default=("EDGE",),
+        default=[],
         doc="Mask planes to exclude when detecting sources."
     )
 
