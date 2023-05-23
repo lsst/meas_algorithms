@@ -22,6 +22,7 @@
 #
 import unittest
 import numpy as np
+import logging
 
 import lsst.geom
 import lsst.afw.image as afwImage
@@ -152,8 +153,10 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         """ If there are too few sources, check that an exception is raised."""
         # Create an empty catalog with no sources to process.
         catalog = afwTable.SourceCatalog(self.schema)
-        with self.assertRaisesRegex(measureApCorr.MeasureApCorrError, "failed on required algorithm"):
-            self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
+        with self.assertLogs(level=logging.WARNING) as cm:
+            with self.assertRaisesRegex(measureApCorr.MeasureApCorrError, "failed on required algorithm"):
+                self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
+        self.assertIn("Unable to measure aperture correction for required algorithm", cm.output[0])
 
         # We now try again after declaring that the aperture correction is
         # allowed to fail. This should run cleanly without raising an exception.
