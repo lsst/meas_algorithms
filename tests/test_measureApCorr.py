@@ -247,8 +247,10 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
             nameAp = name + self.apNameStr
             sourceCat[nameAp + "_instFlux"][0] = 100.0
 
-        with self.assertRaisesRegex(RuntimeError, "only 4 sources remain"):
-            self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
+        with self.assertLogs(level=logging.WARNING) as cm:
+            with self.assertRaisesRegex(measureApCorr.MeasureApCorrError, "Aperture correction failed"):
+                self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
+        self.assertIn("only 4 sources remain", cm.output[0])
 
         # We now try again after declaring that the aperture correction is
         # allowed to fail. This should run cleanly without raising an exception.
