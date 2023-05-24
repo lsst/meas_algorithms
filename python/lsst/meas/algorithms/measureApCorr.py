@@ -287,9 +287,11 @@ class MeasureApCorrTask(Task):
                                          (name, keep.sum(), self.config.minDegreesOfFreedom + 1))
                         break
                     else:
-                        raise RuntimeError("Unable to measure aperture correction for required algorithm "
-                                           "'%s': only %d sources remain, but require at least %d." %
-                                           (name, keep.sum(), self.config.minDegreesOfFreedom + 1))
+                        msg = ("Unable to measure aperture correction for required algorithm "
+                               "'%s': only %d sources remain, but require at least %d." %
+                               (name, keep.sum(), self.config.minDegreesOfFreedom + 1))
+                        self.log.warning(msg)
+                        raise MeasureApCorrError("Aperture correction failed on required algorithm.")
 
                 apCorrField = ChebyshevBoundedField.fit(bbox, x, y, z, ctrl)
                 fitValues = apCorrField.evaluate(x, y)
