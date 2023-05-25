@@ -119,14 +119,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
                                     matches=matches)
 
         if sourceSelectedField is not None:
-            if isinstance(sourceCat, (pandas.DataFrame, astropy.table.Table)):
-                sourceCat[sourceSelectedField] = result.selected
-            else:
-                source_selected_key = \
-                    sourceCat.getSchema()[sourceSelectedField].asKey()
-                # TODO: Remove for loop when DM-6981 is completed.
-                for source, flag in zip(sourceCat, result.selected):
-                    source.set(source_selected_key, bool(flag))
+            sourceCat[sourceSelectedField] = result.selected
+
         return pipeBase.Struct(sourceCat=sourceCat[result.selected],
                                selected=result.selected)
 
