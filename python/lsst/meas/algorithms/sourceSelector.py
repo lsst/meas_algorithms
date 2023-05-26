@@ -23,7 +23,7 @@
 
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry",
            "ColorLimit", "MagnitudeLimit", "SignalToNoiseLimit", "MagnitudeErrorLimit",
-           "RequireFlags", "RequireUnresolved", "RequireFiniteRaDec",
+           "RequireFlags", "RequireUnresolved", "RequireFiniteRaDec", "RequirePrimary",
            "ScienceSourceSelectorConfig", "ScienceSourceSelectorTask",
            "ReferenceSourceSelectorConfig", "ReferenceSourceSelectorTask",
            ]
@@ -119,14 +119,8 @@ class BaseSourceSelectorTask(pipeBase.Task, metaclass=abc.ABCMeta):
                                     matches=matches)
 
         if sourceSelectedField is not None:
-            if isinstance(sourceCat, (pandas.DataFrame, astropy.table.Table)):
-                sourceCat[sourceSelectedField] = result.selected
-            else:
-                source_selected_key = \
-                    sourceCat.getSchema()[sourceSelectedField].asKey()
-                # TODO: Remove for loop when DM-6981 is completed.
-                for source, flag in zip(sourceCat, result.selected):
-                    source.set(source_selected_key, bool(flag))
+            sourceCat[sourceSelectedField] = result.selected
+
         return pipeBase.Struct(sourceCat=sourceCat[result.selected],
                                selected=result.selected)
 
@@ -494,18 +488,18 @@ class RequireFiniteRaDec(pexConfig.Config):
     """Select sources that have finite RA and Dec sky coordinate values
 
     This object can be used as a `lsst.pex.config.Config` for configuring
-    the column names to check for "coore_ra" and "coord_dec" keys.
+    the column names to check for "coord_ra" and "coord_dec" keys.
 
     This will select against objects for which either the RA or Dec coordinate
     entries are not numpy.isfinite().
     """
     raColName = pexConfig.Field(dtype=str, default="coord_ra", doc="Name of column for RA coordinate")
-    decColName = pexConfig.Field(dtype=str, default="coord_dec", doc="Name of column for Dec coordiante")
+    decColName = pexConfig.Field(dtype=str, default="coord_dec", doc="Name of column for Dec coordinate")
 
     def apply(self, catalog):
         """Apply the sky coordinate requirements to a catalog
 
-        Returns whether the source is selected.
+        Returns whether the sources were selected.
 
         Parameters
         ----------
@@ -524,6 +518,45 @@ class RequireFiniteRaDec(pexConfig.Config):
         return selected
 
 
+class RequirePrimary(pexConfig.Config):
+    """Select sources that have the detect_isPrimary flag set.
+
+    This object can be used as a `lsst.pex.config.Config` for configuring
+    the column names to check for "detect_isPrimary".  For single frame
+    catalogs this will be True when the source is not a sky object, and is
+    either an isolated parent that is un-modeled or deblended from a parent
+    with multiple children.  For meas_deblender, this is equivalent to
+    deblend_nChild=0.  For coadd catalogs there is an additional constraint
+    that the source is located on the interior of a patch and tract.
+    """
+    primaryColName = pexConfig.Field(
+        dtype=str,
+        default="detect_isPrimary",
+        doc="Name of primary flag column",
+    )
+
+    def apply(self, catalog):
+        """Apply the primary requirements to a catalog.
+
+        Returns whether the sources were selected.
+
+        Parameters
+        ----------
+        catalog : lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                  or `astropy.table.Table`
+            Catalog of sources to which the requirement will be applied.
+
+        Returns
+        -------
+        selected : `numpy.ndarray`
+            Boolean array indicating for each source whether it is selected
+            (True means selected).
+        """
+        selected = (_getFieldFromCatalog(catalog, self.primaryColName)).astype(bool)
+
+        return selected
+
+
 class ScienceSourceSelectorConfig(pexConfig.Config):
     """Configuration for selecting science sources"""
     doFluxLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply flux limit?")
@@ -533,6 +566,8 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
     doIsolated = pexConfig.Field(dtype=bool, default=False, doc="Apply isolated limitation?")
     doRequireFiniteRaDec = pexConfig.Field(dtype=bool, default=False,
                                            doc="Apply finite sky coordinate check?")
+    doRequirePrimary = pexConfig.Field(dtype=bool, default=False,
+                                       doc="Apply source is primary check?")
     fluxLimit = pexConfig.ConfigField(dtype=FluxLimit, doc="Flux limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
@@ -540,6 +575,8 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
     isolated = pexConfig.ConfigField(dtype=RequireIsolated, doc="Isolated criteria to apply")
     requireFiniteRaDec = pexConfig.ConfigField(dtype=RequireFiniteRaDec,
                                                doc="Finite sky coordinate criteria to apply")
+    requirePrimary = pexConfig.ConfigField(dtype=RequirePrimary,
+                                           doc="Primary source criteria to apply")
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -596,6 +633,8 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.isolated.apply(sourceCat)
         if self.config.doRequireFiniteRaDec:
             selected &= self.config.requireFiniteRaDec.apply(sourceCat)
+        if self.config.doRequirePrimary:
+            selected &= self.config.requirePrimary.apply(sourceCat)
 
         self.log.info("Selected %d/%d sources", selected.sum(), len(sourceCat))
 
