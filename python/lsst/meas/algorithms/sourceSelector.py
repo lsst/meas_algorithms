@@ -418,7 +418,7 @@ class RequireUnresolved(BaseLimit):
     the limit, and then the `apply` method can be used to identify sources
     in the catalog that match the configured limit.
     """
-    name = pexConfig.Field(dtype=str, default="base_ClassificationExtendedness_value",
+    name = pexConfig.Field(dtype=str, default="base_MomentsClassifer",
                            doc="Name of column for star/galaxy separation")
 
     def setDefaults(self):
