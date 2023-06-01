@@ -195,13 +195,20 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
         output_fluxerr_name = norm_name + "_instFluxErr"
         output_flag_name = norm_name + "_flag"
 
-        catalog[output_flux_name] = catalog[input_flux_name] * corrections
-        catalog[output_fluxerr_name] = catalog[input_fluxerr_name] * corrections
+        if catalog.isContiguous():
+            catalog[output_flux_name] = catalog[input_flux_name] * corrections
+            catalog[output_fluxerr_name] = catalog[input_fluxerr_name] * corrections
 
-        # Flag any illegal aperture corrections.
-        output_flag = catalog[input_flag_name].copy()
-        output_flag[corrections <= 0.0] = True
-        catalog[output_flag_name] = output_flag
+            output_flag = catalog[input_flag_name].copy()
+            output_flag[corrections <= 0.0] = True
+            catalog[output_flag_name] = output_flag
+        else:
+            for i, row in enumerate(catalog):
+                row[output_flux_name] = row[input_flux_name] * corrections[i]
+                row[output_fluxerr_name] = row[input_fluxerr_name] * corrections[i]
+
+                if row[input_flag_name] or corrections[i] <= 0.0:
+                    row[output_flag_name] = True
 
         ap_corr_map = ApCorrMap()
         ap_corr_map[raw_flux_name] = ap_corr_field
@@ -265,7 +272,11 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
                 np.array([[ratio]]),
             )
 
-            catalog["apcorr_" + raw_name + "_used"] = sel
+            if catalog.isContiguous():
+                catalog["apcorr_" + raw_name + "_used"] = sel
+            else:
+                for i, row in enumerate(catalog):
+                    row["apcorr_" + raw_name + "_used"] = sel[i]
 
         # We are always setting the error field to 0.
         ap_corr_err_field = ChebyshevBoundedField(
