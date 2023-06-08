@@ -249,7 +249,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         datasetType = DatasetType(config.dataset_config.ref_dataset_name,
                                   dimensions,
                                   "SimpleCatalog",
-                                  universe=butler.registry.dimensions,
+                                  universe=butler.dimensions,
                                   isCalibration=False)
         butler.registry.registerDatasetType(datasetType)
 
