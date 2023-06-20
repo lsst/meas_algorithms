@@ -25,7 +25,7 @@ __all__ = ["Stamp", "Stamps", "StampsBase", "writeFits", "readFitsWithOptions"]
 
 import abc
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from lsst.afw.fits import Fits, readMetadata
@@ -213,6 +213,12 @@ class AbstractStamp(abc.ABC):
         raise NotImplementedError
 
 
+def _default_position():
+    # SpherePoint is nominally mutable in C++ so we must use a factory
+    # and return an entirely new SpherePoint each time a Stamps is created.
+    return SpherePoint(Angle(np.nan), Angle(np.nan))
+
+
 @dataclass
 class Stamp(AbstractStamp):
     """Single stamp.
@@ -230,7 +236,7 @@ class Stamp(AbstractStamp):
 
     stamp_im: MaskedImageF
     archive_element: Persistable | None = None
-    position: SpherePoint | None = SpherePoint(Angle(np.nan), Angle(np.nan))
+    position: SpherePoint | None = field(default_factory=_default_position)
 
     @classmethod
     def factory(cls, stamp_im, metadata, index, archive_element=None):
