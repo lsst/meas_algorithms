@@ -19,6 +19,8 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
+import warnings
+
 import numpy as np
 
 
@@ -133,9 +135,9 @@ class AccumulatorMeanStack(object):
         stacked_masked_image : `lsst.afw.image.MaskedImage`
             Total masked image.
         """
-        with np.warnings.catch_warnings():
+        with warnings.catch_warnings():
             # Let the NaNs through and flag bad pixels below
-            np.warnings.simplefilter("ignore")
+            warnings.simplefilter("ignore")
 
             # The image plane is sum(weight*data)/sum(weight)
             stacked_masked_image.image.array[:, :] = self.sum_wdata/self.sum_weight
@@ -203,10 +205,10 @@ class AccumulatorMeanStack(object):
         stacked_image : `lsst.afw.image.Image`
             Total image.
         """
-        with np.warnings.catch_warnings():
+        with warnings.catch_warnings():
             # Let the NaNs through, this should only happen
             # if we're stacking with no inputs.
-            np.warnings.simplefilter("ignore")
+            warnings.simplefilter("ignore")
 
             # The image plane is sum(weight*data)/sum(weight)
             stacked_image.array[:, :] = self.sum_wdata/self.sum_weight
