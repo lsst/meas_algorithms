@@ -120,6 +120,10 @@ def readFitsWithOptions(filename, stamp_factory, options):
         A tuple of a list of `Stamp`-like objects
     metadata : `PropertyList`
         The metadata
+
+    Notes
+    -----
+    Always creates stamps with `~lsst.afw.MaskedImageF` data arrays.
     """
     # extract necessary info from metadata
     metadata = readMetadata(filename, hdu=0)
@@ -146,9 +150,11 @@ def readFitsWithOptions(filename, stamp_factory, options):
         stamp_parts = {}
         # We need to be careful because nExtensions includes the primary HDU.
         for idx in range(nExtensions - 1):
+            dtype = None
             md = readMetadata(filename, hdu=idx + 1)
             if md["EXTNAME"] in ("IMAGE", "VARIANCE"):
                 reader = ImageFitsReader(filename, hdu=idx + 1)
+                dtype = np.dtype(np.float32)  # Always creating MaskedImageF.
             elif md["EXTNAME"] == "MASK":
                 reader = MaskFitsReader(filename, hdu=idx + 1)
             elif md["EXTNAME"] == "ARCHIVE_INDEX":
@@ -159,7 +165,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
                 continue
             else:
                 raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
-            stamp_parts.setdefault(md["EXTVER"], {})[md["EXTNAME"].lower()] = reader.read(**kwargs)
+            stamp_parts.setdefault(md["EXTVER"], {})[md["EXTNAME"].lower()] = reader.read(dtype=dtype,
+                                                                                          **kwargs)
     if len(stamp_parts) != nStamps:
         raise ValueError(
             f"Number of stamps read ({len(stamp_parts)}) does not agree with the "
