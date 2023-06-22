@@ -25,11 +25,11 @@ __all__ = ["Stamp", "Stamps", "StampsBase", "writeFits", "readFitsWithOptions"]
 
 import abc
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 import numpy as np
 from lsst.afw.fits import Fits, readMetadata
-from lsst.afw.image import ImageFitsReader, MaskedImageF, MaskFitsReader
+from lsst.afw.image import ImageFitsReader, MaskedImage, MaskedImageF, MaskFitsReader
 from lsst.afw.table.io import InputArchive, OutputArchive, Persistable
 from lsst.daf.base import PropertyList
 from lsst.geom import Angle, Box2I, Extent2I, Point2I, SpherePoint, degrees
@@ -106,7 +106,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
         A string indicating the file to read
     stamp_factory : classmethod
         A factory function defined on a dataclass for constructing
-        stamp objects a la `~lsst.meas.alrogithm.Stamp`
+        stamp objects a la `~lsst.meas.algorithm.Stamp`
     options : `PropertyList` or `dict`
         A collection of parameters. If it contains a bounding box
         (``bbox`` key), or if certain other keys (``llcX``, ``llcY``,
@@ -120,6 +120,12 @@ def readFitsWithOptions(filename, stamp_factory, options):
         A tuple of a list of `Stamp`-like objects
     metadata : `PropertyList`
         The metadata
+
+    Notes
+    -----
+    The data are read using the data type expected by the
+    `~lsst.afw.image.MaskedImage` class attached to the `AbstractStamp`
+    dataclass associated with the factory method.
     """
     # extract necessary info from metadata
     metadata = readMetadata(filename, hdu=0)
@@ -144,11 +150,30 @@ def readFitsWithOptions(filename, stamp_factory, options):
                 bbox = Box2I(Point2I(llcX, llcY), Extent2I(width, height))
                 kwargs["bbox"] = bbox
         stamp_parts = {}
+
+        # Determine the dtype from the factory. This allows a Stamp class
+        # to be defined in terms of MaskedImageD or MaskedImageI without
+        # forcing everything to floats.
+        masked_image_cls = None
+        for stamp_field in fields(stamp_factory.__self__):
+            if issubclass(stamp_field.type, MaskedImage):
+                masked_image_cls = stamp_field.type
+                break
+        else:
+            raise RuntimeError("Stamp factory does not use MaskedImage.")
+        default_dtype = np.dtype(masked_image_cls.dtype)
+        variance_dtype = np.dtype(np.float32)  # Variance is always the same type.
+
         # We need to be careful because nExtensions includes the primary HDU.
         for idx in range(nExtensions - 1):
+            dtype = None
             md = readMetadata(filename, hdu=idx + 1)
             if md["EXTNAME"] in ("IMAGE", "VARIANCE"):
                 reader = ImageFitsReader(filename, hdu=idx + 1)
+                if md["EXTNAME"] == "VARIANCE":
+                    dtype = variance_dtype
+                else:
+                    dtype = default_dtype
             elif md["EXTNAME"] == "MASK":
                 reader = MaskFitsReader(filename, hdu=idx + 1)
             elif md["EXTNAME"] == "ARCHIVE_INDEX":
@@ -159,7 +184,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
                 continue
             else:
                 raise ValueError(f"Unknown extension type: {md['EXTNAME']}")
-            stamp_parts.setdefault(md["EXTVER"], {})[md["EXTNAME"].lower()] = reader.read(**kwargs)
+            stamp_parts.setdefault(md["EXTVER"], {})[md["EXTNAME"].lower()] = reader.read(dtype=dtype,
+                                                                                          **kwargs)
     if len(stamp_parts) != nStamps:
         raise ValueError(
             f"Number of stamps read ({len(stamp_parts)}) does not agree with the "
@@ -169,7 +195,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
     stamps = []
     for k in range(nStamps):
         # Need to increment by one since EXTVER starts at 1
-        maskedImage = MaskedImageF(**stamp_parts[k + 1])
+        maskedImage = masked_image_cls(**stamp_parts[k + 1])
         archive_element = archive.get(archive_ids[k]) if has_archive else None
         stamps.append(stamp_factory(maskedImage, metadata, k, archive_element))
 
