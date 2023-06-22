@@ -162,6 +162,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
         else:
             raise RuntimeError("Stamp factory does not use MaskedImage.")
         default_dtype = np.dtype(masked_image_cls.dtype)
+        variance_dtype = np.dtype(np.float32)  # Variance is always the same type.
 
         # We need to be careful because nExtensions includes the primary HDU.
         for idx in range(nExtensions - 1):
@@ -169,7 +170,10 @@ def readFitsWithOptions(filename, stamp_factory, options):
             md = readMetadata(filename, hdu=idx + 1)
             if md["EXTNAME"] in ("IMAGE", "VARIANCE"):
                 reader = ImageFitsReader(filename, hdu=idx + 1)
-                dtype = default_dtype
+                if md["EXTNAME"] == "VARIANCE":
+                    dtype = variance_dtype
+                else:
+                    dtype = default_dtype
             elif md["EXTNAME"] == "MASK":
                 reader = MaskFitsReader(filename, hdu=idx + 1)
             elif md["EXTNAME"] == "ARCHIVE_INDEX":
