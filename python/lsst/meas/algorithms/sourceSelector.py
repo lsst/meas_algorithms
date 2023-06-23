@@ -426,7 +426,7 @@ class RequireUnresolved(BaseLimit):
 
         ``base_ClassificationExtendedness_value < 0.5`` means unresolved.
         """
-        self.maximum = 0.5
+        self.maximum = 0.8
 
     def apply(self, catalog):
         """Apply the flag requirements to a catalog
