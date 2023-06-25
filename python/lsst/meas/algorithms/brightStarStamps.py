@@ -68,6 +68,8 @@ class BrightStarStamp(AbstractStamp):
     archive_element: Persistable | None = None
     annularFlux: float | None = None
     minValidAnnulusFraction: float = 0.0
+    optimalInnerRadius: int | None = None
+    optimalOuterRadius: int | None = None
 
     @classmethod
     def factory(cls, stamp_im, metadata, idx, archive_element=None, minValidAnnulusFraction=0.0):
@@ -267,6 +269,7 @@ class BrightStarStamps(Stamps):
         use_archive=False,
         imCenter=None,
         discardNanFluxObjects=True,
+        forceFindFlux=False,
         statsControl=StatisticsControl(),
         statsFlag=stringToStatisticsProperty("MEAN"),
         badMaskPlanes=("BAD", "SAT", "NO_DATA"),
@@ -331,12 +334,13 @@ class BrightStarStamps(Stamps):
             stamps, stamps normalized with different annulus definitions, or if
             stamps are to be normalized but annular radii were not provided.
         """
+        stampSize = starStamps[0].stamp_im.getDimensions()
         if imCenter is None:
-            stampSize = starStamps[0].stamp_im.getDimensions()
             imCenter = stampSize[0] // 2, stampSize[1] // 2
         # Create SpanSet of annulus
         outerCircle = SpanSet.fromShape(outerRadius, Stencil.CIRCLE, offset=imCenter)
         innerCircle = SpanSet.fromShape(innerRadius, Stencil.CIRCLE, offset=imCenter)
+        annulusWidth = outerRadius - innerRadius
         annulus = outerCircle.intersectNot(innerCircle)
         # Initialize (unnormalized) brightStarStamps instance
         bss = cls(
@@ -354,6 +358,7 @@ class BrightStarStamps(Stamps):
         bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
         # Create a list to contain rejected stamps.
         rejects = []
+        badStamps = []
         # Apply normalization
         for stamp in bss._stamps:
             try:
@@ -367,13 +372,60 @@ class BrightStarStamps(Stamps):
                 # steps needed before bright stars can be subtracted.
                 if discardNanFluxObjects:
                     rejects.append(stamp)
+                elif forceFindFlux:
+                    newInnerRadius = innerRadius
+                    newOuterRadius = outerRadius
+                    while True:
+                        newOuterRadius += annulusWidth
+                        newInnerRadius += annulusWidth
+                        if newOuterRadius > min(imCenter):
+                            logger.info(f"No flux found for the star with Gaia ID of {stamp.gaiaId}")
+                            stamp.annularFlux = None
+                            badStamps.append(stamp)
+                            break
+                        newOuterCircle = SpanSet.fromShape(newOuterRadius, Stencil.CIRCLE, offset=imCenter)
+                        newInnerCircle = SpanSet.fromShape(newInnerRadius, Stencil.CIRCLE, offset=imCenter)
+                        newAnnulus = newOuterCircle.intersectNot(newInnerCircle)
+                        try:
+                            stamp.measureAndNormalize(
+                                newAnnulus,
+                                statsControl=statsControl,
+                                statsFlag=statsFlag,
+                                badMaskPlanes=badMaskPlanes,
+                            )
+
+                        except RuntimeError as err:
+                            stamp.annularFlux = np.nan
+                            logger.error(
+                                "The annulux flux was not found for radii {} and {}".format(
+                                    newInnerRadius, newOuterRadius
+                                )
+                            )
+                        if stamp.annularFlux and stamp.annularFlux > 0:
+                            logger.info("The flux is found within an optimized annulus.")
+                            logger.info(
+                                "The optimized annulus raddi are {} and {} and the flux is {}".format(
+                                    newInnerRadius, newOuterRadius, stamp.annularFlux
+                                )
+                            )
+                            stamp.optimalOuterRadius = newOuterRadius
+                            stamp.optimalInnerRadius = newInnerRadius
+                            break
+                        # elif newInnerRadius > maxInnerRadius:
+                        #     logger.info("The star with gaiaId of {} is impossible to normalize!".format(stamp.gaiaId))
+                        #     break
                 else:
                     stamp.annularFlux = np.nan
         # Remove rejected stamps.
+        bss.normalized = True
         if discardNanFluxObjects:
             for reject in rejects:
                 bss._stamps.remove(reject)
-        bss.normalized = True
+        elif forceFindFlux: 
+            for badStamp in badStamps:
+                bss._stamps.remove(badStamp)
+            bss._innerRadius, bss._outerRadius = None, None
+            return bss, badStamps
         return bss
 
     def _refresh_metadata(self):
