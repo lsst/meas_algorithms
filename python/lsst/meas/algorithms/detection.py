@@ -68,11 +68,11 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=float, optional=False, default=5.0, min=0.0,
     )
     includeThresholdMultiplier = pexConfig.RangeField(
-        doc="Include threshold relative to thresholdValue",
+        doc="Include threshold relative to thresholdValue.",
         dtype=float, default=1.0, min=0.0,
     )
     thresholdType = pexConfig.ChoiceField(
-        doc="specifies the desired flavor of Threshold",
+        doc="Specifies the meaning of thresholdValue.",
         dtype=str, optional=False, default="stdev",
         allowed={
             "variance": "threshold applied to image variance",
@@ -82,7 +82,7 @@ class SourceDetectionConfig(pexConfig.Config):
         },
     )
     thresholdPolarity = pexConfig.ChoiceField(
-        doc="specifies whether to detect positive, or negative sources, or both",
+        doc="Specifies whether to detect positive, or negative sources, or both.",
         dtype=str, optional=False, default="positive",
         allowed={
             "positive": "detect only positive sources",
