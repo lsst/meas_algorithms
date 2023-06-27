@@ -45,7 +45,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     doFluxLimit = pexConfig.Field(
         doc="Apply flux limit to Psf Candidate selection?",
         dtype=bool,
-        default=True,
+        default=False,
     )
     fluxMin = pexConfig.Field(
         doc="specify the minimum psfFlux for good Psf Candidates",
@@ -62,7 +62,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     doSignalToNoiseLimit = pexConfig.Field(
         doc="Apply signal-to-noise (i.e. flux/fluxErr) limit to Psf Candidate selection?",
         dtype=bool,
-        default=False,
+        default=True,
     )
     # Note that the current default is conditioned on the detection thresholds
     # set in the characterizeImage setDefaults function for the measurePsf

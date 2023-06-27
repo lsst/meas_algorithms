@@ -113,7 +113,6 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
     def setDefaults(self):
         selector = self.sourceSelector["science"]
 
-        selector.doFluxLimit = False
         selector.doFlags = True
         selector.doUnresolved = True
         selector.doSignalToNoise = True
