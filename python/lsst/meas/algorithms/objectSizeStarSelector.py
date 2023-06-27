@@ -84,7 +84,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     widthMin = pexConfig.Field(
         doc="Minimum width to include in histogram.",
         dtype=float,
-        default=0.0,
+        default=0.9,
         check=lambda x: x >= 0.0,
     )
     widthMax = pexConfig.Field(
