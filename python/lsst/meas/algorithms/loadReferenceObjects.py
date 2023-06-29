@@ -19,10 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig",
-           "ReferenceObjectLoader", "ReferenceObjectLoaderBase"]
+__all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsConfig",
+           "ReferenceObjectLoader"]
 
-import abc
 import logging
 import warnings
 from deprecated.sphinx import deprecated
@@ -927,71 +926,6 @@ def getRefFluxKeys(schema, filterName):
     except Exception:
         fluxErrKey = None
     return (fluxKey, fluxErrKey)
-
-
-@deprecated(reason=("This task is used in gen2 only; it will be removed after v25. "
-                    "See DM-35671 for details on updating code to avoid this warning."),
-            version="v25.0", category=FutureWarning)
-class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoader, metaclass=abc.ABCMeta):
-    """Abstract gen2 base class to load objects from reference catalogs.
-    """
-    _DefaultName = "LoadReferenceObjects"
-
-    @abc.abstractmethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None, centroids=False):
-        """Load reference objects that overlap a circular sky region.
-
-        Parameters
-        ----------
-        ctrCoord : `lsst.geom.SpherePoint`
-            ICRS center of search region.
-        radius : `lsst.geom.Angle`
-            Radius of search region.
-        filterName : `str`
-            Name of filter. This can be used for flux limit comparisons.
-        epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
-        centroids : `bool`, optional
-            Add centroid fields to the loaded Schema. ``loadPixelBox`` expects
-            these fields to exist.
-
-        Returns
-        -------
-        results : `lsst.pipe.base.Struct`
-            A `~lsst.pipe.base.Struct` containing the following fields:
-
-            ``refCat``
-                A catalog of reference objects with the standard
-                schema, as documented in the main doc string for
-                `LoadReferenceObjects`.
-                The catalog is guaranteed to be contiguous.
-                (`lsst.afw.catalog.SimpleCatalog`)
-            ``fluxField``
-                Name of flux field for specified `filterName`. (`str`)
-
-        Notes
-        -----
-        Note that subclasses are responsible for performing the proper motion
-        correction, since this is the lowest-level interface for retrieving
-        the catalog.
-        """
-        return
-
-
-@deprecated(reason="Base class only used for gen2 interface, and will be removed after v25.0. "
-            "Please use ReferenceObjectLoader directly.",
-            version="v25.0", category=FutureWarning)
-class ReferenceObjectLoaderBase(ReferenceObjectLoader):
-    """Stub of a deprecated class.
-
-    Parameters
-    ----------
-    config : `lsst.pex.config.Config`
-        Configuration for the loader.
-    """
-    def __init__(self, config=None, *args, **kwargs):
-        pass
 
 
 def applyProperMotionsImpl(log, catalog, epoch):
