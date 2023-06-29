@@ -282,8 +282,9 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             if actualKernelSize > self.config.kernelSizeMax:
                 actualKernelSize = self.config.kernelSizeMax
 
-            if display:
-                print("Median size=%s" % (medSize,))
+        if display:
+            print("Median size=%s" % (numpy.median(sizes),))
+
         self.log.trace("Kernel size=%s", actualKernelSize)
 
         if actualKernelSize > psfCandidateList[0].getWidth():
