@@ -38,26 +38,6 @@ class BasePsfDeterminerConfig(pexConfig.Config):
         optional=True,
         check=lambda x: (x > 0) & (x % 2 == 1),
     )
-    kernelSize = pexConfig.Field[int](
-        doc="Size of the kernel to create. "
-            "If less than 15, then the median of the square root of the "
-            "stellar quadrupole moments is multiplied by kernelSize and "
-            "used as the kernel size.",
-        default=None,
-        optional=True,
-        deprecated="This field is deprecated and will be removed after v25. "
-                   "Use stampSize instead.",
-    )
-    kernelSizeMin = pexConfig.Field[int](
-        doc="Minimum radius of the kernel. Relevant only if kernelSize < 15.",
-        default=25,
-        deprecated="This field is deprecated and will be removed after v25.",
-    )
-    kernelSizeMax = pexConfig.Field[int](
-        doc="Maximum radius of the kernel. Relevant only if kernelSize < 15.",
-        default=45,
-        deprecated="This field is deprecated and will be removed after v25.",
-    )
 
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
