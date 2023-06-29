@@ -190,7 +190,8 @@ class DynamicDetectionTask(SourceDetectionTask):
             exposure.setWcs(None)
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
-    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
+                         background=None):
         """Detect footprints with a dynamic threshold
 
         This varies from the vanilla ``detectFootprints`` method because we
@@ -221,6 +222,9 @@ class DynamicDetectionTask(SourceDetectionTask):
         expId : `int`, optional
             Exposure identifier, used as a seed for the random number
             generator. If absent, the seed will be the sum of the image.
+        background : `lsst.afw.math.BackgroundList`, optional
+            Background that was already subtracted from the exposure; will be
+            modified in-place if ``reEstimateBackground=True``.
 
         Returns
         -------
@@ -240,8 +244,8 @@ class DynamicDetectionTask(SourceDetectionTask):
                 Number of footprints in negative or 0 if detection polarity was
                 positive. (`int`)
             ``background``
-                Re-estimated background.  `None` if
-                ``reEstimateBackground==False``.
+                Re-estimated background.  `None` or the input ``background``
+                if ``reEstimateBackground==False``.
                 (`lsst.afw.math.BackgroundList`)
             ``factor``
                 Multiplication factor applied to the configured detection
@@ -299,7 +303,7 @@ class DynamicDetectionTask(SourceDetectionTask):
             # Rinse and repeat thresholding with new calculated threshold
             results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
             results.prelim = prelim
-            results.background = lsst.afw.math.BackgroundList()
+            results.background = background if background is not None else lsst.afw.math.BackgroundList()
             if self.config.doTempLocalBackground:
                 self.applyTempLocalBackground(exposure, middle, results)
             self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor)
