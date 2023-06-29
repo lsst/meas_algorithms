@@ -265,11 +265,7 @@ class ReferenceObjectLoader:
     """
     ConfigClass = LoadReferenceObjectsConfig
 
-    def __init__(self, dataIds, refCats, name=None, log=None, config=None, **kwargs):
-        if kwargs:
-            warnings.warn("Instantiating ReferenceObjectLoader with additional kwargs is deprecated "
-                          "and will be removed after v25.0", FutureWarning, stacklevel=2)
-
+    def __init__(self, dataIds, refCats, name=None, log=None, config=None):
         if config is None:
             config = self.ConfigClass()
         self.config = config
