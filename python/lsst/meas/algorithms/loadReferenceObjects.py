@@ -229,13 +229,6 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         dtype=bool,
         default=False,
     )
-    ref_dataset_name = pexConfig.Field(
-        doc="Deprecated; do not use. Added for easier transition from LoadIndexedReferenceObjectsConfig to "
-            "LoadReferenceObjectsConfig",
-        dtype=str,
-        default='',
-        deprecated='This field is not used. It will be removed after v25.',
-    )
 
     def validate(self):
         super().validate()
