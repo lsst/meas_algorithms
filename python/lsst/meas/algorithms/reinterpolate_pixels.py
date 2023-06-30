@@ -33,15 +33,6 @@ from lsst.meas.algorithms import Defect, interpolateOverDefects
 class ReinterpolatePixelsConfig(pexConfig.Config):
     """Config for ReinterpolatePixelsTask"""
 
-    growSaturatedFootprints = pexConfig.Field[int](
-        doc="Number of pixels to grow footprints for saturated pixels. Be aware that when reinterpolating "
-        "after the interpolation performed in ip_isr, where the masks are intentionally left grown as a side "
-        "effect of interpolation, passing a value greater than zero here will further grow them. In the case "
-        "of this additional growth, we will reset the mask to its original state after reinterpolation.",
-        default=0,
-        optional=True,
-    )
-
     maskNameList = pexConfig.ListField[str](
         doc="Names of mask planes whose image-plane values should be interpolated.",
         default=["SAT"],
@@ -75,24 +66,12 @@ class ReinterpolatePixelsTask(pipeBase.Task):
         """
         mask = exposure.mask
 
-        if self.config.growSaturatedFootprints > 0 and "SAT" in self.config.maskNameList:
-            # If we are interpolating over an area larger than the original
-            # masked region, we need to expand the original mask bit to the
-            # full area to explain why we interpolated there.
-            self._growMasks(
-                mask, radius=self.config.growSaturatedFootprints, maskNameList=["SAT"], maskValue="SAT"
-            )
-
         thresh = afwDetection.Threshold(
             mask.getPlaneBitMask(self.config.maskNameList), afwDetection.Threshold.BITMASK
         )
         fpSet = afwDetection.FootprintSet(mask, thresh)
         defectList = self._fromFootprintList(fpSet.getFootprints())
         self._interpolateDefectList(exposure, defectList)
-
-        if self.config.growSaturatedFootprints > 0 and "SAT" in self.config.maskNameList:
-            # Reset the mask to its original state prior to expanding the SAT mask.
-            self.originalFpSet.setMask(mask, "SAT")
 
     def _fromFootprintList(self, fpList):
         """Compute a defect list from a footprint list.
@@ -116,29 +95,6 @@ class ReinterpolatePixelsTask(pipeBase.Task):
             itertools.chain.from_iterable(map(Defect, afwDetection.footprintToBBoxList(fp)) for fp in fpList)
         )
 
-    def _growMasks(self, mask, radius=0, maskNameList=["BAD"], maskValue="BAD"):
-        """Grow a mask by an amount and add to the requested plane.
-
-        Parameters
-        ----------
-        mask : `lsst.afw.image.Mask`
-            Mask image to process.
-        radius : scalar
-            Amount to grow the mask.
-        maskNameList : `str` or `list` [`str`]
-            Mask names that should be grown.
-        maskValue : `str`
-            Mask plane to assign the newly masked pixels to.
-        """
-        if radius > 0:
-            thresh = afwDetection.Threshold(
-                mask.getPlaneBitMask(maskNameList), afwDetection.Threshold.BITMASK
-            )
-            fpSet = afwDetection.FootprintSet(mask, thresh)
-            self.originalFpSet = fpSet
-            fpSet = afwDetection.FootprintSet(fpSet, rGrow=radius, isotropic=False)
-            fpSet.setMask(mask, maskValue)
-
     def _interpolateDefectList(self, exposure, defectList):
         """Interpolate over defects specified in a defect list.
 
@@ -152,6 +108,8 @@ class ReinterpolatePixelsTask(pipeBase.Task):
         Notes
         -----
         ``exposure`` is modified in place and will become the reinterpolated exposure.
+        When reinterpolating following the interpolation in ip_isr, be aware that the masks are intentionally
+        left grown as a side-effect of that interpolation.
         """
 
         # Although `interpolateOverDefects` requires the
