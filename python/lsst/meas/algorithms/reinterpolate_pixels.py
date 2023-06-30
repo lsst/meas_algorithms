@@ -21,37 +21,35 @@
 
 __all__ = ("ReinterpolatePixelsConfig", "ReinterpolatePixelsTask")
 
-
-import math
+import itertools
 
 import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
-import lsst.meas.algorithms as measAlg
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-from lsst.afw.image import MaskedImageF
+from lsst.meas.algorithms import Defect, interpolateOverDefects
 
 
 class ReinterpolatePixelsConfig(pexConfig.Config):
     """Config for ReinterpolatePixelsTask"""
 
-    kernelFwhm = pexConfig.Field[float](
-        doc="FWHM of double Gaussian smoothing kernel.",
-        default=1.0,
-    )
-
-    growFootprints = pexConfig.Field[int](
-        doc="Number of pixels to grow footprints for pixels.",
-        default=1,
+    growSaturatedFootprints = pexConfig.Field[int](
+        doc="Number of pixels to grow footprints for saturated pixels. Be aware that when reinterpolating "
+        "after the interpolation performed in ip_isr, where the masks are intentionally left grown as a side "
+        "effect of interpolation, passing a value greater than zero here will further grow them. In the case "
+        "of this additional growth, we will reset the mask to its original state after reinterpolation.",
+        default=0,
+        optional=True,
     )
 
     maskNameList = pexConfig.ListField[str](
-        doc="Mask plane name.",
+        doc="Names of mask planes whose image-plane values should be interpolated.",
         default=["SAT"],
     )
 
     fallbackValue = pexConfig.Field[float](
-        doc="Value of last resort for interpolation.",
+        doc="Value of last resort for interpolation. If not provided (or set to None), it is assigned the "
+        "clipped mean value of the exposure image.",
         default=None,
         optional=True,
     )
@@ -77,22 +75,69 @@ class ReinterpolatePixelsTask(pipeBase.Task):
         """
         mask = exposure.mask
 
-        if self.config.growFootprints > 0 and "SAT" in self.config.maskNameList:
+        if self.config.growSaturatedFootprints > 0 and "SAT" in self.config.maskNameList:
             # If we are interpolating over an area larger than the original
             # masked region, we need to expand the original mask bit to the
             # full area to explain why we interpolated there.
-            from lsst.ip.isr import growMasks
-
-            growMasks(mask, radius=self.config.growFootprints, maskNameList=["SAT"], maskValue="SAT")
-
-        from lsst.ip.isr import Defects
+            self._growMasks(
+                mask, radius=self.config.growSaturatedFootprints, maskNameList=["SAT"], maskValue="SAT"
+            )
 
         thresh = afwDetection.Threshold(
             mask.getPlaneBitMask(self.config.maskNameList), afwDetection.Threshold.BITMASK
         )
         fpSet = afwDetection.FootprintSet(mask, thresh)
-        defectList = Defects.fromFootprintList(fpSet.getFootprints())
+        defectList = self._fromFootprintList(fpSet.getFootprints())
         self._interpolateDefectList(exposure, defectList)
+
+        if self.config.growSaturatedFootprints > 0 and "SAT" in self.config.maskNameList:
+            # Reset the mask to its original state prior to expanding the SAT mask.
+            self.originalFpSet.setMask(mask, "SAT")
+
+    def _fromFootprintList(self, fpList):
+        """Compute a defect list from a footprint list.
+
+        Parameters
+        ----------
+        fpList : `list` of `lsst.afw.detection.Footprint`
+            Footprint list to process.
+
+        Returns
+        -------
+        defects : `list` of `lsst.meas.algorithms.Defect`
+            List of defects.
+
+        Notes
+        -----
+        By using `itertools.chain.from_iterable()`, the nested iterables are merged into a flat iterable,
+        allowing convenient iteration over all `lsst.meas.algorithms.Defect` objects.
+        """
+        return list(
+            itertools.chain.from_iterable(map(Defect, afwDetection.footprintToBBoxList(fp)) for fp in fpList)
+        )
+
+    def _growMasks(self, mask, radius=0, maskNameList=["BAD"], maskValue="BAD"):
+        """Grow a mask by an amount and add to the requested plane.
+
+        Parameters
+        ----------
+        mask : `lsst.afw.image.Mask`
+            Mask image to process.
+        radius : scalar
+            Amount to grow the mask.
+        maskNameList : `str` or `list` [`str`]
+            Mask names that should be grown.
+        maskValue : `str`
+            Mask plane to assign the newly masked pixels to.
+        """
+        if radius > 0:
+            thresh = afwDetection.Threshold(
+                mask.getPlaneBitMask(maskNameList), afwDetection.Threshold.BITMASK
+            )
+            fpSet = afwDetection.FootprintSet(mask, thresh)
+            self.originalFpSet = fpSet
+            fpSet = afwDetection.FootprintSet(fpSet, rGrow=radius, isotropic=False)
+            fpSet.setMask(mask, maskValue)
 
     def _interpolateDefectList(self, exposure, defectList):
         """Interpolate over defects specified in a defect list.
@@ -101,7 +146,7 @@ class ReinterpolatePixelsTask(pipeBase.Task):
         ----------
         exposure : `lsst.afw.image.Exposure`
             Exposure to process.
-        defectList : `lsst.meas.algorithms.Defects`
+        defectList : `list` of `lsst.meas.algorithms.Defect`
             List of defects to interpolate over.
 
         Notes
@@ -109,32 +154,15 @@ class ReinterpolatePixelsTask(pipeBase.Task):
         ``exposure`` is modified in place and will become the reinterpolated exposure.
         """
 
-        psf = self._createPsf(self.config.kernelFwhm)
+        # Although `interpolateOverDefects` requires the
+        # `lsst.afw.detection.Psf` argument to be passed, it does not actually
+        # utilize it. A dummy `lsst.afw.detection.Psf` object must still be
+        # provided to prevent a TypeError.
+        dummyPsf = afwDetection.Psf()
         if self.config.fallbackValue is None:
             fallbackValue = afwMath.makeStatistics(exposure.image, afwMath.MEANCLIP).getValue()
         else:
             fallbackValue = self.config.fallbackValue
         if "INTRP" not in exposure.mask.getMaskPlaneDict():
             exposure.mask.addMaskPlane("INTRP")
-        maskedImage = MaskedImageF(image=exposure.image, mask=exposure.mask, variance=exposure.variance)
-        measAlg.interpolateOverDefects(maskedImage, psf, defectList, fallbackValue, True)
-        exposure.image = maskedImage.image
-        exposure.mask = maskedImage.mask
-        exposure.variance = maskedImage.variance
-
-    @staticmethod
-    def _createPsf(fwhm):
-        """Make a double Gaussian PSF.
-
-        Parameters
-        ----------
-        fwhm : float
-            FWHM of double Gaussian smoothing kernel.
-
-        Returns
-        -------
-        psf : `lsst.meas.algorithms.DoubleGaussianPsf`
-            The created smoothing kernel.
-        """
-        ksize = 4 * int(fwhm) + 1
-        return measAlg.DoubleGaussianPsf(ksize, ksize, fwhm / (2 * math.sqrt(2 * math.log(2))))
+        interpolateOverDefects(exposure.maskedImage, dummyPsf, defectList, fallbackValue, True)
