@@ -82,4 +82,4 @@ class FlaggedSourceSelectorTask(BaseSourceSelectorTask):
                 ``sourceCat``. (`numpy.ndarray` of `bool`)
         """
         key = sourceCat.schema.find(self.config.field).key
-        return pipeBase.Struct(selected=sourceCat.get(key))
+        return pipeBase.Struct(selected=sourceCat[key])
