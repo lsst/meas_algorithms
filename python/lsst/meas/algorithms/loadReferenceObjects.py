@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2017  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,18 +16,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsTask", "LoadReferenceObjectsConfig",
-           "ReferenceObjectLoader", "ReferenceObjectLoaderBase"]
+__all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsConfig",
+           "ReferenceObjectLoader"]
 
-import abc
 import logging
-import warnings
-from deprecated.sphinx import deprecated
 
 import astropy.time
 import astropy.units
@@ -40,27 +35,7 @@ import lsst.pipe.base as pipeBase
 from lsst import sphgeom
 from lsst.daf.base import PropertyList
 
-
-# TODO DM-34793: remove this function
-def isOldFluxField(name, units):
-    """Return True if this name/units combination corresponds to an
-    "old-style" reference catalog flux field.
-    """
-    unitsCheck = units != 'nJy'  # (units == 'Jy' or units == '' or units == '?')
-    isFlux = name.endswith('_flux')
-    isFluxSigma = name.endswith('_fluxSigma')
-    isFluxErr = name.endswith('_fluxErr')
-    return (isFlux or isFluxSigma or isFluxErr) and unitsCheck
-
-
-# TODO DM-34793: remove this function
-def hasNanojanskyFluxUnits(schema):
-    """Return True if the units of all flux and fluxErr are correct (nJy).
-    """
-    for field in schema:
-        if isOldFluxField(field.field.getName(), field.field.getUnits()):
-            return False
-    return True
+from .convertReferenceCatalog import LATEST_FORMAT_VERSION
 
 
 def getFormatVersionFromRefCat(refCat):
@@ -74,87 +49,27 @@ def getFormatVersionFromRefCat(refCat):
     Returns
     -------
     version : `int`
-        Format verison integer. Returns `0` if the catalog has no metadata
-        or the metadata does not include a "REFCAT_FORMAT_VERSION" key.
+        Format version integer.
+
+    Raises
+    ------
+    ValueError
+        Raised if the catalog is version 0, has no metadata, or does not
+        include a "REFCAT_FORMAT_VERSION" key.
     """
-    # TODO DM-34793: change to "Version 0 refcats are no longer supported: refcat fluxes must have nJy units."
-    # TODO DM-34793: and raise an exception instead of returning 0.
-    deprecation_msg = "Support for version 0 refcats (pre-nJy fluxes) will be removed after v25."
+    errMsg = "Version 0 refcats are no longer supported: refcat fluxes must have nJy units."
     md = refCat.getMetadata()
     if md is None:
-        warnings.warn(deprecation_msg)
-        return 0
+        raise ValueError(f"No metadata found in refcat header. {errMsg}")
+
     try:
-        return md.getScalar("REFCAT_FORMAT_VERSION")
-    except KeyError:
-        warnings.warn(deprecation_msg)
-        return 0
-
-
-# TODO DM-34793: remove this function
-@deprecated(reason="Support for version 0 refcats (pre-nJy fluxes) will be removed after v25.",
-            version="v24.0", category=FutureWarning)
-def convertToNanojansky(catalog, log, doConvert=True):
-    """Convert fluxes in a catalog from jansky to nanojansky.
-
-    Parameters
-    ----------
-    catalog : `lsst.afw.table.SimpleCatalog`
-        The catalog to convert.
-    log : `lsst.log.Log` or `logging.Logger`
-        Log to send messages to.
-    doConvert : `bool`, optional
-        Return a converted catalog, or just identify the fields that need to be converted?
-        This supports the "write=False" mode of `bin/convert_to_nJy.py`.
-
-    Returns
-    -------
-    catalog : `lsst.afw.table.SimpleCatalog` or None
-        The converted catalog, or None if ``doConvert`` is False.
-
-    Notes
-    -----
-    Support for old units in reference catalogs will be removed after the
-    release of late calendar year 2019.
-    Use `meas_algorithms/bin/convert_to_nJy.py` to update your reference catalog.
-    """
-    # Do not share the AliasMap: for refcats, that gets created when the
-    # catalog is read from disk and should not be propagated.
-    mapper = afwTable.SchemaMapper(catalog.schema, shareAliasMap=False)
-    mapper.addMinimalSchema(afwTable.SimpleTable.makeMinimalSchema())
-    input_fields = []
-    output_fields = []
-    for field in catalog.schema:
-        oldName = field.field.getName()
-        oldUnits = field.field.getUnits()
-        if isOldFluxField(oldName, oldUnits):
-            units = 'nJy'
-            # remap Sigma flux fields to Err, so we can drop the alias
-            if oldName.endswith('_fluxSigma'):
-                name = oldName.replace('_fluxSigma', '_fluxErr')
-            else:
-                name = oldName
-            newField = afwTable.Field[field.dtype](name, field.field.getDoc(), units)
-            mapper.addMapping(field.getKey(), newField)
-            input_fields.append(field.field)
-            output_fields.append(newField)
+        version = md.getScalar("REFCAT_FORMAT_VERSION")
+        if version == 0:
+            raise ValueError(errMsg)
         else:
-            mapper.addMapping(field.getKey())
-
-    fluxFieldsStr = '; '.join("(%s, '%s')" % (field.getName(), field.getUnits()) for field in input_fields)
-
-    if doConvert:
-        newSchema = mapper.getOutputSchema()
-        output = afwTable.SimpleCatalog(newSchema)
-        output.reserve(len(catalog))
-        output.extend(catalog, mapper=mapper)
-        for field in output_fields:
-            output[field.getName()] *= 1e9
-        log.info("Converted refcat flux fields to nJy (name, units): %s", fluxFieldsStr)
-        return output
-    else:
-        log.info("Found old-style refcat flux fields (name, units): %s", fluxFieldsStr)
-        return None
+            return version
+    except KeyError:
+        raise ValueError(f"No version number found in refcat header metadata. {errMsg}")
 
 
 class _FilterCatalog:
@@ -232,13 +147,6 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         dtype=bool,
         default=False,
     )
-    ref_dataset_name = pexConfig.Field(
-        doc="Deprecated; do not use. Added for easier transition from LoadIndexedReferenceObjectsConfig to "
-            "LoadReferenceObjectsConfig",
-        dtype=str,
-        default='',
-        deprecated='This field is not used. It will be removed after v25.',
-    )
 
     def validate(self):
         super().validate()
@@ -275,11 +183,7 @@ class ReferenceObjectLoader:
     """
     ConfigClass = LoadReferenceObjectsConfig
 
-    def __init__(self, dataIds, refCats, name=None, log=None, config=None, **kwargs):
-        if kwargs:
-            warnings.warn("Instantiating ReferenceObjectLoader with additional kwargs is deprecated "
-                          "and will be removed after v25.0", FutureWarning, stacklevel=2)
-
+    def __init__(self, dataIds, refCats, name=None, log=None, config=None):
         if config is None:
             config = self.ConfigClass()
         self.config = config
@@ -788,6 +692,10 @@ class ReferenceObjectLoader:
             refCat.extend(filteredCat)
             trimmedAmount += len(tmpCat) - len(filteredCat)
 
+        version = getFormatVersionFromRefCat(refCat)
+        if version > LATEST_FORMAT_VERSION:
+            raise ValueError(f"Unsupported refcat format version: {version} > {LATEST_FORMAT_VERSION}.")
+
         self.log.debug("Trimmed %d refCat objects lying outside padded region, leaving %d",
                        trimmedAmount, len(refCat))
         self.log.info("Loaded %d reference objects", len(refCat))
@@ -797,15 +705,6 @@ class ReferenceObjectLoader:
             refCat = refCat.copy(deep=True)
 
         self.applyProperMotions(refCat, epoch)
-
-        # TODO DM-34793: remove this entire if block.
-        # Verify the schema is in the correct units and has the correct version; automatically convert
-        # it with a warning if this is not the case.
-        if not hasNanojanskyFluxUnits(refCat.schema) or not getFormatVersionFromRefCat(refCat) >= 1:
-            self.log.warning("Found version 0 reference catalog with old style units in schema.")
-            self.log.warning("run `meas_algorithms/bin/convert_refcat_to_nJy.py` to convert fluxes to nJy.")
-            self.log.warning("See RFC-575 for more details.")
-            refCat = convertToNanojansky(refCat, self.log)
 
         expandedCat = self._remapReferenceCatalogSchema(refCat,
                                                         anyFilterMapsToThis=self.config.anyFilterMapsToThis,
@@ -929,71 +828,6 @@ def getRefFluxKeys(schema, filterName):
     except Exception:
         fluxErrKey = None
     return (fluxKey, fluxErrKey)
-
-
-@deprecated(reason=("This task is used in gen2 only; it will be removed after v25. "
-                    "See DM-35671 for details on updating code to avoid this warning."),
-            version="v25.0", category=FutureWarning)
-class LoadReferenceObjectsTask(pipeBase.Task, ReferenceObjectLoader, metaclass=abc.ABCMeta):
-    """Abstract gen2 base class to load objects from reference catalogs.
-    """
-    _DefaultName = "LoadReferenceObjects"
-
-    @abc.abstractmethod
-    def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None, centroids=False):
-        """Load reference objects that overlap a circular sky region.
-
-        Parameters
-        ----------
-        ctrCoord : `lsst.geom.SpherePoint`
-            ICRS center of search region.
-        radius : `lsst.geom.Angle`
-            Radius of search region.
-        filterName : `str`
-            Name of filter. This can be used for flux limit comparisons.
-        epoch : `astropy.time.Time` or `None`, optional
-            Epoch to which to correct proper motion and parallax, or `None` to
-            not apply such corrections.
-        centroids : `bool`, optional
-            Add centroid fields to the loaded Schema. ``loadPixelBox`` expects
-            these fields to exist.
-
-        Returns
-        -------
-        results : `lsst.pipe.base.Struct`
-            A `~lsst.pipe.base.Struct` containing the following fields:
-
-            ``refCat``
-                A catalog of reference objects with the standard
-                schema, as documented in the main doc string for
-                `LoadReferenceObjects`.
-                The catalog is guaranteed to be contiguous.
-                (`lsst.afw.catalog.SimpleCatalog`)
-            ``fluxField``
-                Name of flux field for specified `filterName`. (`str`)
-
-        Notes
-        -----
-        Note that subclasses are responsible for performing the proper motion
-        correction, since this is the lowest-level interface for retrieving
-        the catalog.
-        """
-        return
-
-
-@deprecated(reason="Base class only used for gen2 interface, and will be removed after v25.0. "
-            "Please use ReferenceObjectLoader directly.",
-            version="v25.0", category=FutureWarning)
-class ReferenceObjectLoaderBase(ReferenceObjectLoader):
-    """Stub of a deprecated class.
-
-    Parameters
-    ----------
-    config : `lsst.pex.config.Config`
-        Configuration for the loader.
-    """
-    def __init__(self, config=None, *args, **kwargs):
-        pass
 
 
 def applyProperMotionsImpl(log, catalog, epoch):

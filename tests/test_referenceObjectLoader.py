@@ -36,7 +36,6 @@ from lsst.daf.butler.script import ingest_files
 from lsst.meas.algorithms import (ConvertReferenceCatalogTask, ReferenceObjectLoader,
                                   getRefFluxField, getRefFluxKeys)
 from lsst.meas.algorithms.testUtils import MockReferenceObjectLoaderFromFiles
-from lsst.meas.algorithms.loadReferenceObjects import hasNanojanskyFluxUnits, convertToNanojansky
 from lsst.meas.algorithms.convertReferenceCatalog import _makeSchema
 import lsst.utils
 import lsst.geom
@@ -110,34 +109,6 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
                 with self.assertRaises(RuntimeError):
                     getRefFluxKeys(refSchema, "camr")
 
-    def testCheckFluxUnits(self):
-        """Test that we can identify old style fluxes in a schema."""
-        schema = _makeSchema(['r', 'z'])
-        # the default schema should pass
-        self.assertTrue(hasNanojanskyFluxUnits(schema))
-        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = _makeSchema(['r', 'z'])
-        schema.addField('bad_flux', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = _makeSchema(['r', 'z'])
-        schema.addField('bad_flux', doc='old flux units', type=float, units='Jy')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = _makeSchema(['r', 'z'])
-        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = _makeSchema(['r', 'z'])
-        schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
-        schema = _makeSchema(['r', 'z'])
-        schema.addField('bad_fluxSigma', doc='old flux units', type=float, units='')
-        self.assertFalse(hasNanojanskyFluxUnits(schema))
-
     def testAnyFilterMapsToThisAlias(self):
         # test anyFilterMapsToThis
         config = ReferenceObjectLoader.ConfigClass()
@@ -154,34 +125,6 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
             refSchema = loader._addFluxAliases(refSchema,
                                                anyFilterMapsToThis=config.anyFilterMapsToThis,
                                                filterMap=config.filterMap)
-
-    def testConvertOldFluxes(self):
-        """Check that we can convert old style fluxes in a catalog."""
-        flux = 1.234
-        fluxErr = 5.678
-        log = lsst.log.Log()
-
-        def make_catalog():
-            schema = _makeSchema(['r', 'z'])
-            schema.addField('bad_flux', doc='old flux units', type=float, units='')
-            schema.addField('bad_fluxErr', doc='old flux units', type=float, units='Jy')
-            refCat = afwTable.SimpleCatalog(schema)
-            refObj = refCat.addNew()
-            refObj["bad_flux"] = flux
-            refObj["bad_fluxErr"] = fluxErr
-            return refCat
-
-        oldRefCat = make_catalog()
-        newRefCat = convertToNanojansky(oldRefCat, log)
-        self.assertEqual(newRefCat['bad_flux'], [flux*1e9, ])
-        self.assertEqual(newRefCat['bad_fluxErr'], [fluxErr*1e9, ])
-        self.assertEqual(newRefCat.schema['bad_flux'].asField().getUnits(), 'nJy')
-        self.assertEqual(newRefCat.schema['bad_fluxErr'].asField().getUnits(), 'nJy')
-
-        # check that doConvert=False returns None (it also logs a summary)
-        oldRefCat = make_catalog()
-        newRefCat = convertToNanojansky(oldRefCat, log, doConvert=False)
-        self.assertIsNone(newRefCat)
 
     def testGetMetadataCircle(self):
         center = lsst.geom.SpherePoint(100*lsst.geom.degrees, 45*lsst.geom.degrees)
@@ -460,8 +403,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
 class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
     """Test cases for reading version 0 and version 1 catalogs."""
     def testLoadVersion0(self):
-        """Test reading a pre-written format_version=0 (Jy flux) catalog.
-        It should be converted to have nJy fluxes.
+        """Attempting to read version 0 refcats should raise.
         """
         path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
@@ -474,16 +416,10 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
         filenames = sorted(glob.glob(os.path.join(path, '????.fits')))
 
         loader = MockReferenceObjectLoaderFromFiles(filenames, name='cal_ref_cat', htmLevel=4)
-        result = loader.loadSkyCircle(convertReferenceCatalogTestBase.make_coord(10, 20),
-                                      5*lsst.geom.degrees,
-                                      'a')
-
-        self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
-        catalog = afwTable.SimpleCatalog.readFits(filenames[0])
-        self.assertFloatsEqual(catalog['a_flux']*1e9, result.refCat['a_flux'])
-        self.assertFloatsEqual(catalog['a_fluxSigma']*1e9, result.refCat['a_fluxErr'])
-        self.assertFloatsEqual(catalog['b_flux']*1e9, result.refCat['b_flux'])
-        self.assertFloatsEqual(catalog['b_fluxSigma']*1e9, result.refCat['b_fluxErr'])
+        with self.assertRaisesRegex(ValueError, "Version 0 refcats are no longer supported"):
+            loader.loadSkyCircle(convertReferenceCatalogTestBase.make_coord(10, 20),
+                                 5*lsst.geom.degrees,
+                                 'a')
 
     def testLoadVersion1(self):
         """Test reading a format_version=1 catalog (fluxes unchanged)."""
@@ -502,7 +438,7 @@ class Version0Version1ReferenceObjectLoaderTestCase(lsst.utils.tests.TestCase):
                                       5*lsst.geom.degrees,
                                       'a')
 
-        self.assertTrue(hasNanojanskyFluxUnits(result.refCat.schema))
+        # version>=1 should not change units on read (they're already nJy).
         catalog = afwTable.SimpleCatalog.readFits(filenames[0])
         self.assertFloatsEqual(catalog['a_flux'], result.refCat['a_flux'])
         self.assertFloatsEqual(catalog['a_fluxErr'], result.refCat['a_fluxErr'])
