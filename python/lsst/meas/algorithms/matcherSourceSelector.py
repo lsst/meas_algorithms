@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2017  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["MatcherSourceSelectorConfig", "MatcherSourceSelectorTask"]
 
@@ -116,15 +114,15 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     def _isParent(self, sourceCat):
         """Return True for each source that is the parent source.
         """
-        test = (sourceCat.get(self.parentKey) == 0)
+        test = (sourceCat[self.parentKey] == 0)
         return test
 
     def _hasCentroid(self, sourceCat):
         """Return True for each source that has a valid centroid
         """
-        return np.isfinite(sourceCat.get(self.centroidXKey)) \
-            & np.isfinite(sourceCat.get(self.centroidYKey)) \
-            & ~sourceCat.get(self.centroidFlagKey)
+        return np.isfinite(sourceCat[self.centroidXKey]) \
+            & np.isfinite(sourceCat[self.centroidYKey]) \
+            & ~sourceCat[self.centroidFlagKey]
 
     def _goodSN(self, sourceCat):
         """Return True for each source that has Signal/Noise > config.minSnr.
@@ -133,7 +131,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
             return True
         else:
             with np.errstate(invalid="ignore"):  # suppress NAN warnings
-                return sourceCat.get(self.fluxKey)/sourceCat.get(self.fluxErrKey) > self.config.minSnr
+                return sourceCat[self.fluxKey]/sourceCat[self.fluxErrKey] > self.config.minSnr
 
     def _isUsable(self, sourceCat):
         """
@@ -150,7 +148,7 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         return self._hasCentroid(sourceCat) \
             & self._isParent(sourceCat) \
             & self._goodSN(sourceCat) \
-            & ~sourceCat.get(self.fluxFlagKey)
+            & ~sourceCat[self.fluxFlagKey]
 
     def _isGood(self, sourceCat):
         """
@@ -163,6 +161,6 @@ class MatcherSourceSelectorTask(BaseSourceSelectorTask):
         - Not have an interpolated pixel within 3x3 around their centroid.
         - Not have a saturated pixel in their footprint.
         """
-        return ~sourceCat.get(self.edgeKey) & \
-               ~sourceCat.get(self.interpolatedCenterKey) & \
-               ~sourceCat.get(self.saturatedKey)
+        return ~sourceCat[self.edgeKey] & \
+               ~sourceCat[self.interpolatedCenterKey] & \
+               ~sourceCat[self.saturatedKey]

@@ -367,8 +367,8 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         #
         # Look at the distribution of stars in the magnitude-size plane
         #
-        flux = sourceCat.get(self.config.sourceFluxField)
-        fluxErr = sourceCat.get(self.config.sourceFluxField + "Err")
+        flux = sourceCat[self.config.sourceFluxField]
+        fluxErr = sourceCat[self.config.sourceFluxField + "Err"]
 
         xx = numpy.empty(len(sourceCat))
         xy = numpy.empty_like(xx)
@@ -386,7 +386,7 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
 
         width = numpy.sqrt(0.5*(xx + yy))
         with numpy.errstate(invalid="ignore"):  # suppress NAN warnings
-            bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
+            bad = reduce(lambda x, y: numpy.logical_or(x, sourceCat[y]), self.config.badFlags, False)
             bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(width)))
             bad = numpy.logical_or(bad, numpy.logical_not(numpy.isfinite(flux)))
             if self.config.doFluxLimit:

@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2017  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Select sources that are useful for astrometry.
 
 Such sources have good signal-to-noise, are well centroided, not blended,
@@ -99,7 +98,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         """
         self._getSchemaKeys(sourceCat.schema)
 
-        bad = reduce(lambda x, y: np.logical_or(x, sourceCat.get(y)), self.config.badFlags, False)
+        bad = reduce(lambda x, y: np.logical_or(x, sourceCat[y]), self.config.badFlags, False)
         good = self._isGood(sourceCat)
         return Struct(selected=good & ~bad)
 
@@ -130,7 +129,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     def _isMultiple(self, sourceCat):
         """Return True for each source that is likely multiple sources.
         """
-        test = (sourceCat.get(self.parentKey) != 0) | (sourceCat.get(self.nChildKey) != 0)
+        test = (sourceCat[self.parentKey] != 0) | (sourceCat[self.nChildKey] != 0)
         # have to currently manage footprints on a source-by-source basis.
         for i, cat in enumerate(sourceCat):
             footprint = cat.getFootprint()
@@ -143,13 +142,13 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         def checkNonfiniteCentroid():
             """Return True for sources with non-finite centroids.
             """
-            return ~np.isfinite(sourceCat.get(self.centroidXKey)) | \
-                ~np.isfinite(sourceCat.get(self.centroidYKey))
+            return ~np.isfinite(sourceCat[self.centroidXKey]) | \
+                ~np.isfinite(sourceCat[self.centroidYKey])
         assert ~checkNonfiniteCentroid().any(), \
             "Centroids not finite for %d unflagged sources." % (checkNonfiniteCentroid().sum())
-        return np.isfinite(sourceCat.get(self.centroidXErrKey)) \
-            & np.isfinite(sourceCat.get(self.centroidYErrKey)) \
-            & ~sourceCat.get(self.centroidFlagKey)
+        return np.isfinite(sourceCat[self.centroidXErrKey]) \
+            & np.isfinite(sourceCat[self.centroidYErrKey]) \
+            & ~sourceCat[self.centroidFlagKey]
 
     def _goodSN(self, sourceCat):
         """Return True for each source that has Signal/Noise > config.minSnr.
@@ -158,7 +157,7 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
             return True
         else:
             with np.errstate(invalid="ignore"):  # suppress NAN warnings
-                return sourceCat.get(self.instFluxKey)/sourceCat.get(self.instFluxErrKey) > self.config.minSnr
+                return sourceCat[self.instFluxKey]/sourceCat[self.instFluxErrKey] > self.config.minSnr
 
     def _isUsable(self, sourceCat):
         """Return True for each source that is usable for matching, even if it may
@@ -174,13 +173,13 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
         return self._hasCentroid(sourceCat) \
             & ~self._isMultiple(sourceCat) \
             & self._goodSN(sourceCat) \
-            & ~sourceCat.get(self.fluxFlagKey)
+            & ~sourceCat[self.fluxFlagKey]
 
     def _isPrimary(self, sourceCat):
         """Return True if this is a primary source.
         """
         if self.primaryKey:
-            return sourceCat.get(self.primaryKey)
+            return sourceCat[self.primaryKey]
         else:
             return np.ones(len(sourceCat), dtype=bool)
 
@@ -196,11 +195,11 @@ class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
 
         return self._isUsable(sourceCat) \
             & self._isPrimary(sourceCat) \
-            & ~sourceCat.get(self.saturatedKey) \
-            & ~sourceCat.get(self.interpolatedCenterKey) \
-            & ~sourceCat.get(self.edgeKey)
+            & ~sourceCat[self.saturatedKey] \
+            & ~sourceCat[self.interpolatedCenterKey] \
+            & ~sourceCat[self.edgeKey]
 
     def _isBadFlagged(self, source):
         """Return True if any of config.badFlags are set for this source.
         """
-        return any(source.get(flag) for flag in self.config.badFlags)
+        return any(source[flag] for flag in self.config.badFlags)
