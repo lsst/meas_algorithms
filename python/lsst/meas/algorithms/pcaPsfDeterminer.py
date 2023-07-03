@@ -21,7 +21,6 @@
 
 __all__ = ["PcaPsfDeterminerConfig", "PcaPsfDeterminerTask"]
 
-import math
 import sys
 
 import numpy
@@ -262,28 +261,11 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
             raise RuntimeError("No usable PSF candidates supplied")
         nEigenComponents = self.config.nEigenComponents  # initial version
 
-        # TODO: DM-36311: Keep only the if block below.
-        if self.config.stampSize:
-            actualKernelSize = int(self.config.stampSize)
-        elif self.config.kernelSize >= 15:
-            self.log.warning("NOT scaling kernelSize by stellar quadrupole moment "
-                             "because config.kernelSize=%s >= 15; "
-                             "using config.kernelSize as the width, instead",
-                             self.config.kernelSize)
-            actualKernelSize = int(self.config.kernelSize)
-        else:
-            self.log.warning("scaling kernelSize by stellar quadrupole moment "
-                             "because config.kernelSize=%s < 15. This behavior is deprecated.",
-                             self.config.kernelSize)
-            medSize = numpy.median(sizes)
-            actualKernelSize = 2*int(self.config.kernelSize*math.sqrt(medSize) + 0.5) + 1
-            if actualKernelSize < self.config.kernelSizeMin:
-                actualKernelSize = self.config.kernelSizeMin
-            if actualKernelSize > self.config.kernelSizeMax:
-                actualKernelSize = self.config.kernelSizeMax
+        actualKernelSize = int(self.config.stampSize)
 
-            if display:
-                print("Median size=%s" % (medSize,))
+        if display:
+            print("Median size=%s" % (numpy.median(sizes),))
+
         self.log.trace("Kernel size=%s", actualKernelSize)
 
         if actualKernelSize > psfCandidateList[0].getWidth():

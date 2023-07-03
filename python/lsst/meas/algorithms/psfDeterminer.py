@@ -1,10 +1,10 @@
+# This file is part of meas_algorithms.
 #
-# LSST Data Management System
-#
-# Copyright 2008-2017  AURA/LSST.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <https://www.lsstcorp.org/LegalNotices/>.
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
 
@@ -40,41 +38,6 @@ class BasePsfDeterminerConfig(pexConfig.Config):
         optional=True,
         check=lambda x: (x > 0) & (x % 2 == 1),
     )
-    kernelSize = pexConfig.Field[int](
-        doc="Size of the kernel to create. "
-            "If less than 15, then the median of the square root of the "
-            "stellar quadrupole moments is multiplied by kernelSize and "
-            "used as the kernel size.",
-        default=None,
-        optional=True,
-        deprecated="This field is deprecated and will be removed after v25. "
-                   "Use stampSize instead.",
-    )
-    kernelSizeMin = pexConfig.Field[int](
-        doc="Minimum radius of the kernel. Relevant only if kernelSize < 15.",
-        default=25,
-        deprecated="This field is deprecated and will be removed after v25.",
-    )
-    kernelSizeMax = pexConfig.Field[int](
-        doc="Maximum radius of the kernel. Relevant only if kernelSize < 15.",
-        default=45,
-        deprecated="This field is deprecated and will be removed after v25.",
-    )
-
-    def validate(self):
-        # TODO: DM-36311: Lines involving kernelSize* (or the entire method)
-        # may be removed after v25.
-        super().validate()
-        # Ensure that stampSize and kernelSize are not contradictory.
-        if self.stampSize is not None and self.kernelSize is not None:
-            raise pexConfig.FieldValidationError(self.__class__.kernelSize, self,
-                                                 "Only one of stampSize (preferable) and kernelSize "
-                                                 "(deprecated) must be set."
-                                                 )
-        if self.kernelSizeMin > self.kernelSizeMax:
-            raise pexConfig.FieldValidationError(self.__class__.kernelSizeMax, self,
-                                                 "kernelSizeMin must be <= kernelSizeMax"
-                                                 )
 
 
 class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
