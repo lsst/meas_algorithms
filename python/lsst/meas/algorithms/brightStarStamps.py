@@ -394,7 +394,7 @@ class BrightStarStamps(Stamps):
                                 badMaskPlanes=badMaskPlanes,
                             )
 
-                        except RuntimeError as err:
+                        except RuntimeError:
                             stamp.annularFlux = np.nan
                             logger.error(
                                 "The annulux flux was not found for radii {} and {}".format(
@@ -411,9 +411,6 @@ class BrightStarStamps(Stamps):
                             stamp.optimalOuterRadius = newOuterRadius
                             stamp.optimalInnerRadius = newInnerRadius
                             break
-                        # elif newInnerRadius > maxInnerRadius:
-                        #     logger.info("The star with gaiaId of {} is impossible to normalize!".format(stamp.gaiaId))
-                        #     break
                 else:
                     stamp.annularFlux = np.nan
         # Remove rejected stamps.
@@ -421,7 +418,7 @@ class BrightStarStamps(Stamps):
         if discardNanFluxObjects:
             for reject in rejects:
                 bss._stamps.remove(reject)
-        elif forceFindFlux: 
+        elif forceFindFlux:
             for badStamp in badStamps:
                 bss._stamps.remove(badStamp)
             bss._innerRadius, bss._outerRadius = None, None
