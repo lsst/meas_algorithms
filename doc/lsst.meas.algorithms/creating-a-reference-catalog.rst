@@ -136,7 +136,7 @@ Check the log output after several hours: ``ConvertReferenceCatalogTask`` report
 ===================================
 
 When ``convertReferenceCatalog`` has finished, a new directory (named ``gaia-refcat/`` in the example above) will now exist containing the HTM-indexed files for the input catalog in the LSST format.
-Our convention for reference catalogs is described in `DMTN-167 <https://dmtn-167.lsst.io/#reference-catalogs>`_ and is used in the commands listed below. 
+Our convention for reference catalogs is described in `DMTN-167 <https://dmtn-167.lsst.io/#reference-catalogs>`_ and is used in the commands listed below.
 
 Three final steps are now required to register the new refcat dataset type, ingest your converted output into a RUN collection, and CHAIN that collection to the primary ``refcats`` collection.
 If using ``convertReferenceCatalog``, these commands will have been printed on the command line when it finished.
@@ -144,11 +144,12 @@ For the example we are using here, these commands would be:
 
 .. prompt:: bash
 
-    butler register-dataset-type REPO gaia_dr2 SimpleCatalog htm7
-    butler ingest-files -t direct REPO gaia_dr2 refcats/DM-NNNNN gaia/filename_to_htm.ecsv
+    butler register-dataset-type REPO gaia_dr2_20200414 SimpleCatalog htm7
+    butler ingest-files -t direct REPO gaia_dr2_20200414 refcats/DM-NNNNN gaia/filename_to_htm.ecsv
     butler collection-chain REPO --mode extend refcats refcats/DM-NNNNN
 
 where ``REPO`` is the path to the butler repository that you are ingesting the data into, and ``DM-NNNNN`` is the ticket you are tracking this refcat ingest on.
+The name of the reference catalog is used as the dataset type and should include a date string (``_2020041411`` in this example) to distinguish between different versions of the same reference catalog.
 We use the ``direct`` transfer mode here to leave the files in the directory they were converted into: ``gaia_dr2/``.
 See ``butler ingest-files -h`` for other options, including ``copy``, ``move`` and ``link`` transfer modes.
 
