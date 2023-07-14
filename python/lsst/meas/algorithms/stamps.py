@@ -29,7 +29,14 @@ from dataclasses import dataclass, field, fields
 
 import numpy as np
 from lsst.afw.fits import Fits, readMetadata
-from lsst.afw.image import ImageFitsReader, MaskedImage, MaskedImageF, MaskFitsReader
+from lsst.afw.image import (
+    Image,
+    ImageF,
+    ImageFitsReader,
+    MaskedImage,
+    MaskedImageF,
+    MaskFitsReader,
+)
 from lsst.afw.table.io import InputArchive, OutputArchive, Persistable
 from lsst.daf.base import PropertyList
 from lsst.geom import Angle, Box2I, Extent2I, Point2I, SpherePoint, degrees
@@ -84,7 +91,11 @@ def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance,
         metadata = PropertyList()
         # EXTVER should be 1-based, the index from enumerate is 0-based
         metadata.update({"EXTVER": i + 1, "EXTNAME": "IMAGE"})
-        stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode="a")
+        try:
+            stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode="a")
+        except AttributeError:
+            stamp.stamp_im.writeFits(filename, metadata=metadata, mode="a")
+
         if write_mask:
             metadata = PropertyList()
             metadata.update({"EXTVER": i + 1, "EXTNAME": "MASK"})
@@ -131,6 +142,8 @@ def readFitsWithOptions(filename, stamp_factory, options):
     metadata = readMetadata(filename, hdu=0)
     nStamps = metadata["N_STAMPS"]
     has_archive = metadata["HAS_ARCHIVE"]
+    doRemap = False
+
     if has_archive:
         archive_ids = metadata.getArray("ARCHIVE_IDS")
     with Fits(filename, "r") as f:
@@ -158,6 +171,10 @@ def readFitsWithOptions(filename, stamp_factory, options):
         for stamp_field in fields(stamp_factory.__self__):
             if issubclass(stamp_field.type, MaskedImage):
                 masked_image_cls = stamp_field.type
+                break
+            elif issubclass(stamp_field.type, Image):
+                masked_image_cls = stamp_field.type
+                doRemap = True
                 break
         else:
             raise RuntimeError("Stamp factory does not use MaskedImage.")
@@ -191,6 +208,11 @@ def readFitsWithOptions(filename, stamp_factory, options):
             f"Number of stamps read ({len(stamp_parts)}) does not agree with the "
             f"number of stamps recorded in the metadata ({nStamps})."
         )
+    if doRemap:
+        # Because ImageF can't accept "image" as an argument
+        for k in range(nStamps):
+            image = stamp_parts[k + 1].pop("image")
+            stamp_parts[k + 1]["rhs"] = image
     # construct stamps themselves
     stamps = []
     for k in range(nStamps):

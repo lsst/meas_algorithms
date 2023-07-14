@@ -61,6 +61,7 @@ from .accumulator_mean_stack import *
 from .scaleVariance import *
 from .noise_covariance import *
 from .reinterpolate_pixels import *
+from .multiimage import *
 
 from .version import *
 
