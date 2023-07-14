@@ -24,6 +24,7 @@ __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelector
            "RequireFlags", "RequireUnresolved", "RequireFiniteRaDec", "RequirePrimary",
            "ScienceSourceSelectorConfig", "ScienceSourceSelectorTask",
            "ReferenceSourceSelectorConfig", "ReferenceSourceSelectorTask",
+           "NullSourceSelectorTask"
            ]
 
 import abc
@@ -703,6 +704,19 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
         self.log.info("Selected %d/%d references", selected.sum(), len(sourceCat))
 
         return pipeBase.Struct(selected=selected)
+
+
+@pexConfig.registerConfigurable("null", sourceSelectorRegistry)
+class NullSourceSelectorTask(BaseSourceSelectorTask):
+    """Source selector that returns true for all sources.
+
+    Use this when you do not want any sub-selection on your inputs.
+    """
+    ConfigClass = BaseSourceSelectorConfig
+
+    def selectSources(self, sourceCat, **kwargs):
+        # docstring inherited
+        return pipeBase.Struct(selected=np.ones(len(sourceCat), dtype=bool))
 
 
 def _getFieldFromCatalog(catalog, field, isFlag=False):
