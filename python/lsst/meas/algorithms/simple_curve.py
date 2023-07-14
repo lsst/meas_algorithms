@@ -348,7 +348,7 @@ class AmpCurve(Curve):
         super().__init__(wavelength, efficiency, metadata)
         amp_names = set(amp_name_list)
         self.data = {}
-        for amp_name in amp_names:
+        for amp_name in sorted(amp_names):
             idx = numpy.where(amp_name_list == amp_name)[0]
             # Deal with the case where the keys are bytes from FITS
             name = amp_name
