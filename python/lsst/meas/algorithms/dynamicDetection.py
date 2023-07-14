@@ -172,7 +172,8 @@ class DynamicDetectionTask(SourceDetectionTask):
             peaks = source.getFootprint().getPeaks()
             assert len(peaks) == 1
             source.set(key, peaks[0].getF())
-            source.updateCoord(exposure.getWcs())
+            # Coordinate covariance is not used, so don't bother calulating it.
+            source.updateCoord(exposure.getWcs(), include_covariance=False)
 
         # Forced photometry on sky objects
         self.skyMeasurement.run(catalog, exposure, catalog, exposure.getWcs())
