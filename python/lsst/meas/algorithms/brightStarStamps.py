@@ -397,14 +397,14 @@ class BrightStarStamps(Stamps):
                         except RuntimeError:
                             stamp.annularFlux = np.nan
                             logger.error(
-                                "The annulux flux was not found for radii {} and {}".format(
+                                "The annular flux was not found for radii {} and {}".format(
                                     newInnerRadius, newOuterRadius
                                 )
                             )
                         if stamp.annularFlux and stamp.annularFlux > 0:
                             logger.info("The flux is found within an optimized annulus.")
                             logger.info(
-                                "The optimized annulus raddi are {} and {} and the flux is {}".format(
+                                "The optimized annulus radii are {} and {} and the flux is {}".format(
                                     newInnerRadius, newOuterRadius, stamp.annularFlux
                                 )
                             )
