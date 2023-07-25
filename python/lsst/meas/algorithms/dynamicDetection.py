@@ -62,7 +62,7 @@ class DynamicDetectionConfig(SourceDetectionConfig):
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)
         self.skyObjects.nSources = 1000  # For good statistics
-        for maskStr in ["INTRP", "SAT"]:
+        for maskStr in ["SAT"]:
             if maskStr not in self.skyObjects.avoidMask:
                 self.skyObjects.avoidMask.append(maskStr)
 
