@@ -103,7 +103,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         self.skyMeasurement = ForcedMeasurementTask(config=config, name="skyMeasurement", parentTask=self,
                                                     refSchema=self.skySchema)
 
-    def calculateThreshold(self, exposure, seed, sigma=None):
+    def calculateThreshold(self, exposure, seed, sigma=None, minFractionSourcesFactor=1.0, isBgTweak=False):
         """Calculate new threshold
 
         This is the main functional addition to the vanilla
@@ -123,6 +123,16 @@ class DynamicDetectionTask(SourceDetectionTask):
         sigma : `float`, optional
             Gaussian sigma of smoothing kernel; if not provided,
             will be deduced from the exposure's PSF.
+        minFractionSourcesFactor : `float`
+            Change the fraction of required sky sources from that set in
+            ``self.config.minFractionSources`` by this factor.  NOTE: this
+            is intended for use in the background tweak pass (the detection
+            threshold is much lower there, so many more pixels end up marked
+            as DETECTED or DETECTED_NEGATIVE, leaving less room for sky
+            object placement).
+        isBgTweak : `bool`
+           Set to ``True`` for the background tweak pass (for more helpful
+           log messages).
 
         Returns
         -------
@@ -140,8 +150,9 @@ class DynamicDetectionTask(SourceDetectionTask):
         ------
         NoWorkFound
             Raised if the number of good sky sources found is less than the
-            minimum fraction (``self.config.minFractionSources``) of the number
-            requested (``self.skyObjects.config.nSources``).
+            minimum fraction
+            (``self.config.minFractionSources``*``minFractionSourcesFactor``)
+            of the number requested (``self.skyObjects.config.nSources``).
         """
         wcsIsNone = exposure.getWcs() is None
         if wcsIsNone:  # create a dummy WCS as needed by ForcedMeasurementTask
@@ -175,12 +186,25 @@ class DynamicDetectionTask(SourceDetectionTask):
                 & np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
 
         minNumSources = int(self.config.minFractionSources*self.skyObjects.config.nSources)
+        # Reduce the number of sky sources required if requested, but ensure
+        # a minumum of 3.
+        if minFractionSourcesFactor != 1.0:
+            minNumSources = max(3, int(minNumSources*minFractionSourcesFactor))
         if good.sum() < minNumSources:
-            raise NoWorkFound(f"Insufficient good sky source flux measurements ({good.sum()} < "
-                              f"{minNumSources}) for dynamic threshold calculation.")
+            if not isBgTweak:
+                msg = (f"Insufficient good sky source flux measurements ({good.sum()} < "
+                       f"{minNumSources}) for dynamic threshold calculation.")
+            else:
+                msg = (f"Insufficient good sky source flux measurements ({good.sum()} < "
+                       f"{minNumSources}) for background tweak calculation.")
+            raise NoWorkFound(msg)
 
-        self.log.info("Number of good sky sources used for dynamic detection: %d (of %d requested).",
-                      good.sum(), self.skyObjects.config.nSources)
+        if not isBgTweak:
+            self.log.info("Number of good sky sources used for dynamic detection: %d (of %d requested).",
+                          good.sum(), self.skyObjects.config.nSources)
+        else:
+            self.log.info("Number of good sky sources used for dynamic detection background tweak:"
+                          " %d (of %d requested).", good.sum(), self.skyObjects.config.nSources)
         bgMedian = np.median((fluxes/area)[good])
 
         lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
@@ -326,7 +350,8 @@ class DynamicDetectionTask(SourceDetectionTask):
                 convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
                 tweakDetResults = self.applyThreshold(convolveResults.middle, maskedImage.getBBox(), factor)
                 self.finalizeFootprints(maskedImage.mask, tweakDetResults, sigma, factor=factor)
-                bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma).additive
+                bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma, minFractionSourcesFactor=0.5,
+                                                  isBgTweak=True).additive
             finally:
                 maskedImage.mask.array[:] = originalMask
             self.tweakBackground(exposure, bgLevel, results.background)
