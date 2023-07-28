@@ -116,7 +116,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         Parameters
         ----------
-        exposureOrig : `lsst.afw.image.Exposure`
+        exposure : `lsst.afw.image.Exposure`
             Exposure on which we're detecting sources.
         seed : `int`
             RNG seed to use for finding sky objects.
