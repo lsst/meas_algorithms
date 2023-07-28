@@ -197,6 +197,18 @@ class DynamicDetectionTask(SourceDetectionTask):
             else:
                 msg = (f"Insufficient good sky source flux measurements ({good.sum()} < "
                        f"{minNumSources}) for background tweak calculation.")
+
+            nPix = exposure.mask.array.size
+            badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
+            nGoodPix = np.sum(exposure.mask.array & badPixelMask == 0)
+            if nGoodPix/nPix > 0.2:
+                detectedPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED", "DETECTED_NEGATIVE"])
+                nDetectedPix = np.sum(exposure.mask.array & detectedPixelMask != 0)
+                msg += (f" However, {nGoodPix}/{nPix} pixels are not marked NO_DATA or BAD, "
+                        "so there should be sufficient area to locate suitable sky sources. "
+                        f"Note that {nDetectedPix} of {nGoodPix} \"good\" pixels were marked "
+                        "as DETECTED or DETECTED_NEGATIVE.")
+                raise RuntimeError(msg)
             raise NoWorkFound(msg)
 
         if not isBgTweak:
@@ -281,6 +293,11 @@ class DynamicDetectionTask(SourceDetectionTask):
         else:
             oldDetected = maskedImage.mask.array & maskedImage.mask.getPlaneBitMask(["DETECTED",
                                                                                      "DETECTED_NEGATIVE"])
+        nPix = maskedImage.mask.array.size
+        badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
+        nGoodPix = np.sum(maskedImage.mask.array & badPixelMask == 0)
+        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.1f}% of total)".
+                      format(nGoodPix, 100*nGoodPix/nPix))
 
         with self.tempWideBackgroundContext(exposure):
             # Could potentially smooth with a wider kernel than the PSF in
