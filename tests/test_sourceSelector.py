@@ -330,12 +330,6 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.check((starGalaxy > minimum).tolist())
 
 
-class TrivialSourceSelector(lsst.meas.algorithms.BaseSourceSelectorTask):
-    """Return true for every source. Purely for testing."""
-    def selectSources(self, sourceCat, matches=None, exposure=None):
-        return lsst.pipe.base.Struct(selected=np.ones(len(sourceCat), dtype=bool))
-
-
 class TestBaseSourceSelector(lsst.utils.tests.TestCase):
     """Test the API of the Abstract Base Class with a trivial example."""
     def setUp(self):
@@ -346,7 +340,7 @@ class TestBaseSourceSelector(lsst.utils.tests.TestCase):
         for i in range(4):
             self.catalog.addNew()
 
-        self.sourceSelector = TrivialSourceSelector()
+        self.sourceSelector = lsst.meas.algorithms.NullSourceSelectorTask()
 
     def testRun(self):
         """Test that run() returns a catalog and boolean selected array."""

@@ -212,7 +212,8 @@ class SourceDetectionTask(pipeBase.Task):
             self.makeSubtask("tempWideBackground")
 
     @timeMethod
-    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
+    def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
+            background=None):
         r"""Detect sources and return catalog(s) of detections.
 
         Parameters
@@ -221,18 +222,21 @@ class SourceDetectionTask(pipeBase.Task):
             Table object that will be used to create the SourceCatalog.
         exposure : `lsst.afw.image.Exposure`
             Exposure to process; DETECTED mask plane will be set in-place.
-        doSmooth : `bool`
+        doSmooth : `bool`, optional
             If True, smooth the image before detection using a Gaussian of width
             ``sigma``, or the measured PSF width. Set to False when running on
             e.g. a pre-convolved image, or a mask plane.
-        sigma : `float`
+        sigma : `float`, optional
             Sigma of PSF (pixels); used for smoothing and to grow detections;
             if None then measure the sigma of the PSF of the exposure
-        clearMask : `bool`
+        clearMask : `bool`, optional
             Clear DETECTED{,_NEGATIVE} planes before running detection.
-        expId : `int`
+        expId : `int`, optional
             Exposure identifier; unused by this implementation, but used for
             RNG seed by subclasses.
+        background : `lsst.afw.math.BackgroundList`, optional
+            Background that was already subtracted from the exposure; will be
+            modified in-place if ``reEstimateBackground=True``.
 
         Returns
         -------
@@ -278,7 +282,7 @@ class SourceDetectionTask(pipeBase.Task):
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
         results = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
-                                        clearMask=clearMask, expId=expId)
+                                        clearMask=clearMask, expId=expId, background=background)
         sources = afwTable.SourceCatalog(table)
         sources.reserve(results.numPos + results.numNeg)
         if results.negative:
@@ -702,7 +706,8 @@ class SourceDetectionTask(pipeBase.Task):
             results.positive = None
 
     @timeMethod
-    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None):
+    def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
+                         background=None):
         """Detect footprints on an exposure.
 
         Parameters
@@ -725,6 +730,9 @@ class SourceDetectionTask(pipeBase.Task):
         expId : `dict`, optional
             Exposure identifier; unused by this implementation, but used for
             RNG seed by subclasses.
+        background : `lsst.afw.math.BackgroundList`, optional
+            Background that was already subtracted from the exposure; will be
+            modified in-place if ``reEstimateBackground=True``.
 
         Returns
         -------
@@ -744,8 +752,8 @@ class SourceDetectionTask(pipeBase.Task):
                 Number of footprints in negative or 0 if detection polarity was
                 positive. (`int`)
             ``background``
-                Re-estimated background.  `None` if
-                ``reEstimateBackground==False``.
+                Re-estimated background.  `None` or the input ``background``
+                if ``reEstimateBackground==False``.
                 (`lsst.afw.math.BackgroundList`)
             ``factor``
                 Multiplication factor applied to the configured detection
@@ -764,7 +772,8 @@ class SourceDetectionTask(pipeBase.Task):
             self.removeBadPixels(middle)
 
             results = self.applyThreshold(middle, maskedImage.getBBox())
-            results.background = afwMath.BackgroundList()
+            results.background = background if background is not None else afwMath.BackgroundList()
+
             if self.config.doTempLocalBackground:
                 self.applyTempLocalBackground(exposure, middle, results)
             self.finalizeFootprints(maskedImage.mask, results, sigma)
