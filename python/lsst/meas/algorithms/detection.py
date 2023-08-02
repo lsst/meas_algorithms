@@ -73,7 +73,7 @@ class SourceDetectionConfig(pexConfig.Config):
     )
     thresholdType = pexConfig.ChoiceField(
         doc="Specifies the meaning of thresholdValue.",
-        dtype=str, optional=False, default="stdev",
+        dtype=str, optional=False, default="pixel_stdev",
         allowed={
             "variance": "threshold applied to image variance",
             "stdev": "threshold applied to image std deviation",
