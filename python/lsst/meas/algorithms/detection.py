@@ -48,8 +48,8 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=int, optional=False, default=1, min=0,
     )
     isotropicGrow = pexConfig.Field(
-        doc="Pixels should be grown as isotropically as possible (slower)",
-        dtype=bool, optional=False, default=False,
+        doc="Grow pixels as isotropically as possible? If False, use a Manhattan metric instead.",
+        dtype=bool, default=True,
     )
     combinedGrow = pexConfig.Field(
         doc="Grow all footprints at the same time? This allows disconnected footprints to merge.",
