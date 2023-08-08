@@ -224,8 +224,6 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         measConfig.slots.calibFlux = None
 
         self.schema = afwTable.SourceTable.makeMinimalSchema()
-        detConfig.validate()
-        measConfig.validate()
         self.detTask = measAlg.SourceDetectionTask(config=detConfig, schema=self.schema)
         self.measTask = measBase.SingleFrameMeasurementTask(config=measConfig, schema=self.schema)
 
