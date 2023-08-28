@@ -424,9 +424,9 @@ class RequireUnresolved(BaseLimit):
     def setDefaults(self):
         """Set default
 
-        ``base_ClassificationExtendedness_value < 0.5`` means unresolved.
+        ``base_MomentsClassifier < 0.1`` means unresolved.
         """
-        self.maximum = 0.8
+        self.maximum = 0.1
 
     def apply(self, catalog):
         """Apply the flag requirements to a catalog
