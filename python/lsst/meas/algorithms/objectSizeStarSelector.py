@@ -48,13 +48,13 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
         default=False,
     )
     fluxMin = pexConfig.Field(
-        doc="Minimum psfFlux for good Psf Candidates",
+        doc="Minimum flux value for good Psf Candidates.",
         dtype=float,
         default=12500.0,
         check=lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
-        doc="Maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        doc="Maximum flux value for good Psf Candidates (ignored if == 0).",
         dtype=float,
         default=0.0,
         check=lambda x: x >= 0.0,
