@@ -45,16 +45,16 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     doFluxLimit = pexConfig.Field(
         doc="Apply flux limit to Psf Candidate selection?",
         dtype=bool,
-        default=True,
+        default=False,
     )
     fluxMin = pexConfig.Field(
-        doc="specify the minimum psfFlux for good Psf Candidates",
+        doc="Minimum flux value for good Psf Candidates.",
         dtype=float,
         default=12500.0,
         check=lambda x: x >= 0.0,
     )
     fluxMax = pexConfig.Field(
-        doc="specify the maximum psfFlux for good Psf Candidates (ignored if == 0)",
+        doc="Maximum flux value for good Psf Candidates (ignored if == 0).",
         dtype=float,
         default=0.0,
         check=lambda x: x >= 0.0,
@@ -62,56 +62,56 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
     doSignalToNoiseLimit = pexConfig.Field(
         doc="Apply signal-to-noise (i.e. flux/fluxErr) limit to Psf Candidate selection?",
         dtype=bool,
-        default=False,
+        default=True,
     )
     # Note that the current default is conditioned on the detection thresholds
     # set in the characterizeImage setDefaults function for the measurePsf
     # stage.
     signalToNoiseMin = pexConfig.Field(
-        doc="specify the minimum signal-to-noise for good Psf Candidates "
+        doc="Minimum signal-to-noise for good Psf Candidates "
             "(value should take into consideration the detection thresholds "
-            "set for the catalog of interest)",
+            "set for the catalog of interest).",
         dtype=float,
         default=50.0,
         check=lambda x: x >= 0.0,
     )
     signalToNoiseMax = pexConfig.Field(
-        doc="specify the maximum signal-to-noise for good Psf Candidates (ignored if == 0)",
+        doc="Maximum signal-to-noise for good Psf Candidates (ignored if == 0).",
         dtype=float,
         default=0.0,
         check=lambda x: x >= 0.0,
     )
     widthMin = pexConfig.Field(
-        doc="minimum width to include in histogram",
+        doc="Minimum width to include in histogram.",
         dtype=float,
-        default=0.0,
+        default=0.9,
         check=lambda x: x >= 0.0,
     )
     widthMax = pexConfig.Field(
-        doc="maximum width to include in histogram",
+        doc="Maximum width to include in histogram.",
         dtype=float,
         default=10.0,
         check=lambda x: x >= 0.0,
     )
     sourceFluxField = pexConfig.Field(
-        doc="Name of field in Source to use for flux measurement",
+        doc="Name of field in Source to use for flux measurement.",
         dtype=str,
-        default="base_GaussianFlux_instFlux",
+        default="base_PsfFlux_instFlux",
     )
     widthStdAllowed = pexConfig.Field(
-        doc="Standard deviation of width allowed to be interpreted as good stars",
+        doc="Standard deviation of width allowed to be interpreted as good stars.",
         dtype=float,
         default=0.15,
         check=lambda x: x >= 0.0,
     )
     nSigmaClip = pexConfig.Field(
-        doc="Keep objects within this many sigma of cluster 0's median",
+        doc="Keep objects within this many sigma of cluster 0's median.",
         dtype=float,
         default=2.0,
         check=lambda x: x >= 0.0,
     )
     badFlags = pexConfig.ListField(
-        doc="List of flags which cause a source to be rejected as bad",
+        doc="List of flags which cause a source to be rejected as bad.",
         dtype=str,
         default=[
             "base_PixelFlags_flag_edge",

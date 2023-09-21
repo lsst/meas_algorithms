@@ -33,7 +33,7 @@ class FindCosmicRaysConfig(pexConfig.Config):
     nCrPixelMax = pexConfig.Field(
         dtype=int,
         doc="maximum number of contaminated pixels",
-        default=10000,
+        default=1000000,
     )
     minSigma = pexConfig.Field(
         dtype=float,
@@ -53,7 +53,7 @@ class FindCosmicRaysConfig(pexConfig.Config):
     cond3_fac2 = pexConfig.Field(
         dtype=float,
         doc="used in condition 3 for CR; see CR.cc code",
-        default=0.6,
+        default=0.4,
     )
     niteration = pexConfig.Field(
         dtype=int,

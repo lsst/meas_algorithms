@@ -78,6 +78,7 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
         schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
         config.reEstimateBackground = False
+        config.thresholdType = "stdev"
         config.thresholdPolarity = 'both'
         detection = SourceDetectionTask(config=config, schema=schema)
         algMetadata = dafBase.PropertyList()
@@ -123,6 +124,7 @@ class NegativeMeasurementTestCase(lsst.utils.tests.TestCase):
 
         schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
+        config.thresholdType = "stdev"
         config.thresholdPolarity = 'both'
         # don't modify the image after detection.
         config.reEstimateBackground = False

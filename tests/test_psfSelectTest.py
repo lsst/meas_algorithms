@@ -203,6 +203,8 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         detConfig = measAlg.SourceDetectionConfig()
         # Cannot use default background approximation order (6) for such a small image.
         detConfig.background.approxOrderX = 4
+        # This test depends on footprints grown with the old Manhattan metric.
+        detConfig.isotropicGrow = False
 
         # measurement policies
         measConfig = measBase.SingleFrameMeasurementConfig()
@@ -222,8 +224,6 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         measConfig.slots.calibFlux = None
 
         self.schema = afwTable.SourceTable.makeMinimalSchema()
-        detConfig.validate()
-        measConfig.validate()
         self.detTask = measAlg.SourceDetectionTask(config=detConfig, schema=self.schema)
         self.measTask = measBase.SingleFrameMeasurementTask(config=measConfig, schema=self.schema)
 

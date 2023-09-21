@@ -107,9 +107,6 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         self.sourceCat[fluxField + "Err"][1] = self.sourceCat[fluxField][1]/500.0
         self.sourceCat[fluxField + "Err"][2] = self.sourceCat[fluxField][2]/2000.0
 
-        self.sourceSelector.config.doSignalToNoiseLimit = True
-        self.sourceSelector.config.doFluxLimit = False
-        self.sourceSelector.config.signalToNoiseMin = 50
         self.sourceSelector.config.signalToNoiseMax = 1000
         result = self.sourceSelector.run(self.sourceCat)
         self.assertNotIn(self.sourceCat[0]["id"], result.sourceCat["id"])

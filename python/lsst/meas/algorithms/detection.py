@@ -48,8 +48,8 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=int, optional=False, default=1, min=0,
     )
     isotropicGrow = pexConfig.Field(
-        doc="Pixels should be grown as isotropically as possible (slower)",
-        dtype=bool, optional=False, default=False,
+        doc="Grow pixels as isotropically as possible? If False, use a Manhattan metric instead.",
+        dtype=bool, default=True,
     )
     combinedGrow = pexConfig.Field(
         doc="Grow all footprints at the same time? This allows disconnected footprints to merge.",
@@ -68,12 +68,12 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=float, optional=False, default=5.0, min=0.0,
     )
     includeThresholdMultiplier = pexConfig.RangeField(
-        doc="Include threshold relative to thresholdValue",
+        doc="Include threshold relative to thresholdValue.",
         dtype=float, default=1.0, min=0.0,
     )
     thresholdType = pexConfig.ChoiceField(
-        doc="specifies the desired flavor of Threshold",
-        dtype=str, optional=False, default="stdev",
+        doc="Specifies the meaning of thresholdValue.",
+        dtype=str, optional=False, default="pixel_stdev",
         allowed={
             "variance": "threshold applied to image variance",
             "stdev": "threshold applied to image std deviation",
@@ -82,7 +82,7 @@ class SourceDetectionConfig(pexConfig.Config):
         },
     )
     thresholdPolarity = pexConfig.ChoiceField(
-        doc="specifies whether to detect positive, or negative sources, or both",
+        doc="Specifies whether to detect positive, or negative sources, or both.",
         dtype=str, optional=False, default="positive",
         allowed={
             "positive": "detect only positive sources",
