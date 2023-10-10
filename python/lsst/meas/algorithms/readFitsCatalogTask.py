@@ -68,7 +68,9 @@ class ReadFitsCatalogTask(pipeBase.Task):
             a numpy structured array containing the specified columns
         """
 
-        table = Table.read(filename, hdu=self.config.hdu)
+        # Set character_as_bytes=False to ensure that all string columns are
+        # set to python string types rather than byte arrays.
+        table = Table.read(filename, hdu=self.config.hdu, character_as_bytes=False)
         if table is None:
             raise RuntimeError("No data found in %s HDU %s" % (filename, self.config.hdu))
 
