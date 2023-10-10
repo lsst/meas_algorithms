@@ -217,6 +217,38 @@ def _makeSchema(filterNameList, *, addCentroid=False,
     return schema
 
 
+def _addExtraColumnsToSchema(schema, dtype, extra_col_names, key_map):
+    """Add extra columns to a schema from a numpy dtype.
+
+    Note that schema and key_map will be modified in place.
+
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Schema to append extra columns.
+    dtype : `numpy.dtype`
+        Numpy record array dtype.
+    extra_col_names : `list` [`str`]
+        Extra column names to convert from dtype into schema.
+    key_map : `dict` [`str`, `lsst.afw.table.Key`]
+        Mapping from column name to table key.
+    """
+    def addField(name):
+        if dtype[name].kind == 'U':
+            # dealing with a string like thing.  Need to get type and size.
+            at_size = dtype[name].itemsize
+            return schema.addField(name, type=str, size=at_size)
+        elif dtype[name].kind == 'b':
+            # Dealing with a boolean, which needs to be a flag.
+            return schema.addField(name, type="Flag")
+        else:
+            at_type = dtype[name].type
+            return schema.addField(name, at_type)
+
+    for col in extra_col_names:
+        key_map[col] = addField(col)
+
+
 class DatasetConfig(pexConfig.Config):
     """Description of the on-disk storage format for the converted reference
     catalog.
@@ -575,17 +607,8 @@ class ConvertReferenceCatalogTask(lsst.pipe.base.Task):
         key_map = {fieldName: schema[fieldName].asKey() for fieldName in schema.getOrderedNames()
                    if fieldName not in keysToSkip}
 
-        def addField(name):
-            if dtype[name].kind == 'U':
-                # dealing with a string like thing.  Need to get type and size.
-                at_size = dtype[name].itemsize
-                return schema.addField(name, type=str, size=at_size)
-            else:
-                at_type = dtype[name].type
-                return schema.addField(name, at_type)
+        _addExtraColumnsToSchema(schema, dtype, self.config.extra_col_names, key_map)
 
-        for col in self.config.extra_col_names:
-            key_map[col] = addField(col)
         return schema, key_map
 
     def _writeMasterSchema(self, inputfile):

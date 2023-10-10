@@ -29,6 +29,8 @@ from astropy.io import fits
 from astropy.table import Table
 
 from lsst.meas.algorithms.readFitsCatalogTask import ReadFitsCatalogTask
+from lsst.meas.algorithms.convertReferenceCatalog import _addExtraColumnsToSchema
+import lsst.afw.table
 import lsst.utils.tests
 
 # If you want to update the FITS table used for this test:
@@ -88,6 +90,7 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         fitsTable = makeFitsTable()
         self.arr1 = Table(fitsTable[1].data).as_array()
         self.arr2 = Table(fitsTable[2].data).as_array()
+
         self.fitsTable = fitsTable
 
     def testHDU1DefaultNames(self):
@@ -97,6 +100,18 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         table = task.run(FitsPath)
         self.assertTrue(np.array_equal(self.arr1, table))
         self.assertEqual(len(table), 2)
+
+        schema = lsst.afw.table.SimpleTable.makeMinimalSchema()
+        keyMap = {}
+        _addExtraColumnsToSchema(schema, table.dtype, table.dtype.names, keyMap)
+        self.assertEqual(
+            set(keyMap.keys()),
+            set(table.dtype.names),
+        )
+        self.assertEqual(
+            set(schema.getNames()),
+            set(table.dtype.names).union(set(["id", "coord_ra", "coord_dec"])),
+        )
 
     def testHDU1GivenNames(self):
         """Test the data in HDU 1 with some column renaming
@@ -118,7 +133,11 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         for inname, outname in zip(self.arr1.dtype.names, arr.dtype.names):
             des_outname = column_map.get(inname, inname)
             self.assertEqual(outname, des_outname)
-            self.assertTrue(np.array_equal(self.arr1[inname], arr[outname]))
+            if inname == "name":
+                # Special check for strings.
+                np.testing.assert_array_equal(self.arr1[inname].astype(str), arr[outname].astype(str))
+            else:
+                np.testing.assert_array_equal(self.arr1[inname], arr[outname])
 
     def testHDU2(self):
         """Test reading HDU 2 with original order"""
@@ -127,6 +146,18 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         task = ReadFitsCatalogTask(config=config)
         arr = task.run(FitsPath)
         self.assertTrue(np.array_equal(self.arr2, arr))
+
+        schema = lsst.afw.table.SimpleTable.makeMinimalSchema()
+        keyMap = {}
+        _addExtraColumnsToSchema(schema, arr.dtype, arr.dtype.names, keyMap)
+        self.assertEqual(
+            set(keyMap.keys()),
+            set(arr.dtype.names),
+        )
+        self.assertEqual(
+            set(schema.getNames()),
+            set(arr.dtype.names).union(set(["id", "coord_ra", "coord_dec"])),
+        )
 
     def testBadPath(self):
         """Test that an invalid path causes an error"""
