@@ -40,7 +40,7 @@ def apCorrDefaultMap(value=None, bbox=None):
     default_apCorrMap = ChebyshevBoundedField(bbox, default_coefficients)
     default_fill = afwImage.ImageF(bbox)
     default_apCorrMap.fillImage(default_fill)
-    return(default_fill)
+    return default_fill
 
 
 class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.tests.TestCase):
@@ -79,7 +79,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
                 source.set(apFluxErrKey, 0.)
                 source.set(flagKey, False)
                 source.set(apFlagKey, False)
-        return(sourceCat)
+        return sourceCat
 
     def setUp(self):
         schema = afwTable.SourceTable.makeMinimalSchema()
