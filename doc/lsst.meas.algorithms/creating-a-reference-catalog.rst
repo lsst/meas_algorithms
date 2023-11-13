@@ -164,12 +164,13 @@ For LSST staff using ``lsst-devl``, see the `Reference catalogs policy <https://
 
 .. _lsst.meas.algorithms-refcat-existing:
 
-5. Ingesting pre-existing gen2 reference catalogs
-=================================================
+5. Ingesting pre-existing reference catalogs
+============================================
 
 .. note::
 
-    The ``.ecsv`` files described here have already been created for the reference catalogs used in ``/repo/main`` on lsst-devl, in the ``/datasets/refcats/htm/v1`` directory.
+    The ``.ecsv`` files described here have already been created for the reference catalogs used in ``/repo/main`` at USDF, in the ``/sdf/group/rubin/datasets/refcats/htm/v1`` directory.
+    If you wish to use these refcats in your own butler repo, just run the three commands at the end of this section; there is no need to generate the htm7 index lookup table file.
 
 Already existing reference catalogs (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers) can be directly ingested into a gen3 repo as they are already in the LSST format.
 To ingest already existing HTM-indexed files in the LSST format, first create a suitable filename to htm7-index astropy lookup table, and then follow the steps above to :ref:`ingest the files into the butler <lsst.meas.algorithms-refcat-ingest>`.
