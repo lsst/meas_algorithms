@@ -64,11 +64,14 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=bool, optional=False, default=False,
     )
     thresholdValue = pexConfig.RangeField(
-        doc="Threshold for footprints; exact meaning and units depend on thresholdType.",
+        doc="Threshold for detecting footprints; exact meaning and units depend on thresholdType.",
         dtype=float, optional=False, default=5.0, min=0.0,
     )
     includeThresholdMultiplier = pexConfig.RangeField(
-        doc="Include threshold relative to thresholdValue.",
+        doc="Multiplier on thresholdValue for whether a source is included in the output catalog."
+            " For example, thresholdValue=5, includeThresholdMultiplier=10, thresholdType='pixel_stdev' "
+            "results in a catalog of sources at >50 sigma with the detection mask and footprints "
+            "including pixels >5 sigma.",
         dtype=float, default=1.0, min=0.0,
     )
     thresholdType = pexConfig.ChoiceField(
