@@ -202,8 +202,14 @@ class CandidateMaskingTestCase(lsst.utils.tests.TestCase):
 
     def testStr(self):
         candidate = self.createCandidate()
+
+        # The setX methods are class globals and could contain values set
+        # by other code. Force the values here to ensure test consistency.
         candidate.setChi2(2.0)
-        expect = "center=(123.0,45.0), status=UNKNOWN, rating=1.0, size=(0, 0), chi2=2.0, amplitude=0.0"
+        candidate.setWidth(5460)
+        candidate.setHeight(9584)
+
+        expect = "center=(123.0,45.0), status=UNKNOWN, rating=1.0, size=(5460, 9584), chi2=2.0, amplitude=0.0"
         self.assertEqual(str(candidate), expect)
 
 
