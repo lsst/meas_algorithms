@@ -83,15 +83,15 @@ def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance,
     for i, stamp in enumerate(stamps):
         metadata = PropertyList()
         # EXTVER should be 1-based, the index from enumerate is 0-based
-        metadata.update({"EXTVER": i + 1, "EXTNAME": "IMAGE"})
+        metadata.update({"BIN_TAG": stamp.binTag, "EXTVER": i + 1, "EXTNAME": "IMAGE"})
         stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode="a")
         if write_mask:
             metadata = PropertyList()
-            metadata.update({"EXTVER": i + 1, "EXTNAME": "MASK"})
+            metadata.update({"BIN_TAG": stamp.binTag, "EXTVER": i + 1, "EXTNAME": "MASK"})
             stamp.stamp_im.getMask().writeFits(filename, metadata=metadata, mode="a")
         if write_variance:
             metadata = PropertyList()
-            metadata.update({"EXTVER": i + 1, "EXTNAME": "VARIANCE"})
+            metadata.update({"BIN_TAG": stamp.binTag, "EXTVER": i + 1, "EXTNAME": "VARIANCE"})
             stamp.stamp_im.getVariance().writeFits(filename, metadata=metadata, mode="a")
     return None
 
@@ -165,6 +165,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
         variance_dtype = np.dtype(np.float32)  # Variance is always the same type.
 
         # We need to be careful because nExtensions includes the primary HDU.
+        binTags = []
         for idx in range(nExtensions - 1):
             dtype = None
             md = readMetadata(filename, hdu=idx + 1)
@@ -174,6 +175,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
                     dtype = variance_dtype
                 else:
                     dtype = default_dtype
+                    binTags.append(md["BIN_TAG"])
             elif md["EXTNAME"] == "MASK":
                 reader = MaskFitsReader(filename, hdu=idx + 1)
             elif md["EXTNAME"] == "ARCHIVE_INDEX":
@@ -197,7 +199,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
         # Need to increment by one since EXTVER starts at 1
         maskedImage = masked_image_cls(**stamp_parts[k + 1])
         archive_element = archive.get(archive_ids[k]) if has_archive else None
-        stamps.append(stamp_factory(maskedImage, metadata, k, archive_element))
+        stamps.append(stamp_factory(maskedImage, metadata, k, binTags[k], archive_element))
 
     return stamps, metadata
 

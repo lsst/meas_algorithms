@@ -64,6 +64,7 @@ class BrightStarStamp(AbstractStamp):
     stamp_im: MaskedImageF
     gaiaGMag: float
     gaiaId: int
+    binTag: str
     position: Point2I
     archive_element: Persistable | None = None
     annularFlux: float | None = None
@@ -72,7 +73,7 @@ class BrightStarStamp(AbstractStamp):
     optimalOuterRadius: int | None = None
 
     @classmethod
-    def factory(cls, stamp_im, metadata, idx, archive_element=None, minValidAnnulusFraction=0.0):
+    def factory(cls, stamp_im, metadata, idx, binTag, archive_element=None, minValidAnnulusFraction=0.0):
         """This method is needed to service the FITS reader. We need a standard
         interface to construct objects like this. Parameters needed to
         construct this object are passed in via a metadata dictionary and then
@@ -110,6 +111,7 @@ class BrightStarStamp(AbstractStamp):
             stamp_im=stamp_im,
             gaiaGMag=metadata.getArray("G_MAGS")[idx],
             gaiaId=metadata.getArray("GAIA_IDS")[idx],
+            binTag=binTag,
             position=position,
             archive_element=archive_element,
             annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
@@ -236,8 +238,9 @@ class BrightStarStamps(Stamps):
     def __init__(
         self,
         starStamps,
-        innerRadius=None,
-        outerRadius=None,
+        # innerRadius=None,
+        # outerRadius=None,
+        annularFluxRadii=None,
         nb90Rots=None,
         metadata=None,
         use_mask=True,
@@ -246,9 +249,9 @@ class BrightStarStamps(Stamps):
     ):
         super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
         # Ensure stamps contain a flux measure if expected to be normalized.
-        self._checkNormalization(False, innerRadius, outerRadius)
-        self._innerRadius, self._outerRadius = innerRadius, outerRadius
-        if innerRadius is not None and outerRadius is not None:
+        self._checkNormalization(False, annularFluxRadii)
+        self._annularFluxRadii = annularFluxRadii
+        if annularFluxRadii is not None:
             self.normalized = True
         else:
             self.normalized = False
@@ -258,14 +261,18 @@ class BrightStarStamps(Stamps):
     def initAndNormalize(
         cls,
         starStamps,
-        innerRadius,
-        outerRadius,
+        annularFluxRadii,
+        innerRadius=None,
+        outerRadius=None,
         nb90Rots=None,
         metadata=None,
         use_mask=True,
         use_variance=False,
         use_archive=False,
-        imCenter=None,
+        # imCenter=None,
+        imsCenters=None,
+        modelSizes=None,
+        bins=None,
         discardNanFluxObjects=True,
         forceFindFlux=False,
         statsControl=StatisticsControl(),
@@ -293,6 +300,8 @@ class BrightStarStamps(Stamps):
             Outer radius value, in pixels. This and ``innerRadius`` define the
             annulus used to compute the ``"annularFlux"`` values within each
             ``starStamp``.
+        annularFluxRadii : `ConfigDictField`
+            The inner and outer radii of normalization annulus for all magnitude bins.
         nb90Rots : `int`, optional
             Number of 90 degree rotations required to compensate for detector
             orientation.
@@ -335,23 +344,30 @@ class BrightStarStamps(Stamps):
             stamps, stamps normalized with different annulus definitions, or if
             stamps are to be normalized but annular radii were not provided.
         """
-        stampSize = starStamps[0].stamp_im.getDimensions()
-        if imCenter is None:
-            imCenter = stampSize[0] // 2, stampSize[1] // 2
+        if imsCenters is None:
+            imsCenters = {}
+            for bin in bins:
+                imsCenters[bin] = modelSizes[bin][0] // 2, modelSizes[bin][1] // 2
 
         # Create SpanSet of annulus.
-        outerCircle = SpanSet.fromShape(outerRadius, Stencil.CIRCLE, offset=imCenter)
-        innerCircle = SpanSet.fromShape(innerRadius, Stencil.CIRCLE, offset=imCenter)
-        annulusWidth = outerRadius - innerRadius
-        if annulusWidth < 1:
-            raise ValueError("The annulus width must be greater than 1 pixel.")
-        annulus = outerCircle.intersectNot(innerCircle)
+        annuli = {}
+        for bin in bins:
+            outerRadius = max(annularFluxRadii[bin].radii)
+            innerRadius = min(annularFluxRadii[bin].radii)
+            outerCircle = SpanSet.fromShape(outerRadius, Stencil.CIRCLE, offset=imsCenters[bin])
+            innerCircle = SpanSet.fromShape(innerRadius, Stencil.CIRCLE, offset=imsCenters[bin])
+            annulusWidth = outerRadius - innerRadius
+            if annulusWidth < 1:
+                raise ValueError("The annulus width must be greater than 1 pixel.")
+            annulus = outerCircle.intersectNot(innerCircle)
+            annuli[bin] = annulus
 
         # Initialize (unnormalized) brightStarStamps instance.
         bss = cls(
             starStamps,
-            innerRadius=None,
-            outerRadius=None,
+            # innerRadius=None,
+            # outerRadius=None,
+            annularFluxRadii=None,
             nb90Rots=nb90Rots,
             metadata=metadata,
             use_mask=use_mask,
@@ -360,13 +376,15 @@ class BrightStarStamps(Stamps):
         )
 
         # Ensure that no stamps have already been normalized.
-        bss._checkNormalization(True, innerRadius, outerRadius)
-        bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
+        bss._checkNormalization(True, annularFluxRadii)
+        bss._annularFluxRadii = annularFluxRadii
+        # bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
 
         # Apply normalization.
         rejects = []
         badStamps = []
         for stamp in bss._stamps:
+            annulus = annuli[stamp.binTag]
             try:
                 stamp.measureAndNormalize(
                     annulus, statsControl=statsControl, statsFlag=statsFlag, badMaskPlanes=badMaskPlanes
@@ -459,8 +477,16 @@ class BrightStarStamps(Stamps):
         self._metadata["Y0S"] = [xy0[1] for xy0 in positions]
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
         self._metadata["NORMALIZED"] = self.normalized
-        self._metadata["INNER_RADIUS"] = self._innerRadius
-        self._metadata["OUTER_RADIUS"] = self._outerRadius
+        binTags = [key for key in self._annularFluxRadii.keys()]
+        self._metadata["NBINS"] = len(binTags)
+        for i, binTag in enumerate(self._annularFluxRadii.keys()):
+            self._metadata["aBIN_{}".format(i + 1)] = binTag
+            self._metadata["aINNER_RADIUS_{}".format(i + 1)] = min(self._annularFluxRadii[binTag].radii)
+            self._metadata["aOUTER_RADIUS_{}".format(i + 1)] = max(self._annularFluxRadii[binTag].radii)
+        for i, binTag in enumerate(binTags):
+            self._metadata["BIN_{}".format(i + 1)] = binTag
+            self._metadata["INNER_RADIUS_{}".format(i + 1)] = min(self._annularFluxRadii[binTag].radii)
+            self._metadata["OUTER_RADIUS_{}".format(i + 1)] = max(self._annularFluxRadii[binTag].radii)
         if self.nb90Rots is not None:
             self._metadata["NB_90_ROTS"] = self.nb90Rots
         return None
@@ -490,10 +516,17 @@ class BrightStarStamps(Stamps):
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
         nb90Rots = metadata["NB_90_ROTS"] if "NB_90_ROTS" in metadata else None
         if metadata["NORMALIZED"]:
+            annularFluxRadiiKeys = [metadata["BIN_{}".format(i + 1)] for i in range(metadata["NBINS"])]
+            annularFluxInnerRadii = [metadata["INNER_RADIUS_{}".format(i + 1)] for i in range(metadata["NBINS"])]
+            annularFluxOuterRadii = [metadata["OUTER_RADIUS_{}".format(i + 1)] for i in range(metadata["NBINS"])]
+            annularFluxRadii = {}
+            for i in range(metadata["NBINS"]):
+                annularFluxRadii[annularFluxRadiiKeys[i]] = annularFluxInnerRadii[i], annularFluxOuterRadii[i]
             return cls(
                 stamps,
-                innerRadius=metadata["INNER_RADIUS"],
-                outerRadius=metadata["OUTER_RADIUS"],
+                # innerRadius=metadata["INNER_RADIUS"],
+                # outerRadius=metadata["OUTER_RADIUS"],
+                annularFluxRadii=annularFluxRadii,
                 nb90Rots=nb90Rots,
                 metadata=metadata,
                 use_mask=metadata["HAS_MASK"],
@@ -551,6 +584,16 @@ class BrightStarStamps(Stamps):
             raise ValueError(f"Can only extend with a BrightStarStamps object. Got {type(bss)}.")
         self._checkRadius(bss._innerRadius, bss._outerRadius)
         self._stamps += bss._stamps
+
+    def getBinTags(self):
+        """Retrieve magnitude bin tag for each star.
+
+        Returns
+        -------
+        binTags : `list` [`str`]
+            Magnitude bin tag for each star.
+        """
+        return [stamp.binTag for stamp in self._stamps]
 
     def getMagnitudes(self):
         """Retrieve Gaia G-band magnitudes for each star.
@@ -622,7 +665,7 @@ class BrightStarStamps(Stamps):
                 f"(computed with annular radii {self._innerRadius, self._outerRadius})."
             )
 
-    def _checkNormalization(self, normalize, innerRadius, outerRadius):
+    def _checkNormalization(self, normalize, annularFluxRadii):
         """Ensure there is no mixing of normalized and unnormalized stars, and
         that, if requested, normalization can be performed.
         """
@@ -640,7 +683,7 @@ class BrightStarStamps(Stamps):
         elif normalize:
             # Stamps are to be normalized; ensure annular radii are specified
             # and they have no annularFlux.
-            if innerRadius is None or outerRadius is None:
+            if annularFluxRadii is None:
                 raise AttributeError(
                     "For stamps to be normalized (normalize=True), please provide a valid value (in pixels) "
                     "for both innerRadius and outerRadius."
@@ -650,7 +693,7 @@ class BrightStarStamps(Stamps):
                     f"{nFluxVals} stamps already contain an annularFlux value. For stamps to be normalized, "
                     "all their annularFlux must be None."
                 )
-        elif innerRadius is not None and outerRadius is not None:
+        elif annularFluxRadii is not None:
             # Radii provided, but normalize=False; check that stamps already
             # contain annularFluxes.
             if noneFluxCount:
