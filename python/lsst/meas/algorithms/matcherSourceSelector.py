@@ -21,6 +21,8 @@
 
 __all__ = ["MatcherSourceSelectorConfig", "MatcherSourceSelectorTask"]
 
+from deprecated.sphinx import deprecated
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
@@ -49,6 +51,10 @@ class MatcherSourceSelectorConfig(BaseSourceSelectorConfig):
     )
 
 
+# remove this file on DM-41146
+@deprecated(reason=("This Task has been replaced by an appropriately configured ScienceSourceSelector."
+                    " Will be removed after v27."),
+            version="v27.0", category=FutureWarning)
 @pexConfig.registerConfigurable("matcher", sourceSelectorRegistry)
 class MatcherSourceSelectorTask(BaseSourceSelectorTask):
     """Select sources that are useful for matching.

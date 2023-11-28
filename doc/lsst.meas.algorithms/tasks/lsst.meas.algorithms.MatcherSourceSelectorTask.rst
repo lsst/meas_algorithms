@@ -6,6 +6,8 @@ MatcherSourceSelectorTask
 
 ``MatcherSourceSelectorTask`` selects sources that are useful for matching, without checking footprints or bad flags.
 
+To be removed on DM-41146.
+
 .. _lsst.meas.algorithms.MatcherSourceSelectorTask-api:
 
 Python API summary
