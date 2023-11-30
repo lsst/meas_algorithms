@@ -228,7 +228,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         cat = loader.loadSkyCircle(
             center,
             30.0*lsst.geom.degrees,
-            filterName='a',
+            band='a',
         ).refCat
         # Check that the max distance is less than the radius
         dist = sphdist(180.0, 0.0, np.rad2deg(cat['coord_ra']), np.rad2deg(cat['coord_dec']))
@@ -299,7 +299,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         result = loader.loadSkyCircle(
             center,
             30.0*lsst.geom.degrees,
-            filterName='aprime',
+            band='aprime',
         )
         self.assertEqual(result.fluxField, 'aprime_camFlux')
         self.assertFloatsEqual(result.refCat['aprime_camFlux'], result.refCat['a_flux'])
@@ -316,14 +316,14 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         cat = loader.loadSkyCircle(
             center,
             30.0*lsst.geom.degrees,
-            filterName='a'
+            band='a'
         ).refCat
 
         # Zero epoch change --> no proper motion correction (except minor numerical effects)
         cat_pm = loader.loadSkyCircle(
             center,
             30.0*lsst.geom.degrees,
-            filterName='a',
+            band='a',
             epoch=self.epoch
         ).refCat
 
@@ -336,7 +336,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         cat_pm = loader.loadSkyCircle(
             center,
             30.0*lsst.geom.degrees,
-            filterName='a',
+            band='a',
             epoch=self.epoch + 1.0*astropy.units.yr
         ).refCat
 
@@ -360,7 +360,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
         cat_pm = loader.loadSkyCircle(
             center,
             30.0*lsst.geom.degrees,
-            filterName='a',
+            band='a',
             epoch=self.epoch - 1.0*astropy.units.yr
         ).refCat
 
@@ -396,7 +396,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
             loader.loadSkyCircle(
                 center,
                 30.0*lsst.geom.degrees,
-                filterName='a'
+                band='a'
             )
 
 
