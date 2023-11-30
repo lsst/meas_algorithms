@@ -23,6 +23,7 @@ __all__ = ["getRefFluxField", "getRefFluxKeys", "LoadReferenceObjectsConfig",
            "ReferenceObjectLoader"]
 
 import logging
+import warnings
 
 import astropy.time
 import astropy.units
@@ -433,7 +434,7 @@ class ReferenceObjectLoader:
         return pipeBase.Struct(coord=coord, radius=radius, bbox=bbox)
 
     @staticmethod
-    def getMetadataCircle(coord, radius, band, epoch=None):
+    def getMetadataCircle(coord, radius, band=None, epoch=None, filterName=None):
         """Return metadata about the loaded reference catalog, in an on-sky
         circle.
 
@@ -447,16 +448,27 @@ class ReferenceObjectLoader:
         radius : `lsst.geom.Angle`
             Radius of the search region.
         band : `str`
-            Name of the camera filter.
+            Name of camera filter the refcat is being loaded for.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch that proper motion and parallax were corrected to, or `None`
             if no such corrections were applied.
+        filterName : `str`
+            Name of the camera filter. Deprecated in favor of ``band``.
 
         Returns
         -------
         md : `lsst.daf.base.PropertyList`
             Metadata about the catalog.
         """
+        if filterName is not None:
+            warnings.warn("`filterName` is deprecated in favor of `band`."
+                          " It will be removed after Science Pipelines release 28.0.",
+                          category=FutureWarning)
+            if band is None:
+                band = filterName
+            else:
+                raise RuntimeError("Specify only `band`, not `filterName`.")
+
         md = PropertyList()
         md.add('RA', coord.getRa().asDegrees(), 'field center in degrees')
         md.add('DEC', coord.getDec().asDegrees(), 'field center in degrees')
@@ -470,8 +482,8 @@ class ReferenceObjectLoader:
                'Julian epoch (TAI Julian Epoch year) for catalog')
         return md
 
-    def getMetadataBox(self, bbox, wcs, band, epoch=None,
-                       bboxToSpherePadding=100):
+    def getMetadataBox(self, bbox, wcs, band=None, epoch=None,
+                       bboxToSpherePadding=100, filterName=None):
         """Return metadata about the loaded reference catalog, in an
         on-detector box.
 
@@ -485,7 +497,7 @@ class ReferenceObjectLoader:
         wcs : `lsst.afw.geom.SkyWcs`
             The WCS object associated with ``bbox``.
         band : `str`
-            Name of the camera filter.
+            Name of camera filter the refcat is being loaded for.
         epoch : `astropy.time.Time` or `None`,  optional
             Epoch that proper motion and parallax were corrected to, or `None`
             if no such corrections were applied.
@@ -493,6 +505,8 @@ class ReferenceObjectLoader:
             Padding in pixels to account for translating a set of corners into
             a spherical (convex) boundary that is certain to encompass the
             enitre area covered by the box.
+        filterName : `str`
+            Name of the camera filter. Deprecated in favor of ``band``.
 
         Returns
         -------
@@ -500,6 +514,15 @@ class ReferenceObjectLoader:
             The metadata detailing the search parameters used for this
             dataset.
         """
+        if band is not None:
+            warnings.warn("`band` is deprecated in favor of `band`."
+                          " It will be removed after Science Pipelines release 28.0.",
+                          category=FutureWarning)
+            if band is None:
+                band = band
+            else:
+                raise RuntimeError("Specify only `band`, not `band`.")
+
         circle = self._calculateCircle(bbox, wcs, self.config.pixelMargin)
         md = self.getMetadataCircle(circle.coord, circle.radius, band, epoch=epoch)
 
@@ -512,8 +535,8 @@ class ReferenceObjectLoader:
                 md.add(f"{box}_{name}_DEC", geom.SpherePoint(corner).getDec().asDegrees(), f"{box}_corner")
         return md
 
-    def loadPixelBox(self, bbox, wcs, band, epoch=None,
-                     bboxToSpherePadding=100):
+    def loadPixelBox(self, bbox, wcs, band=None, epoch=None,
+                     bboxToSpherePadding=100, filterName=None):
         """Load reference objects that are within a pixel-based rectangular
         region.
 
@@ -536,7 +559,7 @@ class ReferenceObjectLoader:
             Wcs object defining the pixel to sky (and inverse) transform for
             the supplied ``bbox``.
         band : `str`
-            Name of camera filter.
+            Name of camera filter the refcat is being loaded for.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None`
             to not apply such corrections.
@@ -544,6 +567,8 @@ class ReferenceObjectLoader:
             Padding to account for translating a set of corners into a
             spherical (convex) boundary that is certain to encompase the
             enitre area covered by the box.
+        filterName : `str`
+            Name of the camera filter. Deprecated in favor of ``band``.
 
         Returns
         -------
@@ -566,6 +591,15 @@ class ReferenceObjectLoader:
             Raised if the loaded reference catalogs do not have matching
             schemas.
         """
+        if filterName is not None:
+            warnings.warn("`filterName` is deprecated in favor of `band`."
+                          " It will be removed after Science Pipelines release 28.0.",
+                          category=FutureWarning)
+            if band is None:
+                band = filterName
+            else:
+                raise RuntimeError("Specify only `band`, not `filterName`.")
+
         paddedBbox = geom.Box2D(bbox)
         paddedBbox.grow(self.config.pixelMargin)
         innerSkyRegion, outerSkyRegion, _, _ = self._makeBoxRegion(paddedBbox, wcs, bboxToSpherePadding)
@@ -603,7 +637,7 @@ class ReferenceObjectLoader:
             return filteredRefCat
         return self.loadRegion(outerSkyRegion, band, filtFunc=_filterFunction, epoch=epoch)
 
-    def loadRegion(self, region, band, filtFunc=None, epoch=None):
+    def loadRegion(self, region, band=None, filtFunc=None, epoch=None, filterName=None):
         """Load reference objects within a specified region.
 
         This function loads the DataIds used to construct an instance of this
@@ -627,10 +661,12 @@ class ReferenceObjectLoader:
             which filters according to if a reference object falls within the
             input region.
         band : `str`
-            Name of camera filter.
+            Name of camera filter the refcat is being loaded for.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
+        filterName : `str`
+            Name of the camera filter. Deprecated in favor of ``band``.
 
         Returns
         -------
@@ -653,6 +689,15 @@ class ReferenceObjectLoader:
             Raised if the loaded reference catalogs do not have matching
             schemas.
         """
+        if filterName is not None:
+            warnings.warn("`filterName` is deprecated in favor of `band`."
+                          " It will be removed after Science Pipelines release 28.0.",
+                          category=FutureWarning)
+            if band is None:
+                band = filterName
+            else:
+                raise RuntimeError("Specify only `band`, not `filterName`.")
+
         regionLat = region.getBoundingBox().getLat()
         regionLon = region.getBoundingBox().getLon()
         self.log.info("Loading reference objects from %s in region bounded by "
@@ -718,7 +763,7 @@ class ReferenceObjectLoader:
         fluxField = getRefFluxField(expandedCat.schema, band)
         return pipeBase.Struct(refCat=expandedCat, fluxField=fluxField)
 
-    def loadSkyCircle(self, ctrCoord, radius, band, epoch=None):
+    def loadSkyCircle(self, ctrCoord, radius, band=None, epoch=None, filterName=None):
         """Load reference objects that lie within a circular region on the sky.
 
         This method constructs a circular region from an input center and
@@ -733,10 +778,12 @@ class ReferenceObjectLoader:
         radius : `lsst.geom.Angle`
             Defines the angular radius of the circular region.
         band : `str`
-            Name of camera filter.
+            Name of camera filter the refcat is being loaded for.
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
+        filterName : `str`
+            Name of the camera filter. Deprecated in favor of ``band``.
 
         Returns
         -------
@@ -750,13 +797,21 @@ class ReferenceObjectLoader:
                 Name of the field containing the flux associated with
                 ``band``.
         """
+        if filterName is not None:
+            warnings.warn("`filterName` is deprecated in favor of `band`."
+                          " It will be removed after Science Pipelines release 28.0.",
+                          category=FutureWarning)
+            if band is None:
+                band = filterName
+            else:
+                raise RuntimeError("Specify only `band`, not `filterName`.")
         centerVector = ctrCoord.getVector()
         sphRadius = sphgeom.Angle(radius.asRadians())
         circularRegion = sphgeom.Circle(centerVector, sphRadius)
         return self.loadRegion(circularRegion, band, epoch=epoch)
 
 
-def getRefFluxField(schema, band):
+def getRefFluxField(schema, band=None, filterName=None):
     """Get the name of a flux field from a schema.
 
     Parameters
@@ -764,7 +819,9 @@ def getRefFluxField(schema, band):
     schema : `lsst.afw.table.Schema`
         Reference catalog schema.
     band : `str`
-        Name of camera filter.
+        Name of camera filter the refcat is being loaded for.
+    filterName : `str`
+        Name of the camera filter. Deprecated in favor of ``band``.
 
     Returns
     -------
@@ -783,6 +840,15 @@ def getRefFluxField(schema, band):
     RuntimeError
         Raised if an appropriate field is not found.
     """
+    if filterName is not None:
+        warnings.warn("`filterName` is deprecated in favor of `band`."
+                      " It will be removed after Science Pipelines release 28.0.",
+                      category=FutureWarning)
+        if band is None:
+            band = filterName
+        else:
+            raise RuntimeError("Specify only `band`, not `filterName`.")
+
     if not isinstance(schema, afwTable.Schema):
         raise RuntimeError("schema=%s is not a schema" % (schema,))
     try:
@@ -798,7 +864,7 @@ def getRefFluxField(schema, band):
     raise RuntimeError("Could not find flux field(s) %s" % (", ".join(fluxFieldList)))
 
 
-def getRefFluxKeys(schema, band):
+def getRefFluxKeys(schema, band=None, filterName=None):
     """Return keys for flux and flux error.
 
     Parameters
@@ -806,7 +872,9 @@ def getRefFluxKeys(schema, band):
     schema : `lsst.afw.table.Schema`
         Reference catalog schema.
     band : `str`
-        Name of camera filter.
+        Name of camera filter the refcat is being loaded for.
+    filterName : `str`
+        Name of the camera filter. Deprecated in favor of ``band``.
 
     Returns
     -------
@@ -821,6 +889,15 @@ def getRefFluxKeys(schema, band):
     RuntimeError
         If flux field not found.
     """
+    if filterName is not None:
+        warnings.warn("`filterName` is deprecated in favor of `band`."
+                      " It will be removed after Science Pipelines release 28.0.",
+                      category=FutureWarning)
+        if band is None:
+            band = filterName
+        else:
+            raise RuntimeError("Specify only `band`, not `filterName`.")
+
     fluxField = getRefFluxField(schema, band)
     fluxErrField = fluxField + "Err"
     fluxKey = schema[fluxField].asKey()
