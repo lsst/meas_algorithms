@@ -27,6 +27,8 @@ and not flagged with a handful of "bad" flags.
 
 __all__ = ["AstrometrySourceSelectorConfig", "AstrometrySourceSelectorTask"]
 
+from deprecated.sphinx import deprecated
+
 import numpy as np
 
 import lsst.pex.config as pexConfig
@@ -61,6 +63,11 @@ class AstrometrySourceSelectorConfig(BaseSourceSelectorConfig):
     )
 
 
+# remove this file on DM-41146
+@deprecated(reason=("This Task has been replaced by an appropriately configured ScienceSourceSelector."
+                    " See `AstrometryConfig.setDefaults` in meas_astrom for an example config that was "
+                    "made to closely match this Task. Will be removed after v27."),
+            version="v27.0", category=FutureWarning)
 @pexConfig.registerConfigurable("astrometry", sourceSelectorRegistry)
 class AstrometrySourceSelectorTask(BaseSourceSelectorTask):
     """Select sources that are useful for astrometry.

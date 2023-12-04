@@ -6,6 +6,7 @@ AstrometrySourceSelectorTask
 
 ``AstrometrySourceSelectorTask`` selects sources that are useful for astrometry.
 
+To be removed on DM-41146.
 
 .. _lsst.meas.algorithms.AstrometrySourceSelectorTask-api:
 
