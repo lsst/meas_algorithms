@@ -567,6 +567,8 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
                                            doc="Apply finite sky coordinate check?")
     doRequirePrimary = pexConfig.Field(dtype=bool, default=False,
                                        doc="Apply source is primary check?")
+    doSkySources = pexConfig.Field(dtype=bool, default=False,
+                                   doc="Include sky sources, unioned with all other criteria?")
     fluxLimit = pexConfig.ConfigField(dtype=FluxLimit, doc="Flux limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
@@ -576,12 +578,14 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
                                                doc="Finite sky coordinate criteria to apply")
     requirePrimary = pexConfig.ConfigField(dtype=RequirePrimary,
                                            doc="Primary source criteria to apply")
+    skyFlag = pexConfig.ConfigField(dtype=RequireFlags, doc="Sky source flag to include")
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_saturated", "base_PsfFlux_flag"]
         self.signalToNoise.fluxField = "base_PsfFlux_instFlux"
         self.signalToNoise.errField = "base_PsfFlux_instFluxErr"
+        self.skyFlag.good = ["sky_source"]
 
 
 @pexConfig.registerConfigurable("science", sourceSelectorRegistry)
@@ -634,6 +638,8 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.requireFiniteRaDec.apply(sourceCat)
         if self.config.doRequirePrimary:
             selected &= self.config.requirePrimary.apply(sourceCat)
+        if self.config.doSkySources:
+            selected |= self.config.skyFlag.apply(sourceCat)
 
         self.log.info("Selected %d/%d sources", selected.sum(), len(sourceCat))
 
