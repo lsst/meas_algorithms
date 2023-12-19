@@ -98,7 +98,12 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         """
         task = ReadFitsCatalogTask()
         table = task.run(FitsPath)
-        self.assertTrue(np.array_equal(self.arr1, table))
+        for name in self.arr1.dtype.names:
+            self.assertIn(name, table.dtype.names)
+            if name == "name":
+                np.testing.assert_array_equal(self.arr1[name].astype(str), table[name])
+            else:
+                np.testing.assert_array_equal(self.arr1[name], table[name])
         self.assertEqual(len(table), 2)
 
         schema = lsst.afw.table.SimpleTable.makeMinimalSchema()
@@ -145,7 +150,12 @@ class ReadFitsCatalogTaskTestCase(lsst.utils.tests.TestCase):
         config.hdu = 2
         task = ReadFitsCatalogTask(config=config)
         arr = task.run(FitsPath)
-        self.assertTrue(np.array_equal(self.arr2, arr))
+        for name in self.arr1.dtype.names:
+            self.assertIn(name, arr.dtype.names)
+            if name == "name":
+                np.testing.assert_array_equal(self.arr2[name].astype(str), arr[name])
+            else:
+                np.testing.assert_array_equal(self.arr2[name], arr[name])
 
         schema = lsst.afw.table.SimpleTable.makeMinimalSchema()
         keyMap = {}
