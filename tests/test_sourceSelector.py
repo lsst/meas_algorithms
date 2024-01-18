@@ -334,6 +334,13 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         num = 5
         for _ in range(num):
             self.catalog.addNew()
+        self.catalog["coord_ra"][:] = 1.0
+        self.catalog["coord_dec"][:] = 1.0
+        self.catalog["coord_ra"][0] = np.nan
+        self.catalog["coord_dec"][1] = np.inf
+        self.config.doRequireFiniteRaDec = True
+
+        self.check([False, False, True, True, True])
 
 
 class TestBaseSourceSelector(lsst.utils.tests.TestCase):
