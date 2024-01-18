@@ -331,6 +331,7 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.check((starGalaxy > minimum).tolist())
 
     def testFiniteRaDec(self):
+        "Test that non-finite RA and Dec values are caught."
         num = 5
         for _ in range(num):
             self.catalog.addNew()
