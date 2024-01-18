@@ -50,7 +50,7 @@ class CurveTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.wavelength = np.linspace(3000, 5000, 150)*u.angstrom
-        self.efficiency = signal.gaussian(len(self.wavelength), std=100)*u.percent
+        self.efficiency = signal.windows.gaussian(len(self.wavelength), std=100)*u.percent
         self.metadata = dict([('MODE', 'AMP'), ('TYPE', 'QE'), ('CALIBDATE', '1970-01-01T00:00:00'),
                               ('INSTRUME', 'ts8'), ('OBSTYPE', 'qe_curve'), ('DETECTOR', 99),
                               ('DATE', '2019-09-27T22:15:13.518320'), ('CALIB_CREATION_DATE', '2019-09-27'),
