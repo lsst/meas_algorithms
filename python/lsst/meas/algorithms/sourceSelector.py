@@ -646,9 +646,13 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
     doUnresolved = pexConfig.Field(dtype=bool, default=False, doc="Apply unresolved limitation?")
     doSignalToNoise = pexConfig.Field(dtype=bool, default=False, doc="Apply signal-to-noise limit?")
     doMagError = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude error limit?")
+    doRequireFiniteRaDec = pexConfig.Field(dtype=bool, default=True,
+                                           doc="Apply finite sky coordinate check?")
     magLimit = pexConfig.ConfigField(dtype=MagnitudeLimit, doc="Magnitude limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
+    requireFiniteRaDec = pexConfig.ConfigField(dtype=RequireFiniteRaDec,
+                                               doc="Finite sky coordinate criteria to apply")
     signalToNoise = pexConfig.ConfigField(dtype=SignalToNoiseLimit, doc="Signal-to-noise limit to apply")
     magError = pexConfig.ConfigField(dtype=MagnitudeErrorLimit, doc="Magnitude error limit to apply")
     colorLimits = pexConfig.ConfigDictField(keytype=str, itemtype=ColorLimit, default={},
@@ -698,6 +702,8 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.signalToNoise.apply(sourceCat)
         if self.config.doMagError:
             selected &= self.config.magError.apply(sourceCat)
+        if self.config.doRequireFiniteRaDec:
+            selected &= self.config.requireFiniteRaDec.apply(sourceCat)
         for limit in self.config.colorLimits.values():
             selected &= limit.apply(sourceCat)
 

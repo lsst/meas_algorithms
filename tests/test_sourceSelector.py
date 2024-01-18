@@ -225,6 +225,7 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.doMagLimit = True
         self.config.doFlags = True
         self.config.doUnresolved = False
+        self.config.doRequireFiniteRaDec = False
 
     def testMagnitudeLimit(self):
         tooBright = self.catalog.addNew()
@@ -328,6 +329,11 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.unresolved.minimum = minimum
         self.config.unresolved.maximum = None
         self.check((starGalaxy > minimum).tolist())
+
+    def testFiniteRaDec(self):
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
 
 
 class TestBaseSourceSelector(lsst.utils.tests.TestCase):
