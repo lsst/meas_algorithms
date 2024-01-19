@@ -225,6 +225,7 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.doMagLimit = True
         self.config.doFlags = True
         self.config.doUnresolved = False
+        self.config.doRequireFiniteRaDec = False
 
     def testMagnitudeLimit(self):
         tooBright = self.catalog.addNew()
@@ -328,6 +329,19 @@ class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.Tes
         self.config.unresolved.minimum = minimum
         self.config.unresolved.maximum = None
         self.check((starGalaxy > minimum).tolist())
+
+    def testFiniteRaDec(self):
+        "Test that non-finite RA and Dec values are caught."
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
+        self.catalog["coord_ra"][:] = 1.0
+        self.catalog["coord_dec"][:] = 1.0
+        self.catalog["coord_ra"][0] = np.nan
+        self.catalog["coord_dec"][1] = np.inf
+        self.config.doRequireFiniteRaDec = True
+
+        self.check([False, False, True, True, True])
 
 
 class TestBaseSourceSelector(lsst.utils.tests.TestCase):
