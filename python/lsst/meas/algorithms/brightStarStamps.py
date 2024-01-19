@@ -68,6 +68,7 @@ class BrightStarStamp(AbstractStamp):
     archive_element: Persistable | None = None
     annularFlux: float | None = None
     minValidAnnulusFraction: float = 0.0
+    validAnnulusFraction: float | None = None
     optimalInnerRadius: int | None = None
     optimalOuterRadius: int | None = None
 
@@ -114,6 +115,7 @@ class BrightStarStamp(AbstractStamp):
             archive_element=archive_element,
             annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
             minValidAnnulusFraction=minValidAnnulusFraction,
+            validAnnulusFraction=metadata.getArray("VALID_PIXELS_FRACTION")[idx],
         )
 
     def measureAndNormalize(
@@ -158,6 +160,7 @@ class BrightStarStamp(AbstractStamp):
         annulusStat = makeStatistics(annulusImage, statsFlag, statsControl)
         # Determine the number of valid (unmasked) pixels within the annulus.
         unMasked = annulusMask.array.size - np.count_nonzero(annulusMask.array)
+        self.validAnnulusFraction = unMasked / annulus.getArea()
         logger.info(
             "The Star's annulus contains %s valid pixels and the annulus itself contains %s pixels.",
             unMasked,
@@ -458,6 +461,7 @@ class BrightStarStamps(Stamps):
         self._metadata["X0S"] = [xy0[0] for xy0 in positions]
         self._metadata["Y0S"] = [xy0[1] for xy0 in positions]
         self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
+        self._metadata["VALID_PIXELS_FRACTION"] = self.getValidPixelsFraction()
         self._metadata["NORMALIZED"] = self.normalized
         self._metadata["INNER_RADIUS"] = self._innerRadius
         self._metadata["OUTER_RADIUS"] = self._outerRadius
@@ -587,6 +591,18 @@ class BrightStarStamps(Stamps):
             Annular fluxes which give the normalization factor for each star.
         """
         return [stamp.annularFlux for stamp in self._stamps]
+
+    def getValidPixelsFraction(self):
+        """Retrieve the fraction of valid pixels within the normalization
+        annulus for each star.
+
+        Returns
+        -------
+        validPixelsFractions : `list` [`float`]
+            Fractions of valid pixels within the normalization annulus for each
+            star.
+        """
+        return [stamp.validAnnulusFraction for stamp in self._stamps]
 
     def selectByMag(self, magMin=None, magMax=None):
         """Return the subset of bright star stamps for objects with specified
