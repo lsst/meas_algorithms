@@ -76,7 +76,7 @@ void declarePsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers, st
 
 }  // namespace
 
-void wapPsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers) {
+void wrapPsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers) {
     declarePsfCandidate<float>(wrappers, "F");
 }
 
