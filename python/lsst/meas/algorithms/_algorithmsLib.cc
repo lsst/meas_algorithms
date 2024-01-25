@@ -38,12 +38,13 @@ void wrapDoubleGaussianPsf(WrapperCollection &wrappers);
 void wrapInterp(WrapperCollection &wrappers);
 void wrapPcaPsf(WrapperCollection &wrappers);
 void wrapWarpedPsf(WrapperCollection &wrappers);
-void wapPsfCandidate(WrapperCollection &wrappers);
+void wrapPsfCandidate(WrapperCollection &wrappers);
 void wrapImagePsf(WrapperCollection &wrappers);
 void wrapSpatialModelPsf(WrapperCollection &wrappers);
 void wrapCoaddPsf(WrapperCollection &wrappers);
 void wrapCoaddBoundedField(WrapperCollection &wrappers);
 void wrapCr(WrapperCollection &wrappers);
+void wrapCloughTocher2DInterpolatorUtils(WrapperCollection &wrappers);
 
 PYBIND11_MODULE(_algorithmsLib, mod) {
 WrapperCollection wrappers(mod, "lsst.meas.algorithms");
@@ -60,11 +61,12 @@ WrapperCollection wrappers(mod, "lsst.meas.algorithms");
     wrapInterp(wrappers);
     wrapPcaPsf(wrappers);
     wrapWarpedPsf(wrappers);
-    wapPsfCandidate(wrappers);
+    wrapPsfCandidate(wrappers);
     wrapSpatialModelPsf(wrappers);
     wrapCoaddPsf(wrappers);
     wrapCoaddBoundedField(wrappers);
     wrapCr(wrappers);
+    wrapCloughTocher2DInterpolatorUtils(wrappers);
     wrappers.finish();
 }
 

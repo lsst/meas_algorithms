@@ -3,6 +3,7 @@ from lsst.sconsUtils import scripts
 
 scripts.BasicSConscript.python(['_algorithmsLib'], [
     '_algorithmsLib.cc',
+    'cloughTocher2DInterpolatorUtils.cc',
     'cr.cc',
     'coaddBoundedField.cc',
     'coaddPsf/coaddPsf.cc',

@@ -26,7 +26,7 @@
 import lsst.afw.image
 import lsst.afw.math
 
-from._algorithmsLib import *
+from ._algorithmsLib import *
 from .psfCandidate import * #python
 from .coaddPsf import *
 from .simple_curve import *
