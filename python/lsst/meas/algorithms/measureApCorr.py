@@ -29,14 +29,50 @@ from scipy.stats import median_abs_deviation
 import lsst.pex.config
 from lsst.afw.image import ApCorrMap
 from lsst.afw.math import ChebyshevBoundedField, ChebyshevBoundedFieldConfig
-from lsst.pipe.base import Task, Struct
+from lsst.pipe.base import Task, Struct, AlgorithmError
 from lsst.meas.base.apCorrRegistry import getApCorrNameSet
 
 from .sourceSelector import sourceSelectorRegistry
 
 
-class MeasureApCorrError(RuntimeError):
-    pass
+class MeasureApCorrError(AlgorithmError):
+    """Raised if Aperture Correction fails in a non-recoverable way.
+
+    Parameters
+    ----------
+    name : `str`
+        Name of the kind of aperture correction that failed; typically an
+        instFlux catalog field.
+    nSources : `int`
+        Number of sources available to the fitter at the point of failure.
+    ndof : `int`
+        Number of degrees of freedom required at the point of failure.
+    iteration : `int`, optional
+        Which fit iteration the failure occurred in.
+    """
+    def __init__(self, *, name, nSources, ndof, iteration=None):
+        msg = f"Unable to measure aperture correction for '{name}'"
+        if iteration is not None:
+            msg += f" after {iteration} steps:"
+        else:
+            msg += ":"
+        msg += f" only {nSources} sources, but require at least {ndof}."
+        super().__init__(msg)
+        self.name = name
+        self.nSources = nSources
+        self.ndof = ndof
+        self.iteration = iteration
+
+    @property
+    def metadata(self):
+        metadata = {"name": self.name,
+                    "nSources": self.nSources,
+                    "ndof": self.ndof,
+                    }
+        # NOTE: have to do this because task metadata doesn't allow None.
+        if self.iteration is not None:
+            metadata["iteration"] = self.iteration
+        return metadata
 
 
 class _FluxNames:
@@ -232,11 +268,8 @@ class MeasureApCorrTask(Task):
                                      name, isGood.sum(), self.config.minDegreesOfFreedom + 1)
                     continue
                 else:
-                    msg = ("Unable to measure aperture correction for required algorithm '%s': "
-                           "only %d sources, but require at least %d." %
-                           (name, isGood.sum(), self.config.minDegreesOfFreedom + 1))
-                    self.log.warning(msg)
-                    raise MeasureApCorrError("Aperture correction failed on required algorithm.")
+                    raise MeasureApCorrError(name=name, nSources=isGood.sum(),
+                                             ndof=self.config.minDegreesOfFreedom + 1)
 
             goodCat = goodRefCat[isGood].copy()
 
@@ -286,11 +319,9 @@ class MeasureApCorrTask(Task):
                                          (name, keep.sum(), self.config.minDegreesOfFreedom + 1))
                         break
                     else:
-                        msg = ("Unable to measure aperture correction for required algorithm "
-                               "'%s': only %d sources remain, but require at least %d." %
-                               (name, keep.sum(), self.config.minDegreesOfFreedom + 1))
-                        self.log.warning(msg)
-                        raise MeasureApCorrError("Aperture correction failed on required algorithm.")
+                        raise MeasureApCorrError(name=name, nSources=keep.sum(),
+                                                 ndof=self.config.minDegreesOfFreedom + 1,
+                                                 iteration=iteration+1)
 
                 apCorrField = ChebyshevBoundedField.fit(bbox, x, y, z, ctrl)
                 fitValues = apCorrField.evaluate(x, y)

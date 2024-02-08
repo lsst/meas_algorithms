@@ -153,16 +153,18 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         """ If there are too few sources, check that an exception is raised."""
         # Create an empty catalog with no sources to process.
         catalog = afwTable.SourceCatalog(self.schema)
-        with self.assertLogs(level=logging.WARNING) as cm:
-            with self.assertRaisesRegex(measureApCorr.MeasureApCorrError, "failed on required algorithm"):
-                self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
-        self.assertIn("Unable to measure aperture correction for required algorithm", cm.output[0])
+        with self.assertRaisesRegex(measureApCorr.MeasureApCorrError,
+                                    "Unable to measure aperture correction for 'test1Ap'"):
+            self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
 
         # We now try again after declaring that the aperture correction is
-        # allowed to fail. This should run cleanly without raising an exception.
+        # allowed to fail. This should run without raising an exception, but
+        # will log a warning.
         for name in self.names:
             self.meas_apCorr_task.config.allowFailure.append(name + self.apNameStr)
-        self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
+        with self.assertLogs(level=logging.WARNING) as cm:
+            self.meas_apCorr_task.run(catalog=catalog, exposure=self.exposure)
+        self.assertIn("Unable to measure aperture correction for 'test1Ap'", cm.output[0])
 
     def testSourceNotUsed(self):
         """ Check that a source outside the bounding box is flagged as not used (False)."""
@@ -247,10 +249,9 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
             nameAp = name + self.apNameStr
             sourceCat[nameAp + "_instFlux"][0] = 100.0
 
-        with self.assertLogs(level=logging.WARNING) as cm:
-            with self.assertRaisesRegex(measureApCorr.MeasureApCorrError, "Aperture correction failed"):
-                self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
-        self.assertIn("only 4 sources remain", cm.output[0])
+        with self.assertRaisesRegex(measureApCorr.MeasureApCorrError,
+                                    f"Unable to measure aperture correction for '{nameAp}'"):
+            self.meas_apCorr_task.run(catalog=sourceCat, exposure=self.exposure)
 
         # We now try again after declaring that the aperture correction is
         # allowed to fail. This should run cleanly without raising an exception.
