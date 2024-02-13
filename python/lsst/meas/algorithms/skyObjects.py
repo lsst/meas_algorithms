@@ -138,12 +138,28 @@ def generateSkyObjects(mask, seed, config):
 
 
 class SkyObjectsTask(Task):
-    """Generate a list of Footprints of sky objects.
+    """Generate a list of Footprints of sky sources/objects (regions on the
+    sky that do not otherwise have detections).
+
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Schema used to create the output `~lsst.afw.table.SourceCatalog`,
+        updated with fields that will be written by this task.
+
     """
     ConfigClass = SkyObjectsConfig
 
-    def run(self, mask, seed):
-        """Generate a list of Footprints of sky objects
+    def __init__(self, schema=None, **kwargs):
+        super().__init__(**kwargs)
+        if schema is not None:
+            self.skySourceKey = schema.addField("sky_source", type="Flag",
+                                                doc="Region on image with no detections.")
+        else:
+            self.skySourceKey = None
+
+    def run(self, mask, seed, catalog=None):
+        """Generate a list of Footprints of sky sources/objects.
 
         Sky objects don't overlap with other objects. This is determined
         through the provided `mask` (in which objects are typically flagged
@@ -162,6 +178,9 @@ class SkyObjectsTask(Task):
             objects.
         seed : `int`
             Random number generator seed.
+        catalog : `lsst.afw.table.SourceCatalog`, optional
+            Catalog to add detected footprints to; modified in-place if any
+            sky source/object footprints are created.
 
         Returns
         -------
@@ -172,4 +191,11 @@ class SkyObjectsTask(Task):
         skyFootprints = generateSkyObjects(mask, seed, self.config)
         self.log.info("Added %d of %d requested sky sources (%.0f%%)", len(skyFootprints),
                       self.config.nSources, 100*len(skyFootprints)/self.config.nSources)
+
+        if skyFootprints and self.skySourceKey is not None and catalog is not None:
+            for footprint in skyFootprints:
+                record = catalog.addNew()
+                record.setFootprint(footprint)
+                record.set(self.skySourceKey, True)
+
         return skyFootprints
