@@ -54,6 +54,7 @@ class SourceSelectorTester:
         schema.addField("starGalaxy", float, "0=star, 1=galaxy")
         schema.addField("nChild", np.int32, "Number of children")
         schema.addField("detect_isPrimary", "Flag", "Is primary detection?")
+        schema.addField("sky_source", "Flag", "Empty sky region.")
         self.catalog = lsst.afw.table.SourceCatalog(schema)
         self.catalog.reserve(10)
         self.config = self.Task.ConfigClass()
@@ -214,6 +215,18 @@ class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestC
         self.config.doRequirePrimary = True
         self.config.requirePrimary.primaryColName = "detect_isPrimary"
         self.check(primary.tolist())
+
+    def testSkySource(self):
+        num = 5
+        for _ in range(num):
+            self.catalog.addNew()
+        sky = np.array([True, True, False, True, False], dtype=bool)
+        self.catalog["sky_source"] = sky
+        # This is a union, not an intersection, so include another selection
+        # that would otherwise reject everything.
+        self.config.doRequirePrimary = True
+        self.config.doSkySources = True
+        self.check(sky.tolist())
 
 
 class ReferenceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):

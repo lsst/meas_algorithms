@@ -1,3 +1,23 @@
+# This file is part of meas_algorithms.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["SkyObjectsConfig", "SkyObjectsTask", "generateSkyObjects"]
 
@@ -13,19 +33,39 @@ import lsst.afw.math
 
 class SkyObjectsConfig(Config):
     """Configuration for generating sky objects"""
-    avoidMask = ListField(dtype=str, default=["DETECTED", "DETECTED_NEGATIVE", "BAD", "NO_DATA"],
-                          doc="Avoid pixels masked with these mask planes")
-    growMask = Field(dtype=int, default=0,
-                     doc="Number of pixels to grow the masked pixels when adding sky objects")
-    sourceRadius = Field(dtype=float, default=8, doc="Radius, in pixels, of sky objects")
-    nSources = Field(dtype=int, default=100, doc="Try to add this many sky objects")
-    nTrialSources = Field(dtype=int, default=None, optional=True,
-                          doc="Maximum number of trial sky object positions "
-                              "(default: nSkySources*nTrialSkySourcesMultiplier)")
-    nTrialSourcesMultiplier = Field(dtype=int, default=5,
-                                    doc="Set nTrialSkySources to "
-                                        "nSkySources*nTrialSkySourcesMultiplier "
-                                        "if nTrialSkySources is None")
+    avoidMask = ListField(
+        dtype=str,
+        default=["DETECTED", "DETECTED_NEGATIVE", "BAD", "NO_DATA"],
+        doc="Avoid pixels masked with these mask planes."
+    )
+    growMask = Field(
+        dtype=int,
+        default=0,
+        doc="Number of pixels to grow the masked pixels when adding sky sources."
+    )
+    sourceRadius = Field(
+        dtype=float,
+        default=8,
+        doc="Radius, in pixels, of sky sources."
+    )
+    nSources = Field(
+        dtype=int,
+        default=100,
+        doc="Try to add this many sky sources."
+    )
+    nTrialSources = Field(
+        dtype=int,
+        default=None,
+        optional=True,
+        doc="Maximum number of trial sky object positions "
+            "(default: nSkySources*nTrialSkySourcesMultiplier)."
+    )
+    nTrialSourcesMultiplier = Field(
+        dtype=int,
+        default=5,
+        doc="Set nTrialSkySources to nSkySources*nTrialSkySourcesMultiplier "
+            "if nTrialSkySources is None."
+    )
 
 
 def generateSkyObjects(mask, seed, config):
@@ -98,12 +138,28 @@ def generateSkyObjects(mask, seed, config):
 
 
 class SkyObjectsTask(Task):
-    """Generate a list of Footprints of sky objects.
+    """Generate a list of Footprints of sky sources/objects (regions on the
+    sky that do not otherwise have detections).
+
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Schema used to create the output `~lsst.afw.table.SourceCatalog`,
+        updated with fields that will be written by this task.
+
     """
     ConfigClass = SkyObjectsConfig
 
-    def run(self, mask, seed):
-        """Generate a list of Footprints of sky objects
+    def __init__(self, schema=None, **kwargs):
+        super().__init__(**kwargs)
+        if schema is not None:
+            self.skySourceKey = schema.addField("sky_source", type="Flag",
+                                                doc="Region on image with no detections.")
+        else:
+            self.skySourceKey = None
+
+    def run(self, mask, seed, catalog=None):
+        """Generate a list of Footprints of sky sources/objects.
 
         Sky objects don't overlap with other objects. This is determined
         through the provided `mask` (in which objects are typically flagged
@@ -122,6 +178,9 @@ class SkyObjectsTask(Task):
             objects.
         seed : `int`
             Random number generator seed.
+        catalog : `lsst.afw.table.SourceCatalog`, optional
+            Catalog to add detected footprints to; modified in-place if any
+            sky source/object footprints are created.
 
         Returns
         -------
@@ -132,4 +191,11 @@ class SkyObjectsTask(Task):
         skyFootprints = generateSkyObjects(mask, seed, self.config)
         self.log.info("Added %d of %d requested sky sources (%.0f%%)", len(skyFootprints),
                       self.config.nSources, 100*len(skyFootprints)/self.config.nSources)
+
+        if skyFootprints and self.skySourceKey is not None and catalog is not None:
+            for footprint in skyFootprints:
+                record = catalog.addNew()
+                record.setFootprint(footprint)
+                record.set(self.skySourceKey, True)
+
         return skyFootprints
