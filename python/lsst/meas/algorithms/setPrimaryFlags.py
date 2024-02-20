@@ -122,7 +122,7 @@ class SetPrimaryFlagsTask(Task):
         if not self.isSingleFrame:
             isPatchInner = getPatchInner(sources, patchInfo)
             isTractInner = getTractInner(sources, tractInfo, skyMap)
-            isPseudo = getPseudoSources(sources, self.config.pseudoFilterList, self.schema, self.log)
+            isPseudo = self._getPseudoSources(sources)
             isPrimary = isTractInner & isPatchInner & ~isPseudo
 
             sources[self.isPatchInnerKey] = isPatchInner
@@ -147,6 +147,34 @@ class SetPrimaryFlagsTask(Task):
             isPrimary = isPrimary & isDeblendedSource
 
         sources[self.isPrimaryKey] = isPrimary
+
+    def _getPseudoSources(self, sources):
+        """Get a flag that marks pseudo sources.
+
+        Some categories of sources, for example sky objects, are not really
+        detected sources and should not be considered primary sources.
+
+        Parameters
+        ----------
+        sources : `lsst.afw.table.SourceCatalog`
+            The catalog of sources for which to identify "pseudo"
+            (e.g. sky) objects.
+
+        Returns
+        -------
+        isPseudo : array-like of `bool`
+            True for each source that is a pseudo source.
+            Note: to remove pseudo sources use `~isPseudo`.
+        """
+        # Filter out sources that should never be primary.
+        isPseudo = np.zeros(len(sources), dtype=bool)
+        for filt in self.config.pseudoFilterList:
+            try:
+                pseudoFilterKey = self.schema.find("merge_peak_%s" % filt).getKey()
+                isPseudo |= sources[pseudoFilterKey]
+            except KeyError:
+                self.log.warning("merge_peak is not set for pseudo-filter %s", filt)
+        return isPseudo
 
 
 def getPatchInner(sources, patchInfo):
@@ -208,37 +236,6 @@ def getTractInner(sources, tractInfo, skyMap):
     tractId = tractInfo.getId()
     isTractInner = np.array([skyMap.findTract(s.getCoord()).getId() == tractId for s in sources])
     return isTractInner
-
-
-def getPseudoSources(sources, pseudoFilterList, schema, log):
-    """Get a flag that marks pseudo sources.
-
-    Some categories of sources, for example sky objects, are not really
-    detected sources and should not be considered primary sources.
-
-    Parameters
-    ----------
-    sources : `lsst.afw.table.SourceCatalog`
-        The catalog of sources for which to identify "pseudo"
-        (e.g. sky) objects.
-    pseudoFilterList : `list` of `str`
-        Names of filters which should never be primary
-
-    Returns
-    -------
-    isPseudo : array-like of `bool`
-        True for each source that is a pseudo source.
-        Note: to remove pseudo sources use `~isPseudo`.
-    """
-    # Filter out sources that should never be primary.
-    isPseudo = np.zeros(len(sources), dtype=bool)
-    for filt in pseudoFilterList:
-        try:
-            pseudoFilterKey = schema.find("merge_peak_%s" % filt).getKey()
-            isPseudo |= sources[pseudoFilterKey]
-        except KeyError:
-            log.warning("merge_peak is not set for pseudo-filter %s", filt)
-    return isPseudo
 
 
 def getDeblendPrimaryFlags(sources):
