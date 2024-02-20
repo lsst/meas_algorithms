@@ -28,6 +28,127 @@ from lsst.pipe.base import Task
 from lsst.geom import Box2D
 
 
+class SetPrimaryFlagsConfig(Config):
+    pseudoFilterList = ListField(dtype=str, default=['sky'],
+                                 doc="Names of filters which should never be primary")
+
+
+class SetPrimaryFlagsTask(Task):
+    """Set the ``isPrimary`` flag and either various blendedness, or
+    patch/tract flags to a catalog (for single frame or coadd catalogs,
+    respectively), based on other properties of the sources.
+
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Source catalog schema to add fields to.
+    isSingleFrame : `bool`
+        Flag specifying if task is operating with single frame imaging.
+    includeDeblend : `bool`
+        Include deblend information in isPrimary and add blendedness fields?
+    """
+
+    ConfigClass = SetPrimaryFlagsConfig
+
+    def __init__(self, schema, isSingleFrame=False, **kwargs):
+        Task.__init__(self, **kwargs)
+        self.schema = schema
+        self.isSingleFrame = isSingleFrame
+        self.includeDeblend = False
+        if not self.isSingleFrame:
+            primaryDoc = ("True if source has no children and is in the inner region of a coadd patch "
+                          "and is in the inner region of a coadd tract "
+                          "and is not \"detected\" in a pseudo-filter (see config.pseudoFilterList)")
+            self.isPatchInnerKey = self.schema.addField(
+                "detect_isPatchInner", type="Flag",
+                doc="True if source is in the inner region of a coadd patch",
+            )
+            self.isTractInnerKey = self.schema.addField(
+                "detect_isTractInner", type="Flag",
+                doc="True if source is in the inner region of a coadd tract",
+            )
+        else:
+            primaryDoc = "True if source has no children and is not a sky source."
+        self.isPrimaryKey = self.schema.addField(
+            "detect_isPrimary", type="Flag",
+            doc=primaryDoc,
+        )
+
+        if "deblend_nChild" in schema.getNames():
+            self.includeDeblend = True
+            self.isDeblendedSourceKey = self.schema.addField(
+                "detect_isDeblendedSource", type="Flag",
+                doc=primaryDoc + " and is either an unblended isolated source or a "
+                                 "deblended child from a parent with 'deblend_nChild' > 1")
+            self.fromBlendKey = self.schema.addField(
+                "detect_fromBlend", type="Flag",
+                doc="This source is deblended from a parent with more than one child."
+            )
+            self.isIsolatedKey = self.schema.addField(
+                "detect_isIsolated", type="Flag",
+                doc="This source is not a part of a blend."
+            )
+            if "deblend_scarletFlux" in schema.getNames():
+                self.isDeblendedModelKey = self.schema.addField(
+                    "detect_isDeblendedModelSource", type="Flag",
+                    doc=primaryDoc + " and is a deblended child")
+            else:
+                self.isDeblendedModelKey = None
+
+    def run(self, sources, skyMap=None, tractInfo=None, patchInfo=None):
+        """Set isPrimary and related flags on sources.
+
+        For coadded imaging, the `isPrimary` flag returns True when an object
+        has no children, is in the inner region of a coadd patch, is in the
+        inner region of a coadd trach, and is not detected in a pseudo-filter
+        (e.g., a sky_object).
+        For single frame imaging, the isPrimary flag returns True when a
+        source has no children and is not a sky source.
+
+        Parameters
+        ----------
+        sources : `lsst.afw.table.SourceCatalog`
+            A sourceTable. Reads in centroid fields and an nChild field.
+            Writes is-patch-inner, is-tract-inner, and is-primary flags.
+        skyMap : `lsst.skymap.BaseSkyMap`
+            Sky tessellation object
+        tractInfo : `lsst.skymap.TractInfo`, optional
+            Tract object; required if ``self.isSingleFrame`` is False.
+        patchInfo : `lsst.skymap.PatchInfo`
+            Patch object; required if ``self.isSingleFrame`` is False.
+        """
+        # Mark whether sources are contained within the inner regions of the
+        # given tract/patch and are not "pseudo" (e.g. sky) sources.
+        if not self.isSingleFrame:
+            isPatchInner = getPatchInner(sources, patchInfo)
+            isTractInner = getTractInner(sources, tractInfo, skyMap)
+            isPseudo = getPseudoSources(sources, self.config.pseudoFilterList, self.schema, self.log)
+            isPrimary = isTractInner & isPatchInner & ~isPseudo
+
+            sources[self.isPatchInnerKey] = isPatchInner
+            sources[self.isTractInnerKey] = isTractInner
+        else:
+            # Mark all of the sky sources in SingleFrame images
+            # (if they were added)
+            if "sky_source" in sources.schema:
+                isSky = sources["sky_source"]
+            else:
+                isSky = np.zeros(len(sources), dtype=bool)
+            isPrimary = ~isSky
+
+        if self.includeDeblend:
+            result = getDeblendPrimaryFlags(sources)
+            fromBlend, isIsolated, isDeblendedSource, isDeblendedModelSource = result
+            sources[self.fromBlendKey] = fromBlend
+            sources[self.isIsolatedKey] = isIsolated
+            sources[self.isDeblendedSourceKey] = isDeblendedSource
+            if self.isDeblendedModelKey is not None:
+                sources[self.isDeblendedModelKey] = isDeblendedModelSource
+            isPrimary = isPrimary & isDeblendedSource
+
+        sources[self.isPrimaryKey] = isPrimary
+
+
 def getPatchInner(sources, patchInfo):
     """Set a flag for each source if it is in the innerBBox of a patch.
 
@@ -187,124 +308,3 @@ def getDeblendPrimaryFlags(sources):
         isDeblendedSource = nChild == 0
         isDeblendedModelSource = None
     return fromBlend, isIsolated, isDeblendedSource, isDeblendedModelSource
-
-
-class SetPrimaryFlagsConfig(Config):
-    pseudoFilterList = ListField(dtype=str, default=['sky'],
-                                 doc="Names of filters which should never be primary")
-
-
-class SetPrimaryFlagsTask(Task):
-    """Set the ``isPrimary`` flag and either various blendedness, or
-    patch/tract flags to a catalog (for single frame or coadd catalogs,
-    respectively), based on other properties of the sources.
-
-    Parameters
-    ----------
-    schema : `lsst.afw.table.Schema`
-        Source catalog schema to add fields to.
-    isSingleFrame : `bool`
-        Flag specifying if task is operating with single frame imaging.
-    includeDeblend : `bool`
-        Include deblend information in isPrimary and add blendedness fields?
-    """
-
-    ConfigClass = SetPrimaryFlagsConfig
-
-    def __init__(self, schema, isSingleFrame=False, **kwargs):
-        Task.__init__(self, **kwargs)
-        self.schema = schema
-        self.isSingleFrame = isSingleFrame
-        self.includeDeblend = False
-        if not self.isSingleFrame:
-            primaryDoc = ("True if source has no children and is in the inner region of a coadd patch "
-                          "and is in the inner region of a coadd tract "
-                          "and is not \"detected\" in a pseudo-filter (see config.pseudoFilterList)")
-            self.isPatchInnerKey = self.schema.addField(
-                "detect_isPatchInner", type="Flag",
-                doc="True if source is in the inner region of a coadd patch",
-            )
-            self.isTractInnerKey = self.schema.addField(
-                "detect_isTractInner", type="Flag",
-                doc="True if source is in the inner region of a coadd tract",
-            )
-        else:
-            primaryDoc = "True if source has no children and is not a sky source."
-        self.isPrimaryKey = self.schema.addField(
-            "detect_isPrimary", type="Flag",
-            doc=primaryDoc,
-        )
-
-        if "deblend_nChild" in schema.getNames():
-            self.includeDeblend = True
-            self.isDeblendedSourceKey = self.schema.addField(
-                "detect_isDeblendedSource", type="Flag",
-                doc=primaryDoc + " and is either an unblended isolated source or a "
-                                 "deblended child from a parent with 'deblend_nChild' > 1")
-            self.fromBlendKey = self.schema.addField(
-                "detect_fromBlend", type="Flag",
-                doc="This source is deblended from a parent with more than one child."
-            )
-            self.isIsolatedKey = self.schema.addField(
-                "detect_isIsolated", type="Flag",
-                doc="This source is not a part of a blend."
-            )
-            if "deblend_scarletFlux" in schema.getNames():
-                self.isDeblendedModelKey = self.schema.addField(
-                    "detect_isDeblendedModelSource", type="Flag",
-                    doc=primaryDoc + " and is a deblended child")
-            else:
-                self.isDeblendedModelKey = None
-
-    def run(self, sources, skyMap=None, tractInfo=None, patchInfo=None):
-        """Set isPrimary and related flags on sources.
-
-        For coadded imaging, the `isPrimary` flag returns True when an object
-        has no children, is in the inner region of a coadd patch, is in the
-        inner region of a coadd trach, and is not detected in a pseudo-filter
-        (e.g., a sky_object).
-        For single frame imaging, the isPrimary flag returns True when a
-        source has no children and is not a sky source.
-
-        Parameters
-        ----------
-        sources : `lsst.afw.table.SourceCatalog`
-            A sourceTable. Reads in centroid fields and an nChild field.
-            Writes is-patch-inner, is-tract-inner, and is-primary flags.
-        skyMap : `lsst.skymap.BaseSkyMap`
-            Sky tessellation object
-        tractInfo : `lsst.skymap.TractInfo`, optional
-            Tract object; required if ``self.isSingleFrame`` is False.
-        patchInfo : `lsst.skymap.PatchInfo`
-            Patch object; required if ``self.isSingleFrame`` is False.
-        """
-        # Mark whether sources are contained within the inner regions of the
-        # given tract/patch and are not "pseudo" (e.g. sky) sources.
-        if not self.isSingleFrame:
-            isPatchInner = getPatchInner(sources, patchInfo)
-            isTractInner = getTractInner(sources, tractInfo, skyMap)
-            isPseudo = getPseudoSources(sources, self.config.pseudoFilterList, self.schema, self.log)
-            isPrimary = isTractInner & isPatchInner & ~isPseudo
-
-            sources[self.isPatchInnerKey] = isPatchInner
-            sources[self.isTractInnerKey] = isTractInner
-        else:
-            # Mark all of the sky sources in SingleFrame images
-            # (if they were added)
-            if "sky_source" in sources.schema:
-                isSky = sources["sky_source"]
-            else:
-                isSky = np.zeros(len(sources), dtype=bool)
-            isPrimary = ~isSky
-
-        if self.includeDeblend:
-            result = getDeblendPrimaryFlags(sources)
-            fromBlend, isIsolated, isDeblendedSource, isDeblendedModelSource = result
-            sources[self.fromBlendKey] = fromBlend
-            sources[self.isIsolatedKey] = isIsolated
-            sources[self.isDeblendedSourceKey] = isDeblendedSource
-            if self.isDeblendedModelKey is not None:
-                sources[self.isDeblendedModelKey] = isDeblendedModelSource
-            isPrimary = isPrimary & isDeblendedSource
-
-        sources[self.isPrimaryKey] = isPrimary
