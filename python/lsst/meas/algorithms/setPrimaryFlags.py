@@ -48,10 +48,11 @@ class SetPrimaryFlagsTask(Task):
         Include deblend information in isPrimary and add blendedness fields?
     """
 
+    _DefaultName = "setPrimaryFlags"
     ConfigClass = SetPrimaryFlagsConfig
 
-    def __init__(self, schema, isSingleFrame=False, **kwargs):
-        Task.__init__(self, **kwargs)
+    def __init__(self, *, schema, isSingleFrame=False, **kwargs):
+        super().__init__(**kwargs)
         self.schema = schema
         self.isSingleFrame = isSingleFrame
         self.includeDeblend = False
