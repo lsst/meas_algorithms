@@ -46,6 +46,11 @@ class SetPrimaryFlagsTask(Task):
         Flag specifying if task is operating with single frame imaging.
     includeDeblend : `bool`
         Include deblend information in isPrimary and add blendedness fields?
+
+    Notes
+    -----
+    The tests for this task still live in
+    ``pipe_tasks/tests/test_isPrimaryFlag.py``; see discussion on DM-42720.
     """
 
     _DefaultName = "setPrimaryFlags"
