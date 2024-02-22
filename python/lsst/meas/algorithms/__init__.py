@@ -34,6 +34,7 @@ from .simple_curve import *
 from .psfDeterminer import *
 from .pcaPsfDeterminer import *
 from .starSelector import *
+from .setPrimaryFlags import *
 from .findCosmicRaysConfig import *
 from .detection import *
 from .gaussianPsfFactory import *
@@ -61,6 +62,7 @@ from .accumulator_mean_stack import *
 from .scaleVariance import *
 from .noise_covariance import *
 from .reinterpolate_pixels import *
+from .setPrimaryFlags import *
 
 from .version import *
 
