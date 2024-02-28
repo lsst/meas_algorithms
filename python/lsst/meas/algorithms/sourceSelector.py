@@ -424,7 +424,7 @@ class RequireUnresolved(BaseLimit):
     def setDefaults(self):
         """Set default
 
-        ``base_ClassificationSizeExtendedness_value < 0.1`` means unresolved.
+        Values below the threshold are unresolved.
         """
         self.maximum = 0.1
 
