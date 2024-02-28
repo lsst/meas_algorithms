@@ -175,6 +175,10 @@ class SourceDetectionTask(pipeBase.Task):
     fast. The PSF would have to be very non-Gaussian or non-circular for this
     approximation to have a significant impact on the signal-to-noise of the
     detected sources.
+    This task expects the image to have been background subtracted first.
+    Running detection on images with a non-zero-centered background may result
+    in a single source detected on the entire image containing thousands of
+    peaks, or other pathological outputs.
 
     Parameters
     ----------
