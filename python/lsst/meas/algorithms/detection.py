@@ -188,8 +188,6 @@ class SourceDetectionTask(pipeBase.Task):
 
     Notes
     -----
-    This task can add fields to the schema, so any code calling this task must
-    ensure that these columns are indeed present in the input match list.
     This task convolves the image with a Gaussian approximation to the PSF,
     matched to the sigma of the input exposure, because this is separable and
     fast. The PSF would have to be very non-Gaussian or non-circular for this
