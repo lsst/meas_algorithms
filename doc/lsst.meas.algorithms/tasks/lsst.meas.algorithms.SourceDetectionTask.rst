@@ -8,7 +8,6 @@ SourceDetectionTask
 This task expects the image to have been background subtracted first, for example via :lsst-task:`~lsst.meas.algorithms.subtractBackground.SubtractBackgroundTask`.
 Running detection on images with a non-zero-centered background may result in a single source detected on the entire image containing thousands of peaks, or other pathological outputs.
 This task convolves the image with a Gaussian approximation to the PSF, matched to the sigma of the input exposure, because this is separable and fast.
-The PSF would have to be very non-Gaussian or non-circular for this approximation to have a significant impact on the signal-to-noise of the detected sources.
 
 .. _lsst.meas.algorithms.SourceDetectionTask-api:
 

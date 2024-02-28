@@ -170,11 +170,6 @@ class SourceDetectionConfig(pexConfig.Config):
 class SourceDetectionTask(pipeBase.Task):
     """Detect peaks and footprints of sources in an image.
 
-    This task convolves the image with a Gaussian approximation to the PSF,
-    matched to the sigma of the input exposure, because this is separable and
-    fast. The PSF would have to be very non-Gaussian or non-circular for this
-    approximation to have a significant impact on the signal-to-noise of the
-    detected sources.
     This task expects the image to have been background subtracted first.
     Running detection on images with a non-zero-centered background may result
     in a single source detected on the entire image containing thousands of
@@ -195,6 +190,11 @@ class SourceDetectionTask(pipeBase.Task):
     -----
     This task can add fields to the schema, so any code calling this task must
     ensure that these columns are indeed present in the input match list.
+    This task convolves the image with a Gaussian approximation to the PSF,
+    matched to the sigma of the input exposure, because this is separable and
+    fast. The PSF would have to be very non-Gaussian or non-circular for this
+    approximation to have a significant impact on the signal-to-noise of the
+    detected sources.
     """
     ConfigClass = SourceDetectionConfig
     _DefaultName = "sourceDetection"
