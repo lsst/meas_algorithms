@@ -37,7 +37,7 @@ namespace {
 
 template <typename PixelT>
 void declareInterpolateOverDefects(py::module& mod) {
-    mod.def("interpolateOverDefects",
+    mod.def("legacyInterpolateOverDefects",
             interpolateOverDefects<
                     afw::image::MaskedImage<PixelT, afw::image::MaskPixel, afw::image::VariancePixel>>,
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
