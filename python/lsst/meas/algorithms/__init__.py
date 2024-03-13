@@ -65,6 +65,7 @@ from .reinterpolate_pixels import *
 from .setPrimaryFlags import *
 from .coaddBoundedField import *
 from .variance_plane import *
+from .maskStreaks import *
 
 from .version import *
 
