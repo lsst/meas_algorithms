@@ -27,7 +27,8 @@ import lsst.afw.detection as afwDetection
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-from lsst.meas.algorithms import Defect, interpolateOverDefects
+# from lsst.meas.algorithms import Defect
+from . import Defect, interpolateOverDefects
 
 
 class ReinterpolatePixelsConfig(pexConfig.Config):

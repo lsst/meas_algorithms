@@ -36,9 +36,9 @@ namespace algorithms {
 namespace {
 
 template <typename PixelT>
-void declareInterpolateOverDefects(py::module& mod) {
-    mod.def("interpolateOverDefects",
-            interpolateOverDefects<
+void declareInterpolateOverDefectsOld(py::module& mod) {
+    mod.def("interpolateOverDefectsOld",
+            interpolateOverDefectsOld<
                     afw::image::MaskedImage<PixelT, afw::image::MaskPixel, afw::image::VariancePixel>>,
             "image"_a, "psf"_a, "badList"_a, "fallBackValue"_a = 0.0, "useFallbackValueAtEdge"_a = false);
 }
@@ -65,7 +65,7 @@ void declareInterp(lsst::cpputils::python::WrapperCollection &wrappers) {
         enm.value("RIGHT", Defect::DefectPosition::RIGHT);
         enm.export_values();
     });
-    declareInterpolateOverDefects<float>(wrappers.module);
+    declareInterpolateOverDefectsOld<float>(wrappers.module);
 }
 
 }  // namespace

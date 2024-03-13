@@ -108,7 +108,7 @@ private:
 };
 
 template <typename MaskedImageT>
-void interpolateOverDefects(MaskedImageT &image, afw::detection::Psf const &psf,
+void interpolateOverDefectsOld(MaskedImageT &image, afw::detection::Psf const &psf,
                             std::vector<Defect::Ptr> &badList, double fallbackValue = 0.0,
                             bool useFallbackValueAtEdge = false);
 
