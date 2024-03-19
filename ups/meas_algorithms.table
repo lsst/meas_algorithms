@@ -10,6 +10,7 @@ setupRequired(pipe_base)
 setupRequired(sconsUtils)
 setupRequired(utils)
 setupRequired(cpputils)
+setupRequired(kht)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
