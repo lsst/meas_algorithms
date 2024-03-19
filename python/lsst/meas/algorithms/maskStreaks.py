@@ -19,12 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MaskStreaksConfig", "MaskStreaksTask", "setDetectionMask"]
-
-import lsst.pex.config as pexConfig
-import lsst.pipe.base as pipeBase
-import lsst.kht
-from lsst.utils.timer import timeMethod
+__all__ = ["MaskStreaksConfig", "MaskStreaksTask"]
 
 import numpy as np
 import scipy
@@ -32,94 +27,12 @@ import textwrap
 import copy
 from skimage.feature import canny
 from sklearn.cluster import KMeans
-import warnings
 from dataclasses import dataclass
 
-
-def setDetectionMask(maskedImage, forceSlowBin=False, binning=None, detectedPlane="DETECTED",
-                     badMaskPlanes=("NO_DATA", "INTRP", "BAD", "SAT", "EDGE"), detectionThreshold=5):
-    """Make detection mask and set the mask plane.
-
-    Creat a binary image from a masked image by setting all data with signal-to-
-    noise below some threshold to zero, and all data above the threshold to one.
-    If the binning parameter has been set, this procedure will be preceded by a
-    weighted binning of the data in order to smooth the result, after which the
-    result is scaled back to the original dimensions. Set the detection mask
-    plane with this binary image.
-
-    Parameters
-    ----------
-    maskedImage : `lsst.afw.image.maskedImage`
-        Image to be (optionally) binned and converted.
-    forceSlowBin : `bool`, optional
-        Force usage of slower binning method to check that the two methods
-        give the same result.
-    binning : `int`, optional
-        Number of pixels by which to bin image.
-    detectedPlane : `str`, optional
-        Name of mask with pixels that were detected above threshold in image.
-    badMaskPlanes : `set`, optional
-        Names of masks with pixels that are rejected.
-    detectionThreshold : `float`, optional
-        Boundary in signal-to-noise between non-detections and detections for
-        making a binary image from the original input image.
-    """
-    data = maskedImage.image.array
-    weights = 1 / maskedImage.variance.array
-    mask = maskedImage.getMask()
-
-    detectionMask = ((mask.array & mask.getPlaneBitMask(detectedPlane)))
-    badPixelMask = mask.getPlaneBitMask(badMaskPlanes)
-    badMask = (mask.array & badPixelMask) > 0
-    fitMask = detectionMask.astype(bool) & ~badMask
-
-    fitData = np.copy(data)
-    fitData[~fitMask] = 0
-    fitWeights = np.copy(weights)
-    fitWeights[~fitMask] = 0
-
-    if binning:
-        # Do weighted binning:
-        ymax, xmax = fitData.shape
-        if (ymax % binning == 0) and (xmax % binning == 0) and (not forceSlowBin):
-            # Faster binning method
-            binNumeratorReshape = (fitData * fitWeights).reshape(ymax // binning, binning,
-                                                                 xmax // binning, binning)
-            binDenominatorReshape = fitWeights.reshape(binNumeratorReshape.shape)
-            binnedNumerator = binNumeratorReshape.sum(axis=3).sum(axis=1)
-            binnedDenominator = binDenominatorReshape.sum(axis=3).sum(axis=1)
-        else:
-            # Slower binning method when (image shape mod binsize) != 0
-            warnings.warn('Using slow binning method--consider choosing a binsize that evenly divides '
-                          f'into the image size, so that {ymax} mod binning == 0 '
-                          f'and {xmax} mod binning == 0', stacklevel=2)
-            xarray = np.arange(xmax)
-            yarray = np.arange(ymax)
-            xmesh, ymesh = np.meshgrid(xarray, yarray)
-            xbins = np.arange(0, xmax + binning, binning)
-            ybins = np.arange(0, ymax + binning, binning)
-            numerator = fitWeights * fitData
-            binnedNumerator, *_ = scipy.stats.binned_statistic_2d(ymesh.ravel(), xmesh.ravel(),
-                                                                  numerator.ravel(), statistic='sum',
-                                                                  bins=(ybins, xbins))
-            binnedDenominator, *_ = scipy.stats.binned_statistic_2d(ymesh.ravel(), xmesh.ravel(),
-                                                                    fitWeights.ravel(), statistic='sum',
-                                                                    bins=(ybins, xbins))
-        binnedData = np.zeros(binnedNumerator.shape)
-        ind = binnedDenominator != 0
-        np.divide(binnedNumerator, binnedDenominator, out=binnedData, where=ind)
-        binnedWeight = binnedDenominator
-        binMask = (binnedData * binnedWeight**0.5) > detectionThreshold
-        tmpOutputMask = binMask.repeat(binning, axis=0)[:ymax]
-        outputMask = tmpOutputMask.repeat(binning, axis=1)[:, :xmax]
-    else:
-        outputMask = (fitData * fitWeights**0.5) > detectionThreshold
-
-    # Clear existing Detected Plane:
-    maskedImage.mask.array &= ~maskedImage.mask.getPlaneBitMask(detectedPlane)
-
-    # Set Detected Plane with the binary detection mask:
-    maskedImage.mask.array[outputMask] |= maskedImage.mask.getPlaneBitMask(detectedPlane)
+import lsst.pex.config as pexConfig
+import lsst.pipe.base as pipeBase
+import lsst.kht
+from lsst.utils.timer import timeMethod
 
 
 @dataclass
@@ -174,6 +87,10 @@ class LineCollection:
     @property
     def thetas(self):
         return np.array([line.theta for line in self._lines])
+
+    @property
+    def sigmas(self):
+        return np.array([line.sigma for line in self._lines])
 
     def append(self, newLine):
         """Add line to current collection of lines.
@@ -559,7 +476,7 @@ class MaskStreaksTask(pipeBase.Task):
             ``mask``
                 2-d boolean mask where detected lines are True.
         """
-        mask = maskedImage.getMask()
+        mask = maskedImage.mask
         detectionMask = (mask.array & mask.getPlaneBitMask(self.config.detectedMaskPlane))
 
         self.edges = self._cannyFilter(detectionMask)
@@ -592,10 +509,12 @@ class MaskStreaksTask(pipeBase.Task):
 
         Parameters
         ----------
-        maskedImage : `lsst.afw.image.maskedImage`
+        maskedImage : `lsst.afw.image.Exposure` or `lsst.afw.image.maskedImage`
             The image in which to search for streaks. The mask detection plane
             corresponding to `config.detectedMaskPlane` must be set with the
-            detected pixels.
+            detected pixels. The mask will have a plane added with any detected
+            streaks, and with the mask plane name set by
+            self.config.streaksMaskPlane.
 
         Returns
         -------
@@ -749,20 +668,17 @@ class MaskStreaksTask(pipeBase.Task):
 
             fit, chi2, fitFailure = lineModel.fit(dChi2Tol=self.config.dChi2Tolerance, log=self.log)
             if fitFailure:
-                self.log.warning("Streak fit failed.")
+                self.log.info("Streak fit failed ")
 
             # Initial estimate should be quite close: fit is deemed unsuccessful if rho or theta
             # change more than the allowed bin in rho or theta:
             if ((abs(fit.rho - line.rho) > 2 * self.config.rhoBinSize)
                     or (abs(fit.theta - line.theta) > 2 * self.config.thetaBinSize)):
                 fitFailure = True
-                self.log.warning("Streak fit moved too far from initial estimate. Line will be dropped.")
+                self.log.info("Streak fit moved too far from initial estimate. Line will be dropped.")
 
             if fitFailure:
                 continue
-
-            self.log.debug("Best fit streak parameters are rho=%.2f, theta=%.2f, and sigma=%.2f", fit.rho,
-                           fit.theta, fit.sigma)
 
             # Make mask
             lineModel.setLineMask(fit)
@@ -780,9 +696,5 @@ class MaskStreaksTask(pipeBase.Task):
             nFinalLines += 1
 
         finalMask = np.array(finalLineMasks).any(axis=0)
-        nMaskedPixels = finalMask.sum()
-        percentMasked = (nMaskedPixels / finalMask.size) * 100
-        self.log.info("%d streak(s) fit, with %d pixels masked (%0.2f%% of image)", nFinalLines,
-                      nMaskedPixels, percentMasked)
 
         return lineFits, finalMask

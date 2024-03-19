@@ -21,11 +21,99 @@
 
 import unittest
 import numpy as np
+import warnings
+import scipy
 
 import lsst.utils.tests
 import lsst.afw.image
 import lsst.afw.math
-from lsst.meas.algorithms.maskStreaks import MaskStreaksTask, LineProfile, Line, setDetectionMask
+from lsst.meas.algorithms.maskStreaks import MaskStreaksTask, LineProfile, Line
+
+
+def setDetectionMask(maskedImage, forceSlowBin=False, binning=None, detectedPlane="DETECTED",
+                     badMaskPlanes=("NO_DATA", "INTRP", "BAD", "SAT", "EDGE"), detectionThreshold=5):
+    """Make detection mask and set the mask plane.
+
+    Create a binary image from a masked image by setting all data with signal-to-
+    noise below some threshold to zero, and all data above the threshold to one.
+    If the binning parameter has been set, this procedure will be preceded by a
+    weighted binning of the data in order to smooth the result, after which the
+    result is scaled back to the original dimensions. Set the detection mask
+    plane with this binary image.
+
+    Parameters
+    ----------
+    maskedImage : `lsst.afw.image.maskedImage`
+        Image to be (optionally) binned and converted.
+    forceSlowBin : `bool`, optional
+        Force usage of slower binning method to check that the two methods
+        give the same result.
+    binning : `int`, optional
+        Number of pixels by which to bin image.
+    detectedPlane : `str`, optional
+        Name of mask with pixels that were detected above threshold in image.
+    badMaskPlanes : `tuple`, optional
+        Names of masks with pixels that are rejected.
+    detectionThreshold : `float`, optional
+        Boundary in signal-to-noise between non-detections and detections for
+        making a binary image from the original input image.
+    """
+    data = maskedImage.image.array
+    weights = 1 / maskedImage.variance.array
+    mask = maskedImage.mask
+
+    detectionMask = ((mask.array & mask.getPlaneBitMask(detectedPlane)))
+    badPixelMask = mask.getPlaneBitMask(badMaskPlanes)
+    badMask = (mask.array & badPixelMask) > 0
+    fitMask = detectionMask.astype(bool) & ~badMask
+
+    fitData = np.copy(data)
+    fitData[~fitMask] = 0
+    fitWeights = weights
+    fitWeights[~fitMask] = 0
+
+    if binning:
+        # Do weighted binning:
+        ymax, xmax = fitData.shape
+        if (ymax % binning == 0) and (xmax % binning == 0) and (not forceSlowBin):
+            # Faster binning method
+            binNumeratorReshape = (fitData * fitWeights).reshape(ymax // binning, binning,
+                                                                 xmax // binning, binning)
+            binDenominatorReshape = fitWeights.reshape(binNumeratorReshape.shape)
+            binnedNumerator = binNumeratorReshape.sum(axis=3).sum(axis=1)
+            binnedDenominator = binDenominatorReshape.sum(axis=3).sum(axis=1)
+        else:
+            # Slower binning method when (image shape mod binsize) != 0
+            warnings.warn('Using slow binning method--consider choosing a binsize that evenly divides '
+                          f'into the image size, so that {ymax} mod binning == 0 '
+                          f'and {xmax} mod binning == 0', stacklevel=2)
+            xarray = np.arange(xmax)
+            yarray = np.arange(ymax)
+            xmesh, ymesh = np.meshgrid(xarray, yarray)
+            xbins = np.arange(0, xmax + binning, binning)
+            ybins = np.arange(0, ymax + binning, binning)
+            numerator = fitWeights * fitData
+            binnedNumerator, *_ = scipy.stats.binned_statistic_2d(ymesh.ravel(), xmesh.ravel(),
+                                                                  numerator.ravel(), statistic='sum',
+                                                                  bins=(ybins, xbins))
+            binnedDenominator, *_ = scipy.stats.binned_statistic_2d(ymesh.ravel(), xmesh.ravel(),
+                                                                    fitWeights.ravel(), statistic='sum',
+                                                                    bins=(ybins, xbins))
+        binnedData = np.zeros(binnedNumerator.shape)
+        ind = binnedDenominator != 0
+        np.divide(binnedNumerator, binnedDenominator, out=binnedData, where=ind)
+        binnedWeight = binnedDenominator
+        binMask = (binnedData * binnedWeight**0.5) > detectionThreshold
+        tmpOutputMask = binMask.repeat(binning, axis=0)[:ymax]
+        outputMask = tmpOutputMask.repeat(binning, axis=1)[:, :xmax]
+    else:
+        outputMask = (fitData * fitWeights**0.5) > detectionThreshold
+
+    # Clear existing Detected Plane:
+    maskedImage.mask.array &= ~maskedImage.mask.getPlaneBitMask(detectedPlane)
+
+    # Set Detected Plane with the binary detection mask:
+    maskedImage.mask.array[outputMask] |= maskedImage.mask.getPlaneBitMask(detectedPlane)
 
 
 class TestMaskStreaks(lsst.utils.tests.TestCase):
