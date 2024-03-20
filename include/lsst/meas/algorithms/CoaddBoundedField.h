@@ -80,6 +80,9 @@ public:
     /// Get the elements vector
     ElementVector getElements() const { return _elements; };
 
+    /// Get the throwOnMissing setting
+    bool getThrowOnMissing() const { return _throwOnMissing; };
+
     /**
      *  @brief Return true if the CoaddBoundedField persistable (always true).
      */

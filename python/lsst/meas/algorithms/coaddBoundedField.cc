@@ -79,6 +79,7 @@ void declareCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrapper
         cls.def("getCoaddWcs", &CoaddBoundedField::getCoaddWcs);
         cls.def("getDefault", &CoaddBoundedField::getDefault);
         cls.def("getElements", &CoaddBoundedField::getElements);
+        cls.def("getThrowOnMissing", &CoaddBoundedField::getThrowOnMissing);
     });
     afw::table::io::python::addPersistableMethods<CoaddBoundedField>(clsField);
 }
