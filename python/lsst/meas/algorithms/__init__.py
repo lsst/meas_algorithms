@@ -63,6 +63,7 @@ from .scaleVariance import *
 from .noise_covariance import *
 from .reinterpolate_pixels import *
 from .setPrimaryFlags import *
+from .coaddBoundedField import *
 
 from .version import *
 

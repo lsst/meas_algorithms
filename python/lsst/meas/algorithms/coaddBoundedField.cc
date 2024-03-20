@@ -75,7 +75,7 @@ void declareCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrapper
         cls.def("__imul__", &CoaddBoundedField::operator*);
 
         /* Members */
-        cls.def("evaluate", &CoaddBoundedField::evaluate);
+        cls.def("_evaluate", &CoaddBoundedField::evaluate);
         cls.def("getCoaddWcs", &CoaddBoundedField::getCoaddWcs);
         cls.def("getDefault", &CoaddBoundedField::getDefault);
         cls.def("getElements", &CoaddBoundedField::getElements);
