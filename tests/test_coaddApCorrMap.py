@@ -114,20 +114,48 @@ class CoaddApCorrMapTest(lsst.utils.tests.TestCase):
         os.unlink(filename)
 
     def assertApCorrMap(self, apCorrMap, pointList):
+        # Check point-by-point.
+        pointsX = np.zeros(len(pointList))
+        pointsY = np.zeros(len(pointList))
+        expectedArray = np.zeros(len(pointList))
         for i, point in enumerate(pointList):
             weights = [i + 1, i + 2]
             values = [i + 1, i + 2]
             expected = sum((w*v for w, v in zip(weights, values)), 0.0)/sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
+            # Create arrays for vectorized call.
+            expectedArray[i] = expected
+            pointsX[i] = point.getX()
+            pointsY[i] = point.getY()
+
+        # Check vectorized
+        actualArray = apCorrMap["only"].evaluate(pointsX, pointsY)
+        self.assertFloatsAlmostEqual(actualArray, expectedArray)
+
+        # Check vectorized single point.
+        actualArray0 = apCorrMap["only"].evaluate(pointsX[0], pointsY[0])
+        self.assertFloatsAlmostEqual(actualArray0, expectedArray[0])
 
     def assertApCorrMapValid(self, apCorrMap, pointList):
+        # Check point-by-point.
+        pointsX = np.zeros(len(pointList))
+        pointsY = np.zeros(len(pointList))
+        expectedArray = np.zeros(len(pointList))
         for i, point in enumerate(pointList):
             weights = [i + 2]
             values = [i + 2]
             expected = sum((w*v for w, v in zip(weights, values)), 0.0)/sum(weights)
             actual = apCorrMap["only"].evaluate(point)
             self.assertEqual(actual, expected)
+            # Create arrays for vectorized call.
+            expectedArray[i] = expected
+            pointsX[i] = point.getX()
+            pointsY[i] = point.getY()
+
+        # Check vectorized
+        actualArray = apCorrMap["only"].evaluate(pointsX, pointsY)
+        self.assertFloatsAlmostEqual(actualArray, expectedArray)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
