@@ -332,9 +332,9 @@ class MeasureApCorrTask(Task):
             self.log.info(
                 "Aperture correction for %s from %d stars: MAD %f, RMS %f",
                 name,
+                len(x),
                 median_abs_deviation(fitValues - z, scale="normal"),
                 np.mean((fitValues - z)**2.)**0.5,
-                len(x),
             )
 
             if display:
