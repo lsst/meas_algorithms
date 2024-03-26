@@ -19,11 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 """Collection of small images (postage stamps)."""
 
 __all__ = ["StampBase", "Stamp", "StampsBase", "Stamps", "writeFits", "readFitsWithOptions"]
 
 import abc
+import typing
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, fields
 
@@ -41,7 +44,7 @@ DEFAULT_ARCHIVE_ELEMENT_NAME = "ELEMENT"
 
 def writeFits(
     filename: str,
-    stamps: Sequence,
+    stamps: Sequence[StampBase],
     metadata: PropertyList,
     type_name: str,
     write_mask: bool,
@@ -277,11 +280,11 @@ class StampBase(abc.ABC):
     @abc.abstractmethod
     def factory(
         cls,
-        stamp_im: MaskedImage,
+        stamp_im: MaskedImageF,
         metadata: PropertyList,
         index: int,
         archive_elements: Mapping[str, Persistable] | None = None,
-    ):
+    ) -> typing.Self:
         """This method is needed to service the FITS reader.
         We need a standard interface to construct objects like this.
         Parameters needed to construct this object are passed in via a metadata
@@ -289,7 +292,7 @@ class StampBase(abc.ABC):
 
         Parameters
         ----------
-        stamp_im : `~lsst.afw.image.MaskedImage`
+        stamp_im : `~lsst.afw.image.MaskedImageF`
             Pixel data to pass to the constructor
         metadata : `PropertyList`
             Dictionary containing the information
@@ -346,7 +349,7 @@ class Stamp(StampBase):
     position: SpherePoint | None = field(default_factory=_default_position)
 
     @classmethod
-    def factory(cls, stamp_im: MaskedImage, metadata: PropertyList, index: int, archive_elements=None):
+    def factory(cls, stamp_im: MaskedImageF, metadata: PropertyList, index: int, archive_elements=None):
         """This method is needed to service the FITS reader. We need a standard
         interface to construct objects like this. Parameters needed to
         construct this object are passed in via a metadata dictionary and then
@@ -357,7 +360,7 @@ class Stamp(StampBase):
 
         Parameters
         ----------
-        stamp : `~lsst.afw.image.MaskedImage`
+        stamp : `~lsst.afw.image.MaskedImageF`
             Pixel data to pass to the constructor
         metadata : `dict`
             Dictionary containing the information
@@ -442,7 +445,7 @@ class StampsBase(abc.ABC, Sequence):
 
     def __init__(
         self,
-        stamps: list,
+        stamps: Sequence[StampBase],
         metadata: PropertyList | None = None,
         use_mask: bool = True,
         use_variance: bool = True,
@@ -451,7 +454,7 @@ class StampsBase(abc.ABC, Sequence):
         for stamp in stamps:
             if not isinstance(stamp, StampBase):
                 raise ValueError(f"The entries in stamps must inherit from StampBase. Got {type(stamp)}.")
-        self._stamps = stamps
+        self._stamps = list(stamps)
         self._metadata = PropertyList() if metadata is None else metadata.deepCopy()
         self.use_mask = use_mask
         self.use_variance = use_variance
@@ -529,27 +532,6 @@ class StampsBase(abc.ABC, Sequence):
 
     def __iter__(self):
         return iter(self._stamps)
-
-    def getMaskedImages(self):
-        """Retrieve star images.
-
-        Returns
-        -------
-        maskedImages :
-            `list` [`~lsst.afw.image.MaskedImageF`]
-        """
-        return [stamp._getMaskedImage() for stamp in self._stamps]
-
-    def getArchiveElements(self):
-        """Retrieve archive elements associated with each stamp.
-
-        Returns
-        -------
-        archiveElements : `list` [`dict`[ `str`, \
-                `~lsst.afw.table.io.Persistable` ]]
-            A list of archive elements associated with each stamp.
-        """
-        return [stamp._getArchiveElements() for stamp in self._stamps]
 
     @property
     def metadata(self):
