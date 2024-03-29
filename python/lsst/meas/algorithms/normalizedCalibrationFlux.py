@@ -114,23 +114,26 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
 
         name = self.config.normalized_calibflux_name
         self.flux_name = name + "_instFlux"
-        schema.addField(
-            self.flux_name,
-            type=float,
-            doc=f"Normalized calibration flux from {self.config.raw_calibflux_name}.",
-        )
+        if self.flux_name not in schema:
+            schema.addField(
+                self.flux_name,
+                type=float,
+                doc=f"Normalized calibration flux from {self.config.raw_calibflux_name}.",
+            )
         self.err_name = name + "_instFluxErr"
-        schema.addField(
-            self.err_name,
-            type=float,
-            doc=f"Normalized calibration flux error from {self.config.raw_calibflux_name}.",
-        )
+        if self.err_name not in schema:
+            schema.addField(
+                self.err_name,
+                type=float,
+                doc=f"Normalized calibration flux error from {self.config.raw_calibflux_name}.",
+            )
         self.flag_name = name + "_flag"
-        schema.addField(
-            self.flag_name,
-            type="Flag",
-            doc=f"Normalized calibration flux failure flag from {self.config.raw_calibflux_name}.",
-        )
+        if self.flag_name not in schema:
+            schema.addField(
+                self.flag_name,
+                type="Flag",
+                doc=f"Normalized calibration flux failure flag from {self.config.raw_calibflux_name}.",
+            )
 
         if self.config.do_set_calib_slot:
             schema.getAliasMap().set("slot_CalibFlux", name)
