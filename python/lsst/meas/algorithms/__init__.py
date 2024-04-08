@@ -64,6 +64,7 @@ from .noise_covariance import *
 from .reinterpolate_pixels import *
 from .setPrimaryFlags import *
 from .coaddBoundedField import *
+from .variance_plane import *
 
 from .version import *
 
