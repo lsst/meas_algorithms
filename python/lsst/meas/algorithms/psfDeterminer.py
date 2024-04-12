@@ -22,6 +22,7 @@
 __all__ = ["BasePsfDeterminerConfig", "BasePsfDeterminerTask", "psfDeterminerRegistry"]
 
 import abc
+import numpy as np
 
 import lsst.pipe.base as pipeBase
 import lsst.pex.config as pexConfig
@@ -37,6 +38,14 @@ class BasePsfDeterminerConfig(pexConfig.Config):
         default=None,
         optional=True,
         check=lambda x: (x > 0) & (x % 2 == 1),
+    )
+    maxCandidates = pexConfig.Field[int](
+        doc="Maximum number of candidates to consider. Will down-sample if given more.",
+        default=300,
+    )
+    downsampleRandomSeed = pexConfig.Field[int](
+        doc="Random seed to use to downsample candidates.",
+        default=98765,
     )
 
 
@@ -62,6 +71,37 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
 
     def __init__(self, config, schema=None, **kwds):
         pipeBase.Task.__init__(self, config=config, **kwds)
+
+    def downsampleCandidates(self, inputCandidateList):
+        """Down-sample candidates from the input candidate list.
+
+        Parameters
+        ----------
+        inputCandidateList : `list` [`lsst.meas.algorithms.PsfCandidate`]
+            Input candidate list.
+
+        Returns
+        -------
+        outputCandidateList : `list` [`lsst.meas.algorithms.PsfCandidate`]
+            Down-selected candidate list.
+        """
+        if len(inputCandidateList) <= self.config.maxCandidates:
+            return inputCandidateList
+
+        rng = np.random.RandomState(seed=self.config.downsampleRandomSeed)
+
+        self.log.info(
+            "Down-sampling from %d to %d psf candidates.",
+            len(inputCandidateList),
+            self.config.maxCandidates,
+        )
+
+        selection = rng.choice(len(inputCandidateList), size=self.config.maxCandidates, replace=False)
+        selection = np.sort(selection)
+
+        outputCandidateList = [inputCandidateList[index] for index in selection]
+
+        return outputCandidateList
 
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
