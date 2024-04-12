@@ -465,6 +465,17 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         """Test PCA determiner with downsampling.
         """
         self.setupDeterminer()
+        metadata = dafBase.PropertyList()
+
+        # Decrease the maximum number of stars.
+        self.psfDeterminer.config.maxCandidates = 10
+
+        stars = self.starSelector.run(self.catalog, exposure=self.exposure)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, self.exposure).psfCandidates
+        psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+
+        self.assertEqual(metadata['numAvailStars'], self.psfDeterminer.config.maxCandidates)
+        self.assertLessEqual(metadata['numGoodStars'], self.psfDeterminer.config.maxCandidates)
 
 
 class PsfCandidateTestCase(lsst.utils.tests.TestCase):

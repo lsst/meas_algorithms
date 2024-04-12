@@ -211,6 +211,8 @@ class PcaPsfDeterminerTask(BasePsfDeterminerTask):
         psfCellSet : `lsst.afw.math.SpatialCellSet`
            The PSF candidates.
         """
+        psfCandidateList = self.downsampleCandidates(psfCandidateList)
+
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
