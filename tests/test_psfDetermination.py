@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
+import logging
 import numpy as np
 import unittest
 
@@ -435,6 +436,46 @@ class SpatialModelPsfTestCase(lsst.utils.tests.TestCase):
         testDisplay = display if display else afwDisplay.getDisplay(backend="virtualDevice")
         mos = showPsf(psf, display=testDisplay)
         self.assertTrue(len(mos.images) > 0)
+
+    def testDownsampleBase(self):
+        """Test that the downsampleCandidates function works.
+        """
+        self.setupDeterminer()
+
+        # Note that the downsampleCandidates function is designed to work
+        # with a list of psf candidates, it can work with any list.
+        # For these tests we use a list of integers which allows easier
+        # testing that the sort order is maintained.
+
+        # Try with no downsampling.
+        inputList = list(np.arange(100))
+        candidateList = self.psfDeterminer.downsampleCandidates(inputList)
+        np.testing.assert_array_equal(candidateList, inputList)
+
+        # And with downsampling.
+        inputList = list(np.arange(500))
+        with self.assertLogs(level=logging.INFO) as cm:
+            candidateList = self.psfDeterminer.downsampleCandidates(inputList)
+        self.assertIn("Down-sampling from 500 to 300 psf candidates.", cm[0][0].message)
+        self.assertEqual(len(candidateList), self.psfDeterminer.config.maxCandidates)
+        np.testing.assert_array_equal(np.sort(candidateList), candidateList)
+        self.assertEqual(len(np.unique(candidateList)), len(candidateList))
+
+    def testDownsamplePca(self):
+        """Test PCA determiner with downsampling.
+        """
+        self.setupDeterminer()
+        metadata = dafBase.PropertyList()
+
+        # Decrease the maximum number of stars.
+        self.psfDeterminer.config.maxCandidates = 10
+
+        stars = self.starSelector.run(self.catalog, exposure=self.exposure)
+        psfCandidateList = self.makePsfCandidates.run(stars.sourceCat, self.exposure).psfCandidates
+        psf, cellSet = self.psfDeterminer.determinePsf(self.exposure, psfCandidateList, metadata)
+
+        self.assertEqual(metadata['numAvailStars'], self.psfDeterminer.config.maxCandidates)
+        self.assertLessEqual(metadata['numGoodStars'], self.psfDeterminer.config.maxCandidates)
 
 
 class PsfCandidateTestCase(lsst.utils.tests.TestCase):
