@@ -32,7 +32,7 @@ from lsst.meas.algorithms import NormalizedCalibrationFluxTask
 class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
     def setUp(self):
         self.ap_name = "base_CircularApertureFlux_12_0"
-        self.cg_name = "base_CompensatedGaussianFlux_5"
+        self.cg_name = "base_CompensatedTophatFlux_12"
         self.exposure = lsst.afw.image.ExposureF(1000, 1000)
 
     def _make_task(self, apply_only=False):
@@ -127,8 +127,8 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
             norm_task.config.normalized_calibflux_name,
         )
 
-        self.assertIn("base_CompensatedGaussianFlux_5_instFlux", ap_corr_map)
-        self.assertIn("base_CompensatedGaussianFlux_5_instFluxErr", ap_corr_map)
+        self.assertIn("base_CompensatedTophatFlux_12_instFlux", ap_corr_map)
+        self.assertIn("base_CompensatedTophatFlux_12_instFluxErr", ap_corr_map)
 
         # The full set should have a 1.0 ratio when the
         # aperture flux offset is 0.0
@@ -136,7 +136,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         self.assertFloatsAlmostEqual(ratio, 1.0, rtol=1e-10)
 
         # The subset that was used should always have a 1.0 ratio.
-        used = catalog["apcorr_base_CompensatedGaussianFlux_5_used"]
+        used = catalog["apcorr_base_CompensatedTophatFlux_12_used"]
         ratio_used = np.mean(
             catalog["slot_CalibFlux_instFlux"][used]/catalog[self.ap_name + "_instFlux"][used]
         )
@@ -171,7 +171,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
             # The subset that was used should always have a 1.0 ratio, though
             # this may be not quite zero because of the trend in the ratio
             # vs flux even at the bright end.
-            used = catalog["apcorr_base_CompensatedGaussianFlux_5_used"]
+            used = catalog["apcorr_base_CompensatedTophatFlux_12_used"]
             ratio_used = np.mean(
                 catalog["slot_CalibFlux_instFlux"][used]/catalog[self.ap_name + "_instFlux"][used]
             )
@@ -188,15 +188,15 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
 
         ap_corr_map = norm_task.run(catalog=catalog, exposure=self.exposure).ap_corr_map
 
-        self.assertIn("base_CompensatedGaussianFlux_5_instFlux", ap_corr_map)
-        self.assertIn("base_CompensatedGaussianFlux_5_instFluxErr", ap_corr_map)
+        self.assertIn("base_CompensatedTophatFlux_12_instFlux", ap_corr_map)
+        self.assertIn("base_CompensatedTophatFlux_12_instFluxErr", ap_corr_map)
 
         # The full set should have a 1.0 ratio when the
         # aperture flux offset is 0.0
         ratio = np.mean(catalog["slot_CalibFlux_instFlux"]/catalog[self.ap_name + "_instFlux"])
         self.assertFloatsAlmostEqual(ratio, 1.0, rtol=1e-10)
 
-        self.assertTrue(np.all(~flags == catalog["apcorr_base_CompensatedGaussianFlux_5_used"]))
+        self.assertTrue(np.all(~flags == catalog["apcorr_base_CompensatedTophatFlux_12_used"]))
 
     def testNormalizedCalibrationFluxApplyOnly(self):
         # Run the regular task in default mode first.
