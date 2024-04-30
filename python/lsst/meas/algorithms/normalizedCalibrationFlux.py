@@ -43,12 +43,12 @@ class NormalizedCalibrationFluxConfig(lsst.pex.config.Config):
     raw_calibflux_name = lsst.pex.config.Field(
         doc="Name of raw calibration flux to normalize.",
         dtype=str,
-        default="base_CompensatedGaussianFlux_5",
+        default="base_CompensatedTophatFlux_12",
     )
     normalized_calibflux_name = lsst.pex.config.Field(
         doc="Name of normalized calibration flux.",
         dtype=str,
-        default="base_NormalizedCompensatedGaussianFlux",
+        default="base_NormalizedCompensatedTophatFlux",
     )
     do_set_calib_slot = lsst.pex.config.Field(
         doc="Set the calib flux slot to the normalized flux?",
@@ -78,6 +78,9 @@ class NormalizedCalibrationFluxConfig(lsst.pex.config.Config):
         selector.flags.bad = []
         selector.signalToNoise.fluxField = self.raw_calibflux_name + "_instFlux"
         selector.signalToNoise.errField = self.raw_calibflux_name + "_instFluxErr"
+        # Do median for this.
+        self.measure_ap_corr.fitConfig.orderX = 0
+        self.measure_ap_corr.fitConfig.orderY = 0
 
         fallback_selector = self.fallback_source_selector["science"]
         fallback_selector.doFluxLimit = False
