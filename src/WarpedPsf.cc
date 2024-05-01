@@ -98,6 +98,38 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
     return out_box.dilatedBy(out_half_dims);
 }
 
+geom::Box2I computeBBoxFromTransformNoAffine(geom::Box2I const bbox,  afw::geom::TransformPoint2ToPoint2 const &t) {
+    // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
+    // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
+    // from JWST).  Anything beyond that is probably a bug elsewhere in the code, and
+    // catching that can save us from segfaults and catastrophic memory consumption.
+    static const double maxTransformCoeff = 200.0;
+
+    // if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
+    //     throw LSST_EXCEPT(pex::exceptions::RangeError, "Unexpectedly large transform passed to WarpedPsf");
+    // }  // erfan commented!!
+
+    // Floating point version of input bbox (expanded to include entire pixels).
+    geom::Box2D in_box_fp(bbox);
+    // Floating point version of output bbox (to be populated as bbox of
+    // transformed points.
+    geom::Box2D out_box_fp;
+    auto const in_corners = in_box_fp.getCorners();
+    for (auto const & in_corner : in_corners) {
+        auto out_corner = t.applyForward(in_corner);
+        out_box_fp.include(out_corner);
+    }
+
+    // We want to guarantee that the output bbox has odd dimensions, so instead
+    // of using the Box2I converting constructor directly, we start with (0, 0)
+    // and dilate by the floating-point box's half-dimensions.
+    geom::Extent2I out_half_dims = geom::floor(0.5*out_box_fp.getDimensions());  //!!!!!!!erfan!!!!!!!!!!!! I changed out_box_fp --> in_box_fp
+    geom::Box2I out_box;
+    geom::Point2I out_center(0, 0);
+    out_box.include(out_center);
+    return out_box.dilatedBy(out_half_dims);
+}
+
 /**
  * @brief Alternate interface to afw::math::warpImage()
  * in which the caller does not need to precompute the output bounding box.
@@ -234,38 +266,115 @@ std::shared_ptr<afw::detection::Psf> WarpedPsf::resized(int width, int height) c
 
 std::shared_ptr<afw::detection::Psf::Image> WarpedPsf::doComputeKernelImage(
         geom::Point2D const &position, afw::image::Color const &color) const {
+    std::cout << "entered doComputeKernelImage"  << std::endl;
     auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
-    std::shared_ptr<Image> src_im = _undistortedPsf->computeImage(prepared_transforms.src_position, color);
-    std::shared_ptr<afw::detection::Psf::Psf::Image> ret = warpAffine(
-        *src_im,
-        prepared_transforms.src_to_dest_unrounded,
-        *_warpingControl
+    // afw::geom::TransformPoint2ToPoint2 dest_to_src = *_distortion
+    // afw::geom::linearizeTransform(
+    //     *_distortion.inverted(),
+    //     position
+    // );
+    auto dest_position = _distortion->inverted()->applyForward(position);
+    geom::Point2D rounded_dest_position(
+        std::round(dest_position.getX()),
+        std::round(dest_position.getY())
     );
+    auto src_position = _distortion->applyForward(rounded_dest_position);
+    // geom::Point2D src_position;
+    std::shared_ptr<Image> src_im = _undistortedPsf->computeImage(src_position, color);
+
+    std::cout << "bbox dim of src_im" << src_im->getBBox().getDimensions() << std::endl;
+
+    // std::shared_ptr<afw::detection::Psf::Psf::Image> ret = warpAffine(
+    //     *src_im,
+    //     prepared_transforms.src_to_dest_unrounded,
+    //     *_warpingControl
+    // );
+
+
+    // + <start> erfan added!
+    afw::math::SeparableKernel const &kernel = *_warpingControl->getWarpingKernel();
+    geom::Point2I const &center = kernel.getCtr();
+    int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
+    int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
+    // allocate output image
+    geom::Box2I bbox_affine = computeBBoxFromTransform(src_im->getBBox(), prepared_transforms.src_to_dest_unrounded);
+    geom::Box2I bbox = computeBBoxFromTransformNoAffine(src_im->getBBox(), *_distortion);
+    std::cout << "bbox dim after computeBBoxFromTransformNoAffine" << bbox.getDimensions() << std::endl;
+    std::cout << "bbox_affine dim after computeBBoxFromTransform" << bbox_affine.getDimensions() << std::endl;
+    // zero-pad input image
+    std::shared_ptr<afw::detection::Psf::Image> im_padded = zeroPadImage(*src_im, xPad, yPad);
+
+    auto imageArray = im_padded->getArray();
+    auto newImg = std::make_shared<afw::image::Image<double>>(imageArray);  // I checked and both were <double>!
+    unsigned int width = newImg->getWidth();
+    unsigned int height = newImg->getHeight();
+    auto newMask = std::make_shared<afw::image::Mask<int>>(width, height, 0);
+    auto newVar = std::make_shared<afw::image::Image<float>>(width, height, 1.0);
+
+    // auto mi = std::make_shared<afw::image::MaskedImage<double>>(newImg, nullptr, nullptr);
+    // afw::image::MaskedImage<double> mi(im_padded, nullptr, nullptr);
+
+    // auto passed_image = std::make_shared<afw::image::Image<double>>(newImg);
+    // auto ret = std::make_shared<afw::detection::Psf::Image>(bbox);
+    // auto ret = std::make_shared<afw::image::Image<double>>(newImg);
+    auto ret = std::shared_ptr<afw::image::Image<double>>(new afw::image::Image<double>(*newImg, bbox, afw::image::LOCAL, true));  // Deep copy
+
+    // some prints
+    // printf("bbox: %d x %d\n", bbox.getWidth(), bbox.getHeight());
+    std::cout << "newImg w and h " << newImg->getWidth() << " " << newImg->getHeight() << std::endl;
+    std::cout << "ret w and h " << ret->getWidth() << " " << ret->getHeight() << std::endl;
+    std::cout << "newImg[4,4]" << newImg->getArray()[4,4] << std::endl;
+    std::cout << "bbox.getDimensions()" << bbox.getDimensions() << std::endl;
+
+
+    afw::math::warpImage(*ret, *newImg, *_distortion, *_warpingControl, 0.0);
+    // - <end> erfan added!
+
 
     double normFactor = 1.0;
     //
     // Normalize the output image to sum 1
     // FIXME defining a member function Image::getSum() would be convenient here and in other places
     //
-    normFactor = 0.0;
-    for (int y = 0; y != ret->getHeight(); ++y) {
-        afw::detection::Psf::Image::x_iterator imEnd = ret->row_end(y);
-        for (afw::detection::Psf::Image::x_iterator imPtr = ret->row_begin(y); imPtr != imEnd; imPtr++) {
-            normFactor += *imPtr;
-        }
-    }
-    if (normFactor == 0.0) {
-        throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "psf image has sum 0");
-    }
+    // normFactor = 0.0;
+    // for (int y = 0; y != ret->getHeight(); ++y) {
+    //     afw::detection::Psf::Image::x_iterator imEnd = ret->row_end(y);
+    //     for (afw::detection::Psf::Image::x_iterator imPtr = ret->row_begin(y); imPtr != imEnd; imPtr++) {
+    //         normFactor += *imPtr;
+    //     }
+    // }
+    // if (normFactor == 0.0) {
+    //     throw LSST_EXCEPT(pex::exceptions::InvalidParameterError, "psf image has sum 0");
+    // }
+
+    // printf(">> normFactor: %f\n", normFactor);
+    // printf("bbox: %d x %d\n", bbox.getWidth(), bbox.getHeight());
+    // printf("bbox start: %d x %d\n", bbox.getMinX(), bbox.getMinY());
+    // printf("** ret d: %d x %d\n", ret->getWidth(), ret->getHeight());
+    // printf(">> mi d: %d x %d\n", mi->getWidth(), mi->getHeight());
+    // printf(">> prepared_transforms.src_position: %f x %f\n", prepared_transforms.src_position.getX(), prepared_transforms.src_position.getY());
+    // printf("++ position: %f x %f\n", position.getX(), position.getY());
+
     *ret /= normFactor;
     return ret;
+    // auto ret2 = std::make_shared<afw::detection::Psf::Image>(ret->getImage()->getArray());
+    // ret2->setXY0(bbox.getMin());
+    // return ret2;
 }
 
 geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::Color const &color) const {
     auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
     auto src_bbox = _undistortedPsf->computeImageBBox(prepared_transforms.src_position, color);
-    return computeBBoxFromTransform(src_bbox, prepared_transforms.src_to_dest_unrounded);
+    // return computeBBoxFromTransform(src_bbox, prepared_transforms.src_to_dest_unrounded);
+    return computeBBoxFromTransformNoAffine(src_bbox, *_distortion);
+
 }
+// geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::Color const &color) const {
+//     auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
+//     auto src_bbox = _undistortedPsf->computeImageBBox(prepared_transforms.src_position, color);
+//     return computeBBoxFromTransform(src_bbox, prepared_transforms.src_to_dest_unrounded);
+
+// }
 
 namespace {
 
