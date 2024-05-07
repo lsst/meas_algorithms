@@ -29,6 +29,7 @@ import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
 import lsst.utils.tests
+from lsst.afw.detection import InvalidPsfError
 
 
 def getPsfMoments(psf, point):
@@ -358,6 +359,13 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         naiveAvgPos = lsst.geom.Point2D(50, 50)
         with self.assertRaises(pexExceptions.InvalidParameterError):
             coaddPsf.computeKernelImage(naiveAvgPos)
+        with self.assertRaises(InvalidPsfError):
+            coaddPsf.computeKernelImage(naiveAvgPos)
+        with self.assertRaises(pexExceptions.InvalidParameterError):
+            coaddPsf.computeBBox(naiveAvgPos)
+        with self.assertRaises(InvalidPsfError):
+            coaddPsf.computeBBox(naiveAvgPos)
+
         # important test is that this doesn't throw:
         coaddPsf.computeKernelImage(coaddPsf.getAveragePosition())
 
