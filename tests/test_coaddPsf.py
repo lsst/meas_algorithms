@@ -29,10 +29,10 @@ import lsst.afw.table as afwTable
 import lsst.meas.algorithms as measAlg
 import lsst.pex.exceptions as pexExceptions
 import lsst.utils.tests
+from lsst.afw.detection import InvalidPsfError
 
 
 def getPsfMoments(psf, point):
-    #    import os, pdb; print "PID =", os.getpid(); pdb.set_trace()
     image = psf.computeImage(point)
     array = image.getArray()
     sumx2 = 0.0
@@ -127,7 +127,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def testCreate(self):
         """Check that we can create a CoaddPsf with 9 elements."""
-        print("CreatePsfTest")
 
         # also test that the weight field name is correctly observed
         schema = afwTable.ExposureTable.makeMinimalSchema()
@@ -174,7 +173,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def testFractionalPixel(self):
         """Check that we can create a CoaddPsf with 10 elements."""
-        print("FractionalPixelTest")
         cdMatrix = afwGeom.makeCdMatrix(
             scale=5.55555555e-05*lsst.geom.degrees,
             orientation=90*lsst.geom.degrees,
@@ -202,7 +200,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def testRotatePsf(self):
         """Check that we can create a CoaddPsf with 10 elements."""
-        print("RotatePsfTest")
         cdMatrix = afwGeom.makeCdMatrix(
             scale=5.55555555e-05*lsst.geom.degrees,
             orientation=90*lsst.geom.degrees,
@@ -228,7 +225,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def testDefaultSize(self):
         """Test of both default size and specified size."""
-        print("DefaultSizeTest")
         sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
@@ -255,7 +251,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def testSimpleGaussian(self):
         """Check that we can measure a single Gaussian's attributes."""
-        print("SimpleGaussianTest")
         sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
@@ -296,7 +291,6 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
 
     def testWeight(self):
         """Check that we can measure a single Gaussian's attributes."""
-        print("WeightTest")
         sigma0 = 5
         # set the peak of the outer guassian to 0 so this is really a single gaussian.
 
@@ -365,6 +359,13 @@ class CoaddPsfTest(lsst.utils.tests.TestCase):
         naiveAvgPos = lsst.geom.Point2D(50, 50)
         with self.assertRaises(pexExceptions.InvalidParameterError):
             coaddPsf.computeKernelImage(naiveAvgPos)
+        with self.assertRaises(InvalidPsfError):
+            coaddPsf.computeKernelImage(naiveAvgPos)
+        with self.assertRaises(pexExceptions.InvalidParameterError):
+            coaddPsf.computeBBox(naiveAvgPos)
+        with self.assertRaises(InvalidPsfError):
+            coaddPsf.computeBBox(naiveAvgPos)
+
         # important test is that this doesn't throw:
         coaddPsf.computeKernelImage(coaddPsf.getAveragePosition())
 

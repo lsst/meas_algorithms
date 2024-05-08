@@ -36,6 +36,7 @@
 #include "lsst/base.h"
 #include "lsst/pex/exceptions.h"
 #include "lsst/geom/Box.h"
+#include "lsst/afw/detection/Psf.h"
 #include "lsst/afw/image/ImageUtils.h"
 #include "lsst/afw/math/Statistics.h"
 #include "lsst/meas/algorithms/CoaddPsf.h"
@@ -229,7 +230,7 @@ geom::Box2I CoaddPsf::doComputeBBox(geom::Point2D const &ccdXY, afw::image::Colo
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
-                pex::exceptions::InvalidParameterError,
+                lsst::afw::detection::InvalidPsfError,
                 (boost::format("Cannot compute BBox at point %s; no input images at that point.") % ccdXY)
                         .str());
     }
@@ -252,7 +253,7 @@ CoaddPsf::doComputeKernelImage(geom::Point2D const &ccdXY, afw::image::Color con
     afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
-                pex::exceptions::InvalidParameterError,
+                lsst::afw::detection::InvalidPsfError,
                 (boost::format("Cannot compute CoaddPsf at point %s; no input images at that point.") % ccdXY)
                         .str());
     }
