@@ -140,6 +140,11 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         dtype=float,
         default=4.0,
     )
+    doMedianShift = lsst.pex.config.Field(
+        doc="Do final shift to ensure medians match.",
+        dtype=bool,
+        default=True,
+    )
     allowFailure = lsst.pex.config.ListField(
         doc="Allow these measurement algorithms to fail without an exception.",
         dtype=str,
@@ -350,10 +355,18 @@ class MeasureApCorrTask(Task):
             if allBad:
                 continue
 
+            if self.config.doMedianShift:
+                med = np.median(fitValues - z)
+                coeffs = apCorrField.getCoefficients().copy()
+                coeffs[0, 0] -= med
+                apCorrField = ChebyshevBoundedField(bbox, coeffs)
+                fitValues = apCorrField.evaluate(x, y)
+
             self.log.info(
-                "Aperture correction for %s from %d stars: MAD %f, RMS %f",
+                "Aperture correction for %s from %d stars: med %f, MAD %f, RMS %f",
                 name,
                 len(x),
+                np.median(fitValues - z),
                 median_abs_deviation(fitValues - z, scale="normal"),
                 np.mean((fitValues - z)**2.)**0.5,
             )
