@@ -352,6 +352,9 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
                 Boolean array of sources that were selected, same length as
                 sourceCat. (`numpy.ndarray` of `bool`)
         """
+        if len(sourceCat) == 0:
+            raise RuntimeError("Input catalog for source selection is empty.")
+
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         displayExposure = lsstDebug.Info(__name__).displayExposure     # display the Exposure + spatialCells
