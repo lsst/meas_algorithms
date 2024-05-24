@@ -179,11 +179,31 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
 
 class MeasureApCorrTask(Task):
     """Task to measure aperture correction.
+
+    For every name to correct, a new field apcorr_{name}_used will
+    be added, and will be logged in self.toCorrect.
+
+    Parameters
+    ----------
+    schema : `lsst.afw.table.Schema`
+        Schema for the input table; will be modified in place to
+        add ``apcorr_{name}_used`` fields.
+    namesToCorrect : `list` [`str`], optional
+        List of names to correct.  If `None` then the set of
+        registered fields in lsst.meas.base.getApCorrNameSet()
+        will be used.
+    **kwargs : `dict`
+        Additional kwargs to pass to lsst.pipe.base.Task.__init__()
+
+    Raises
+    ------
+    MeasureApCorrError if any of the names to correct fails and is
+    not in the config.allowFailure list.
     """
     ConfigClass = MeasureApCorrConfig
     _DefaultName = "measureApCorr"
 
-    def __init__(self, schema, **kwargs):
+    def __init__(self, schema, namesToCorrect=None, **kwargs):
         """Construct a MeasureApCorrTask
 
         For every name in lsst.meas.base.getApCorrNameSet():
@@ -195,7 +215,8 @@ class MeasureApCorrTask(Task):
         Task.__init__(self, **kwargs)
         self.refFluxNames = _FluxNames(self.config.refFluxName, schema)
         self.toCorrect = {}  # dict of flux field name prefix: FluxKeys instance
-        for name in sorted(getApCorrNameSet()):
+        names = namesToCorrect if namesToCorrect else getApCorrNameSet()
+        for name in sorted(names):
             try:
                 self.toCorrect[name] = _FluxNames(name, schema)
             except KeyError:
