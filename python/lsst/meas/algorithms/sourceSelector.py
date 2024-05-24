@@ -32,6 +32,7 @@ import numpy as np
 import astropy.units as u
 import pandas
 import astropy.table
+import warnings
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -339,7 +340,12 @@ class SignalToNoiseLimit(BaseLimit):
         flux = _getFieldFromCatalog(catalog, self.fluxField)
         err = _getFieldFromCatalog(catalog, self.errField)
 
-        signalToNoise = flux/err
+        with warnings.catch_warnings():
+            # Suppress NaN warnings; these will be filtered below.
+            warnings.simplefilter("ignore")
+            signalToNoise = flux/err
+
+        selected &= ~np.isnan(signalToNoise)
         selected &= BaseLimit.apply(self, signalToNoise)
         return selected
 
