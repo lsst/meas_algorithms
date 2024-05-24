@@ -24,6 +24,7 @@
 import unittest
 import numpy as np
 import astropy.units as u
+import warnings
 
 import lsst.afw.table
 import lsst.meas.algorithms
@@ -116,6 +117,18 @@ class SourceSelectorTester:
         self.config.signalToNoise.minimum = 5.0
         self.config.signalToNoise.maximum = 100.0
         self.check([False, True, False])
+
+    def testSignalToNoiseNoWarn(self):
+        low = self.catalog.addNew()
+        low.set("other_flux", np.nan)
+        low.set("other_fluxErr", np.nan)
+        self.config.doSignalToNoise = True
+        self.config.signalToNoise.fluxField = "other_flux"
+        self.config.signalToNoise.errField = "other_fluxErr"
+        # Ensure no warnings are raised.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            self.check([False])
 
 
 class ScienceSourceSelectorTaskTest(SourceSelectorTester, lsst.utils.tests.TestCase):
