@@ -66,16 +66,15 @@ std::shared_ptr<afw::detection::Psf::Image> zeroPadImage(afw::detection::Psf::Im
     return out;
 }
 
-geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransform const &t) {
+geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, afw::geom::TransformPoint2ToPoint2 const &t, geom::Point2D const &dest_position) {
     // This is the maximum scaling I can imagine we'd want - it's approximately what you'd
     // get from trying to coadd 2"-pixel data (e.g. 2MASS) onto a 0.01"-pixel grid (e.g.
     // from JWST).  Anything beyond that is probably a bug elsewhere in the code, and
     // catching that can save us from segfaults and catastrophic memory consumption.
-    static const double maxTransformCoeff = 200.0;
-
-    if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
-        throw LSST_EXCEPT(pex::exceptions::RangeError, "Unexpectedly large transform passed to WarpedPsf");
-    }
+    // static const double maxTransformCoeff = 200.0;
+    // if (t.getLinear().getMatrix().lpNorm<Eigen::Infinity>() > maxTransformCoeff) {
+    //     throw LSST_EXCEPT(pex::exceptions::RangeError, "Unexpectedly large transform passed to WarpedPsf");
+    // }
 
     // Floating point version of input bbox (expanded to include entire pixels).
     geom::Box2D in_box_fp(bbox);
@@ -84,7 +83,7 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
     geom::Box2D out_box_fp;
     auto const in_corners = in_box_fp.getCorners();
     for (auto const & in_corner : in_corners) {
-        auto out_corner = t(in_corner);
+        auto out_corner = t.applyForward(in_corner);
         out_box_fp.include(out_corner);
     }
 
@@ -93,7 +92,7 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
     // and dilate by the floating-point box's half-dimensions.
     geom::Extent2I out_half_dims = geom::floor(0.5*out_box_fp.getDimensions());
     geom::Box2I out_box;
-    geom::Point2I out_center(0, 0);
+    geom::Point2I out_center(dest_position);
     out_box.include(out_center);
     return out_box.dilatedBy(out_half_dims);
 }
@@ -111,29 +110,7 @@ geom::Box2I computeBBoxFromTransform(geom::Box2I const bbox, geom::AffineTransfo
  *
  * The input image is assumed zero-padded.
  */
-std::shared_ptr<afw::detection::Psf::Image> warpAffine(afw::detection::Psf::Image const &im,
-                                                       geom::AffineTransform const &srcToDest,
-                                                       afw::math::WarpingControl const &wc) {
-    std::shared_ptr<afw::geom::TransformPoint2ToPoint2> srcToDestTransform =
-            afw::geom::makeTransform(srcToDest);
 
-    afw::math::SeparableKernel const &kernel = *wc.getWarpingKernel();
-    geom::Point2I const &center = kernel.getCtr();
-    int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
-    int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
-
-    // allocate output image
-    geom::Box2I bbox = computeBBoxFromTransform(im.getBBox(), srcToDest);
-
-    auto ret = std::make_shared<afw::detection::Psf::Image>(bbox);
-
-    // zero-pad input image
-    std::shared_ptr<afw::detection::Psf::Image> im_padded = zeroPadImage(im, xPad, yPad);
-
-    // warp it!
-    afw::math::warpImage(*ret, *im_padded, *srcToDestTransform, wc, 0.0);
-    return ret;
-}
 
 // A helper struct for logic and intermediate results used by both
 // doComputeKernelImage and doComputeBBox.
@@ -142,44 +119,6 @@ std::shared_ptr<afw::detection::Psf::Image> warpAffine(afw::detection::Psf::Imag
 // computes both a source position that corresponds to a rounded version of the
 // destination position and a transform from source to destination that also
 // undoes the rounding.
-struct PreparedTransforms {
-
-    static PreparedTransforms compute(
-        afw::detection::Psf const & src_psf,
-        afw::geom::TransformPoint2ToPoint2 const & distortion,
-        geom::PointD const & dest_position
-    ) {
-        // Linearize the transform from destination coordinates to source
-        // coordinates to avoid expensive WCS calls.
-        geom::AffineTransform dest_to_src = afw::geom::linearizeTransform(
-            *distortion.inverted(),
-            dest_position
-        );
-        // Instead of calling computeKernelImage on the source PSFs, we want to
-        // call computeImage with the source coordinate version of an
-        // integer-valued destination coordinate; that gives the lower-level PSF
-        // model the responsibility of doing the shifting from integer to
-        // fractional source coordinates, and it may be able to do a better job of
-        // that than we could do here (by e.g. using an internal analytic or
-        // oversampled model).  So here's that integer-valued destination position
-        // and the corresponding source position.
-        geom::Point2D rounded_dest_position(
-            std::round(dest_position.getX()),
-            std::round(dest_position.getY())
-        );
-        auto src_position = dest_to_src(rounded_dest_position);
-        // Now we want to warp by the inverse of src_to_dest, but we want the
-        // image to be centered at (0, 0), not rounded_dest_position, so we
-        // compose that trivial shift with the dest_to_src transform.
-        auto src_to_dest = geom::AffineTransform(dest_to_src.inverted());
-        auto unround = geom::AffineTransform(-geom::Extent2D(rounded_dest_position));
-        auto src_to_dest_unrounded = unround * src_to_dest;
-        return PreparedTransforms{src_position, src_to_dest_unrounded};
-    }
-
-    geom::Point2D src_position;
-    geom::AffineTransform src_to_dest_unrounded;
-};
 
 }  // namespace
 
@@ -234,13 +173,29 @@ std::shared_ptr<afw::detection::Psf> WarpedPsf::resized(int width, int height) c
 
 std::shared_ptr<afw::detection::Psf::Image> WarpedPsf::doComputeKernelImage(
         geom::Point2D const &position, afw::image::Color const &color) const {
-    auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
-    std::shared_ptr<Image> src_im = _undistortedPsf->computeImage(prepared_transforms.src_position, color);
-    std::shared_ptr<afw::detection::Psf::Psf::Image> ret = warpAffine(
-        *src_im,
-        prepared_transforms.src_to_dest_unrounded,
-        *_warpingControl
+    geom::Point2D rounded_dest_position(
+            std::round(position.getX()),
+            std::round(position.getY())
+        );
+    auto src_position = _distortion->applyInverse(rounded_dest_position);
+    std::shared_ptr<Image> src_im = _undistortedPsf->computeImage(src_position, color);
+
+    afw::math::SeparableKernel const &kernel = *_warpingControl->getWarpingKernel();
+    geom::Point2I const &center = kernel.getCtr();
+    int const xPad = std::max(center.getX(), kernel.getWidth() - center.getX());
+    int const yPad = std::max(center.getY(), kernel.getHeight() - center.getY());
+    auto padded_src_im = zeroPadImage(*src_im, xPad, yPad);
+
+    auto ret = std::make_shared<afw::detection::Psf::Image>(computeBBoxFromTransform(padded_src_im->getBBox(), *_distortion, rounded_dest_position));
+
+    afw::math::warpImage(
+        *ret,
+        *padded_src_im,
+        *_distortion,
+        *_warpingControl,
+        0.0
     );
+    ret->setXY0(-ret->getBBox().getDimensions().getX() / 2, -ret->getBBox().getDimensions().getY() / 2);
 
     double normFactor = 1.0;
     //
@@ -262,9 +217,7 @@ std::shared_ptr<afw::detection::Psf::Image> WarpedPsf::doComputeKernelImage(
 }
 
 geom::Box2I WarpedPsf::doComputeBBox(geom::Point2D const &position, afw::image::Color const &color) const {
-    auto prepared_transforms = PreparedTransforms::compute(*_undistortedPsf, *_distortion, position);
-    auto src_bbox = _undistortedPsf->computeImageBBox(prepared_transforms.src_position, color);
-    return computeBBoxFromTransform(src_bbox, prepared_transforms.src_to_dest_unrounded);
+    throw LSST_EXCEPT(pex::exceptions::LogicError, "Not Implemented");
 }
 
 namespace {
