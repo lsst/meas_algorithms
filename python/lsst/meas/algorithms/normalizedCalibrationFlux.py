@@ -31,6 +31,35 @@ from .measureApCorr import MeasureApCorrTask, MeasureApCorrError
 from .sourceSelector import sourceSelectorRegistry
 
 
+class NormalizedCalibrationFluxError(lsst.pipe.base.AlgorithmError):
+    """Raised if Aperture Correction fails in a non-recoverable way.
+
+    Parameters
+    ----------
+    initNSources : `int`
+        Number of sources selected by the fallback source selector.
+    nCalibFluxFlag : `int`
+        Number of selected sources with raw calibration flux flag unset.
+    nRefFluxFlag : `int`
+        Number of selected sources with reference flux flag unset.
+    """
+    def __init__(self, *, initNSources, nCalibFluxFlag, nRefFluxFlag):
+        msg = "There are no valid stars to compute normalized calibration fluxes."
+        msg += (f" Of {initNSources} initially selected sources, {nCalibFluxFlag} have good raw calibration "
+                f"fluxes and {nRefFluxFlag} have good reference fluxes.")
+        super().__init__(msg)
+        self.initNSources = initNSources
+        self.nCalibFluxFlag = nCalibFluxFlag
+        self.nRefFluxFlag = nRefFluxFlag
+
+    @property
+    def metadata(self):
+        metadata = {"nInitSources": self.initNSources,
+                    "nCalibFluxFlag": self.nCalibFluxFlag,
+                    "nRefFluxFlag": self.nRefFluxFlag}
+        return metadata
+
+
 class NormalizedCalibrationFluxConfig(lsst.pex.config.Config):
     """Configuration parameters for NormalizedCalibrationFluxTask.
     """
@@ -99,6 +128,11 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
         Schema for the input table; will be modified in place.
     **kwargs : `dict`
         Additional kwargs to pass to lsst.pipe.base.Task.__init__()
+
+    Raises
+    ------
+    NormalizedCalibrationFluxError if there are not enough sources to
+    calculate normalization.
     """
     ConfigClass = NormalizedCalibrationFluxConfig
     _DefaultName = "normalizedCalibrationFlux"
@@ -253,18 +287,23 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
             ).apCorrMap
 
             ap_corr_field = ap_corr_map.get(raw_name + "_instFlux")
-        except MeasureApCorrError:
-            self.log.warning("Failed to measure full aperture correction for %s", raw_name)
+        except MeasureApCorrError as e:
+            self.log.warning("Failed to measure full aperture correction for %s with the following error %s",
+                             raw_name, e)
 
-            sel = self.fallback_source_selector.run(catalog, exposure=exposure).selected
-            sel &= (~catalog[self.config.raw_calibflux_name + "_flag"]
-                    & ~catalog[self.config.measure_ap_corr.refFluxName + "_flag"])
+            initSel = self.fallback_source_selector.run(catalog, exposure=exposure).selected
+            sel = (initSel & ~catalog[self.config.raw_calibflux_name + "_flag"]
+                   & ~catalog[self.config.measure_ap_corr.refFluxName + "_flag"])
 
             n_sel = sel.sum()
 
             if n_sel == 0:
                 # This is a fatal error.
-                raise RuntimeError("There are no valid stars to compute normalized calibration fluxes.")
+                raise NormalizedCalibrationFluxError(
+                    initNSources=initSel.sum(),
+                    nCalibFluxFlag=(initSel & ~catalog[self.config.raw_calibflux_name + "_flag"]).sum(),
+                    nRefFluxFlag=(initSel & ~catalog[self.config.measure_ap_corr.refFluxName + "_flag"]).sum()
+                )
             self.log.info("Measuring normalized flux correction with %d stars from fallback selector.",
                           n_sel)
 
