@@ -22,6 +22,7 @@
 import unittest
 
 import numpy as np
+import logging
 
 import lsst.afw.image
 import lsst.afw.table
@@ -245,15 +246,19 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         catalog_run2 = self._make_catalog(norm_task.schema)
 
         # Try without setting an aperture correction map at all.
-        with self.assertRaisesRegex(RuntimeError, "no aperture correction map"):
-            norm_task2.run(catalog=catalog_run2, exposure=exposure_run1)
+        with self.assertLogs(level=logging.WARNING) as cm:
+            _ = norm_task2.run(catalog=catalog_run2, exposure=exposure_run1)
+        warnings = '\n'.join(cm.output)
+        self.assertIn("does not have a valid normalization", warnings)
 
         # Try again after setting an incomplete aperture correction map.
         ap_corr_map_blank = lsst.afw.image.ApCorrMap()
         exposure_run1.info.setApCorrMap(ap_corr_map_blank)
 
-        with self.assertRaisesRegex(RuntimeError, "not in exposure aperture correction map"):
-            norm_task2.run(catalog=catalog_run2, exposure=exposure_run1)
+        with self.assertLogs(level=logging.WARNING) as cm:
+            _ = norm_task2.run(catalog=catalog_run2, exposure=exposure_run1)
+        warnings = '\n'.join(cm.output)
+        self.assertIn("aperture correction map is missing base_CompensatedTophatFlux_12_instFlux", warnings)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
