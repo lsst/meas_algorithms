@@ -26,6 +26,7 @@
 # Note that it is invoked independently by SCons, so the tests are still run
 # as part of the build.
 
+import logging
 import os.path
 import tempfile
 import unittest
@@ -127,7 +128,7 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
 
         self.tempDir = tempfile.TemporaryDirectory()
         tempPath = self.tempDir.name
-        self.log = lsst.log.Log.getLogger("lsst.TestConvertRefcatManager")
+        self.log = logging.getLogger("lsst.TestConvertRefcatManager")
         self.config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
         self.depth = 2  # very small depth, for as few pixels as possible.

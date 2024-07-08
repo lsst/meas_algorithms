@@ -27,6 +27,7 @@ import unittest
 import unittest.mock
 import tempfile
 import itertools
+import logging
 
 from lsst.afw.table import SimpleCatalog
 from lsst.pex.config import FieldValidationError
@@ -285,7 +286,7 @@ class ConvertGaiaManagerTests(convertReferenceCatalogTestBase.ConvertReferenceCa
 
         self.tempDir = tempfile.TemporaryDirectory()
         tempPath = self.tempDir.name
-        self.log = lsst.log.Log.getLogger("lsst.TestConvertRefcatManager")
+        self.log = logging.getLogger("lsst.TestConvertRefcatManager")
         self.config = convertReferenceCatalogTestBase.makeConvertConfig(withRaDecErr=True)
         self.config.id_name = 'id'
         self.config.full_position_information = True

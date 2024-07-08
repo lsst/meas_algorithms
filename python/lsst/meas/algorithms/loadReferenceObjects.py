@@ -839,7 +839,7 @@ def applyProperMotionsImpl(log, catalog, epoch):
 
     Parameters
     ----------
-    log : `lsst.log.Log` or `logging.getLogger`
+    log : `lsst.log.Log` or `logging.Logger`
         Log object to write to.
     catalog : `lsst.afw.table.SimpleCatalog`
         Catalog of positions, containing:
