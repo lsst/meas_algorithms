@@ -175,16 +175,28 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
         if self.config.do_measure_ap_corr:
             ap_corr_field, ap_corr_err_field = self._measure_aperture_correction(exposure, catalog)
         else:
+            use_identity = False
             ap_corr_map = exposure.info.getApCorrMap()
             if ap_corr_map is None:
-                raise RuntimeError("NormalizedCalibrationFluxTask is configured with "
-                                   "do_measure_ap_corr=False but exposure has no aperture correction map.")
-            ap_corr_field = ap_corr_map.get(raw_flux_name)
-            ap_corr_err_field = ap_corr_map.get(raw_fluxerr_name)
-            if not ap_corr_field or not ap_corr_err_field:
-                raise RuntimeError("NormalizedCalibrationFlux is configured with "
-                                   f"do_measure_ap_corr=False but {raw_flux_name}/{raw_fluxerr_name} "
-                                   "not in exposure aperture correction map.")
+                self.log.warning(
+                    "Exposure does not have a valid normalization map; using identity normalization.",
+                )
+                use_identity = True
+            else:
+                ap_corr_field = ap_corr_map.get(raw_flux_name)
+                ap_corr_err_field = ap_corr_map.get(raw_fluxerr_name)
+                if not ap_corr_field or not ap_corr_err_field:
+                    self.log.warning(
+                        "Exposure aperture correction map is missing %s/%s for normalization; "
+                        "using identity normalization.",
+                        raw_flux_name,
+                        raw_fluxerr_name,
+                    )
+                    use_identity = True
+
+            if use_identity:
+                ap_corr_field = ChebyshevBoundedField(exposure.getBBox(), np.array([[1.0]]))
+                ap_corr_err_field = ChebyshevBoundedField(exposure.getBBox(), np.array([[0.0]]))
 
         corrections = ap_corr_field.evaluate(
             catalog["slot_Centroid_x"],
