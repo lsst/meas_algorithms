@@ -27,7 +27,7 @@ import numpy as np
 __all__ = ['AccumulatorMeanStack']
 
 
-class AccumulatorMeanStack(object):
+class AccumulatorMeanStack:
     """Stack masked images.
 
     Parameters
@@ -99,9 +99,8 @@ class AccumulatorMeanStack(object):
         ----------
         masked_image : `lsst.afw.image.MaskedImage`
             Masked image to add to the stack.
-        weight : `float` or `np.ndarray`, optional
-            Weight to apply for weighted mean.  If an array,
-            must be same size and shape as input masked_image.
+        weight : `float`, optional
+            Weight to apply for weighted mean.
         """
         good_pixels = np.where(((masked_image.mask.array & self.bit_mask_value) == 0)
                                & np.isfinite(masked_image.mask.array))
@@ -187,9 +186,8 @@ class AccumulatorMeanStack(object):
         ----------
         image : `lsst.afw.image.Image`
             Image to add to the stack.
-        weight : `float` or `np.ndarray`, optional
-            Weight to apply for weighted mean.  If an array,
-            must be same size and shape as input image.
+        weight : `float`, optional
+            Weight to apply for weighted mean.
         """
         self.sum_weight[:, :] += weight
         self.sum_wdata[:, :] += weight*image.array[:]
