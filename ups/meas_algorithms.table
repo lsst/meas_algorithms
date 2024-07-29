@@ -11,6 +11,7 @@ setupRequired(sconsUtils)
 setupRequired(utils)
 setupRequired(cpputils)
 setupRequired(kht)
+setupRequired(obs_base)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
