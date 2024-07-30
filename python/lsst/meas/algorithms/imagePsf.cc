@@ -22,7 +22,7 @@
 #include "pybind11/pybind11.h"
 #include "lsst/cpputils/python.h"
 
-#include "lsst/utils/python/PySharedPtr.h"
+#include "lsst/cpputils/python/PySharedPtr.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/algorithms/python.h"
@@ -30,7 +30,7 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-using lsst::utils::python::PySharedPtr;
+using lsst::cpputils::python::PySharedPtr;
 
 namespace lsst {
 namespace meas {
