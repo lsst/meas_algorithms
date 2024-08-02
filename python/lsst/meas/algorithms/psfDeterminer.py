@@ -72,14 +72,15 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
     def __init__(self, config, schema=None, **kwds):
         pipeBase.Task.__init__(self, config=config, **kwds)
 
-    def downsampleCandidates(self, inputCandidateList):
+    def downsampleCandidates(self, inputCandidateList, paramsCandidateList=None):
         """Down-sample candidates from the input candidate list.
 
         Parameters
         ----------
         inputCandidateList : `list` [`lsst.meas.algorithms.PsfCandidate`]
             Input candidate list.
-
+        paramsCandidateList : `list` [`float`], optional
+            List of parameters associated with each candidate (ex: color).
         Returns
         -------
         outputCandidateList : `list` [`lsst.meas.algorithms.PsfCandidate`]
@@ -100,8 +101,11 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
         selection = np.sort(selection)
 
         outputCandidateList = [inputCandidateList[index] for index in selection]
-
-        return outputCandidateList
+        if paramsCandidateList is not None:
+            outputParamsCandidateList = [paramsCandidateList[index] for index in selection]
+            return outputCandidateList, outputParamsCandidateList
+        else:
+            return outputCandidateList, None
 
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
