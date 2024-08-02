@@ -101,11 +101,13 @@ class BasePsfDeterminerTask(pipeBase.Task, metaclass=abc.ABCMeta):
         selection = np.sort(selection)
 
         outputCandidateList = [inputCandidateList[index] for index in selection]
+        # TO DO: This is dirty. need to find a way to pack that in
+        # pipetask / finilazeCharacterization.py  and make that as a whole in input.
         if paramsCandidateList is not None:
             outputParamsCandidateList = [paramsCandidateList[index] for index in selection]
             return outputCandidateList, outputParamsCandidateList
         else:
-            return outputCandidateList, None
+            return outputCandidateList
 
     @abc.abstractmethod
     def determinePsf(self, exposure, psfCandidateList, metadata=None, flagKey=None):
