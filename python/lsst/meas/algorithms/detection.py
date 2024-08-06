@@ -774,7 +774,7 @@ class SourceDetectionTask(pipeBase.Task):
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
             middle = convolveResults.middle
             sigma = convolveResults.sigma
-            self.removeBadPixels(middle)
+            self.removeBadPixels(middle, exposure.maskedImage.mask)
 
             results = self.applyThreshold(middle, maskedImage.getBBox())
             results.background = background if background is not None else afwMath.BackgroundList()
@@ -799,17 +799,20 @@ class SourceDetectionTask(pipeBase.Task):
 
         return results
 
-    def removeBadPixels(self, middle):
+    def removeBadPixels(self, middle, mask):
         """Set the significance of flagged pixels to zero.
 
         Parameters
         ----------
-        middle : `lsst.afw.image.ExposureF`
-            Score or maximum likelihood difference image.
+        middle : `lsst.afw.image.Exposure` or `lsst.afw.image.MaskedImage`
+            Convolved image to zero certain mask planes from.
             The image plane will be modified in place.
+        mask : `lsst.afw.image.Mask`
+            Mask to select planes from to zero the image; will be restricted
+            to the image's bounding box.
         """
-        badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(self.config.excludeMaskPlanes)
-        badPixels = middle.mask.array & badPixelMask > 0
+        badPixelMask = mask.getPlaneBitMask(self.config.excludeMaskPlanes)
+        badPixels = mask.subset(middle.getBBox()).array & badPixelMask > 0
         middle.image.array[badPixels] = 0
 
     def setPeakSignificance(self, exposure, footprints, threshold, negative=False):
