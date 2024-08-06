@@ -771,13 +771,22 @@ class SourceDetectionTask(pipeBase.Task):
 
         psf = self.getPsf(exposure, sigma=sigma)
         with self.tempWideBackgroundContext(exposure):
+            import lsst.afw.display
+            display = lsst.afw.display.Display()
+            display.frame = 1
+            display.image(exposure)
+
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
             middle = convolveResults.middle
             sigma = convolveResults.sigma
+            display.frame = 2
+            display.image(middle)
             self.removeBadPixels(middle, exposure.maskedImage.mask)
 
             results = self.applyThreshold(middle, maskedImage.getBBox())
             results.background = background if background is not None else afwMath.BackgroundList()
+            display.frame = 3
+            display.image(convolveResults.middle)
 
             if self.config.doTempLocalBackground:
                 self.applyTempLocalBackground(exposure, middle, results)
@@ -794,6 +803,9 @@ class SourceDetectionTask(pipeBase.Task):
                 self.reEstimateBackground(maskedImage, results.background)
 
             self.clearUnwantedResults(maskedImage.getMask(), results)
+            display.frame = 4
+            display.image(exposure)
+            import ipdb; ipdb.set_trace();
 
             self.display(exposure, results, middle)
 
