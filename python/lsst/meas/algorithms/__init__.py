@@ -61,12 +61,15 @@ from .brightStarStamps import *
 from .accumulator_mean_stack import *
 from .scaleVariance import *
 from .noise_covariance import *
+from .gp_interpolation import *
+from .interp import *
 from .reinterpolate_pixels import *
 from .setPrimaryFlags import *
 from .coaddBoundedField import *
 from .variance_plane import *
 from .maskStreaks import *
 from .normalizedCalibrationFlux import *
+from .gp_interpolation import *
 
 from .version import *
 
