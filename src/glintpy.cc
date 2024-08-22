@@ -1,7 +1,7 @@
 // March 21, 2023: heliohypy (heliocentric hypothesis code for python)
 // Implementation of make_tracklets for python.
 
-#include "/lsst/meas/algorithms/glintlib.h"
+#include "lsst/meas/algorithms/glintlib.h"
 #include "cmath"
 
 #include <pybind11/pybind11.h>
@@ -78,20 +78,6 @@ py::array vec_to_ndarray(std::vector<T> const& vec) {
     return py_vec;
 }
 
-py::array iotest02(py::array_t<hldet> py_ioin)
-{
-  std::vector <hldet> iovec = ndarray_to_vec(py_ioin);
-  long unsigned int i=0;
-  for(i=0; i<iovec.size(); i++) {
-    std::cout << iovec[i].MJD << " " << iovec[i].RA << " " << iovec[i].Dec << " " << iovec[i].mag << " " << iovec[i].trail_len << " " << iovec[i].trail_PA << " " << iovec[i].sigmag  << " " << iovec[i].sig_across << " " << iovec[i].sig_along << " " << iovec[i].image << " " << iovec[i].idstring << " " << iovec[i].band << " " << iovec[i].obscode << " " << iovec[i].index << "\n";
-    iovec[i].MJD += MJDOFF;
-  }
-
-  auto py_ioout = vec_to_ndarray<hldet>(iovec);
-  return(py_ioout);
-}
-
-
 
 // findGlints: July 17, 2024:
 // Minimalist wrapper, only handles the python <-> C++ translations.
@@ -154,8 +140,6 @@ PYBIND11_MODULE(glintpy, m) {
       .def_readwrite("freq_upscale", &FindGlintsConfig::freq_upscale)
       .def_readwrite("max_phase_err", &FindGlintsConfig::max_phase_err);
 
-    
-    m.def("iotest02", &iotest02, "A function to test python I/O");
     m.def("findGlints", &findGlints, "Identify glint trails produced by space junk, using pixel x,y coordinates");
 }
 
