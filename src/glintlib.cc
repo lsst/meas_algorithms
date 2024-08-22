@@ -1,4 +1,4 @@
-#include "glintlib.h"
+#include "lsst/meas/algorithms/glintlib.h"
 #include "cmath"
 
 #define DEBUG 0

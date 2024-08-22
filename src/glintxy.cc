@@ -3,7 +3,7 @@
 // does not rely on solarsyst_dyn_geo01.
 
 
-#include "glintlib.h"
+#include "lsst/meas/algorithms/glintlib.h"
 #include "cmath"
 
       
