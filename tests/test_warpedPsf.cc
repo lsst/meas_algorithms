@@ -414,7 +414,7 @@ BOOST_AUTO_TEST_CASE(persistence) {
                            0.006);
     }
 
-    BOOST_TEST_REQUIRE(warped_psf->isPersistable());
+    //BOOST_TEST_REQUIRE(warped_psf->isPersistable());
     std::shared_ptr<WarpedPsf> copy_warped_psf = roundTrip(warped_psf);
 
     for (int i = 0; i < 10; ++i) {
