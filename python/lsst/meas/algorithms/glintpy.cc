@@ -2,6 +2,7 @@
 // Implementation of make_tracklets for python.
 
 #include "lsst/meas/algorithms/glintlib.h"
+#include "lsst/cpputils/python.h"
 #include "cmath"
 
 #include <pybind11/pybind11.h>
@@ -113,9 +114,35 @@ template <typename S>
 py::array_t<S> create_recarray(size_t n) {
     return py::array_t<S>(n);
 }
-#define NDARRAY_FACTORY(S) m.def("create_" #S, &create_recarray<S>);
+#define NDARRAY_FACTORY(S) mod.def("create_" #S, &create_recarray<S>);
 
-PYBIND11_MODULE(glintpy, m) {
+void wrapFindGlints(lsst::cpputils::python::WrapperCollection &wrappers) {
+  wrappers.wrapType(py::class_<FindGlintsConfig>(m, "FindGlintsConfig"),[](auto &mod, auto &cls){
+      cls.def(py::init<>())
+      cls.def_readwrite("minpoints", &FindGlintsConfig::minpoints) 
+      cls.def_readwrite("maxgcr", &FindGlintsConfig::maxgcr)
+      cls.def_readwrite("maxrange", &FindGlintsConfig::maxrange)
+      cls.def_readwrite("centerknown", &FindGlintsConfig::centerknown)
+      cls.def_readwrite("incenRA", &FindGlintsConfig::incenRA)
+      cls.def_readwrite("incenDec", &FindGlintsConfig::incenDec)
+      cls.def_readwrite("freq_downscale", &FindGlintsConfig::freq_downscale)
+      cls.def_readwrite("freq_upscale", &FindGlintsConfig::freq_upscale)
+      cls.def_readwrite("max_phase_err", &FindGlintsConfig::max_phase_err);
+  });
+  
+  wrappers.wrap([](auto &mod){
+    
+    PYBIND11_NUMPY_DTYPE(longpair, i1, i2);
+    PYBIND11_NUMPY_DTYPE(point3d_index, x, y, z, index);
+    PYBIND11_NUMPY_DTYPE(glint_trail, x, y, length, PA, linrms, eqrms, magmean, magrms, stepsize, qc1, npt, flashnum);
+		     
+    NDARRAY_FACTORY(longpair)
+    NDARRAY_FACTORY(point3d_index)
+    NDARRAY_FACTORY(glint_trail)
+    mod.def("findGlints", &findGlints, "Identify glint trails produced by space junk, using pixel x,y coordinates");
+  });
+		
+  /*PYBIND11_MODULE(glintpy, m) {
     m.doc() = "pybind11 I/O test"; // optional module docstring
     
     PYBIND11_NUMPY_DTYPE(longpair, i1, i2);
@@ -140,7 +167,5 @@ PYBIND11_MODULE(glintpy, m) {
       .def_readwrite("freq_upscale", &FindGlintsConfig::freq_upscale)
       .def_readwrite("max_phase_err", &FindGlintsConfig::max_phase_err);
 
-    m.def("findGlints", &findGlints, "Identify glint trails produced by space junk, using pixel x,y coordinates");
+      */
 }
-
-

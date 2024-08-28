@@ -45,6 +45,7 @@ void wrapCoaddPsf(WrapperCollection &wrappers);
 void wrapCoaddBoundedField(WrapperCollection &wrappers);
 void wrapCr(WrapperCollection &wrappers);
 void wrapCloughTocher2DInterpolatorUtils(WrapperCollection &wrappers);
+void wrapFindGlints(WrapperCollection &wrappers);
 
 PYBIND11_MODULE(_algorithmsLib, mod) {
 WrapperCollection wrappers(mod, "lsst.meas.algorithms");
@@ -67,6 +68,7 @@ WrapperCollection wrappers(mod, "lsst.meas.algorithms");
     wrapCoaddBoundedField(wrappers);
     wrapCr(wrappers);
     wrapCloughTocher2DInterpolatorUtils(wrappers);
+    wrapFindGlints(wrappers);
     wrappers.finish();
 }
 
