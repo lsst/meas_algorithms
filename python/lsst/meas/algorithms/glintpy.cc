@@ -117,7 +117,7 @@ py::array_t<S> create_recarray(size_t n) {
 #define NDARRAY_FACTORY(S) mod.def("create_" #S, &create_recarray<S>);
 
 void wrapFindGlints(lsst::cpputils::python::WrapperCollection &wrappers) {
-  wrappers.wrapType(py::class_<FindGlintsConfig>(mod, "FindGlintsConfig"),[](auto &mod, auto &cls){
+  wrappers.wrapType(py::class_<FindGlintsConfig>(wrappers.module, "FindGlintsConfig"),[](auto &mod, auto &cls){
     cls.def(py::init<>());
     cls.def_readwrite("minpoints", &FindGlintsConfig::minpoints);
     cls.def_readwrite("maxgcr", &FindGlintsConfig::maxgcr);
