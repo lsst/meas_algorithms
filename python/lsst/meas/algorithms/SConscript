@@ -10,6 +10,7 @@ scripts.BasicSConscript.python(['_algorithmsLib'], [
     'coaddTransmissionCurve.cc',
     'doubleGaussianPsf.cc',
     'imagePsf.cc',
+    'glintpy.cc',
     'interp.cc',
     'kernelPsf.cc',
     'pcaPsf.cc',
