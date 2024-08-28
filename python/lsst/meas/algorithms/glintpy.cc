@@ -116,6 +116,10 @@ py::array_t<S> create_recarray(size_t n) {
 }
 #define NDARRAY_FACTORY(S) mod.def("create_" #S, &create_recarray<S>);
 
+namespace lsst{
+  namespace meas{
+    namespace algorithms{
+      
 void wrapFindGlints(lsst::cpputils::python::WrapperCollection &wrappers) {
   wrappers.wrapType(py::class_<FindGlintsConfig>(wrappers.module, "FindGlintsConfig"),[](auto &mod, auto &cls){
     cls.def(py::init<>());
@@ -168,4 +172,7 @@ void wrapFindGlints(lsst::cpputils::python::WrapperCollection &wrappers) {
       .def_readwrite("max_phase_err", &FindGlintsConfig::max_phase_err);
 
       */
+}
+    }    
+  }
 }
