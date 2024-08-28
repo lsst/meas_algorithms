@@ -117,17 +117,17 @@ py::array_t<S> create_recarray(size_t n) {
 #define NDARRAY_FACTORY(S) mod.def("create_" #S, &create_recarray<S>);
 
 void wrapFindGlints(lsst::cpputils::python::WrapperCollection &wrappers) {
-  wrappers.wrapType(py::class_<FindGlintsConfig>(m, "FindGlintsConfig"),[](auto &mod, auto &cls){
-      cls.def(py::init<>())
-      cls.def_readwrite("minpoints", &FindGlintsConfig::minpoints) 
-      cls.def_readwrite("maxgcr", &FindGlintsConfig::maxgcr)
-      cls.def_readwrite("maxrange", &FindGlintsConfig::maxrange)
-      cls.def_readwrite("centerknown", &FindGlintsConfig::centerknown)
-      cls.def_readwrite("incenRA", &FindGlintsConfig::incenRA)
-      cls.def_readwrite("incenDec", &FindGlintsConfig::incenDec)
-      cls.def_readwrite("freq_downscale", &FindGlintsConfig::freq_downscale)
-      cls.def_readwrite("freq_upscale", &FindGlintsConfig::freq_upscale)
-      cls.def_readwrite("max_phase_err", &FindGlintsConfig::max_phase_err);
+  wrappers.wrapType(py::class_<FindGlintsConfig>(mod, "FindGlintsConfig"),[](auto &mod, auto &cls){
+    cls.def(py::init<>());
+    cls.def_readwrite("minpoints", &FindGlintsConfig::minpoints);
+    cls.def_readwrite("maxgcr", &FindGlintsConfig::maxgcr);
+    cls.def_readwrite("maxrange", &FindGlintsConfig::maxrange);
+    cls.def_readwrite("centerknown", &FindGlintsConfig::centerknown);
+    cls.def_readwrite("incenRA", &FindGlintsConfig::incenRA);
+    cls.def_readwrite("incenDec", &FindGlintsConfig::incenDec);
+    cls.def_readwrite("freq_downscale", &FindGlintsConfig::freq_downscale);
+    cls.def_readwrite("freq_upscale", &FindGlintsConfig::freq_upscale);
+    cls.def_readwrite("max_phase_err", &FindGlintsConfig::max_phase_err);
   });
   
   wrappers.wrap([](auto &mod){
