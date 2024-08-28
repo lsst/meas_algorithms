@@ -67,7 +67,6 @@ from .coaddBoundedField import *
 from .variance_plane import *
 from .maskStreaks import *
 from .normalizedCalibrationFlux import *
-from .glintpy import *
 
 from .version import *
 
