@@ -136,14 +136,21 @@ class CloughTocher2DInterpolateTask(Task):
             ctUtils.updateArrayFromImage(goodpix, maskedImage.image)
 
         # Construct the interpolant with goodpix.
+        if self.config.flipXY:
+            anchor_points = list(zip(goodpix[:, 1], goodpix[:, 0]))
+            query_points = badpix[:, 1::-1]
+        else:
+            anchor_points = list(zip(goodpix[:, 0], goodpix[:, 1]))
+            query_points = badpix[:, :2]
+
         interpolator = CloughTocher2DInterpolator(
-            list(zip(goodpix[:, 0], goodpix[:, 1])),
+            anchor_points,
             goodpix[:, 2],
             fill_value=self.config.fillValue,
         )
 
         # Compute the interpolated values at bad pixel locations.
-        badpix[:, 2] = interpolator(badpix[:, :2])
+        badpix[:, 2] = interpolator(query_points)
 
         # Fill in the bad pixels.
         ctUtils.updateImageFromArray(maskedImage.image, badpix)
