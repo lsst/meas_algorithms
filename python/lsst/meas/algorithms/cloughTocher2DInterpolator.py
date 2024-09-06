@@ -51,6 +51,13 @@ class CloughTocher2DInterpolateConfig(Config):
         default=4,
         check=lambda x: x >= 1,
     )
+    flipXY = Field[bool](
+        doc="Whether to flip the x and y coordinates before constructing the "
+        "Delaunay triangulation. This may produce a slightly different result "
+        "since the triangulation is not guaranteed to be invariant under "
+        "coordinate flips.",
+        default=False,
+    )
 
 
 class CloughTocher2DInterpolateTask(Task):
