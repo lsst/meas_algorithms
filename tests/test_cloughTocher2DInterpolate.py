@@ -63,6 +63,14 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
         self.maskedimage.mask[:, 110:111] = afwImage.Mask.getPlaneBitMask("BAD")
         self.maskedimage.image[:, 110:111] = np.nan
 
+        # Set an asymmetric region as BAD
+        self.maskedimage.mask[41:42, 63:66] = afwImage.Mask.getPlaneBitMask("SAT")
+        self.maskedimage.image[41:42, 63:66] = np.nan
+        self.maskedimage.mask[42:43, 63:65] = afwImage.Mask.getPlaneBitMask("SAT")
+        self.maskedimage.image[42:43, 63:65] = np.nan
+        self.maskedimage.mask[44, 63] = afwImage.Mask.getPlaneBitMask("SAT")
+        self.maskedimage.image[44, 63] = np.nan
+
         # Set a diagonal set of pixels as CR
         for i in range(74, 78):
             self.maskedimage.mask[i, i] = afwImage.Mask.getPlaneBitMask("CR")
