@@ -51,6 +51,13 @@ class CloughTocher2DInterpolateConfig(Config):
         default=4,
         check=lambda x: x >= 1,
     )
+    flipXY = Field[bool](
+        doc="Whether to flip the x and y coordinates before constructing the "
+        "Delaunay triangulation. This may produce a slightly different result "
+        "since the triangulation is not guaranteed to be invariant under "
+        "coordinate flips.",
+        default=True,
+    )
 
 
 class CloughTocher2DInterpolateTask(Task):
@@ -129,14 +136,21 @@ class CloughTocher2DInterpolateTask(Task):
             ctUtils.updateArrayFromImage(goodpix, maskedImage.image)
 
         # Construct the interpolant with goodpix.
+        if self.config.flipXY:
+            anchor_points = list(zip(goodpix[:, 1], goodpix[:, 0]))
+            query_points = badpix[:, 1::-1]
+        else:
+            anchor_points = list(zip(goodpix[:, 0], goodpix[:, 1]))
+            query_points = badpix[:, :2]
+
         interpolator = CloughTocher2DInterpolator(
-            list(zip(goodpix[:, 0], goodpix[:, 1])),
+            anchor_points,
             goodpix[:, 2],
             fill_value=self.config.fillValue,
         )
 
         # Compute the interpolated values at bad pixel locations.
-        badpix[:, 2] = interpolator(badpix[:, :2])
+        badpix[:, 2] = interpolator(query_points)
 
         # Fill in the bad pixels.
         ctUtils.updateImageFromArray(maskedImage.image, badpix)

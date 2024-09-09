@@ -63,6 +63,14 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
         self.maskedimage.mask[:, 110:111] = afwImage.Mask.getPlaneBitMask("BAD")
         self.maskedimage.image[:, 110:111] = np.nan
 
+        # Set an asymmetric region as BAD
+        self.maskedimage.mask[41:42, 63:66] = afwImage.Mask.getPlaneBitMask("SAT")
+        self.maskedimage.image[41:42, 63:66] = np.nan
+        self.maskedimage.mask[42:43, 63:65] = afwImage.Mask.getPlaneBitMask("SAT")
+        self.maskedimage.image[42:43, 63:65] = np.nan
+        self.maskedimage.mask[44, 63] = afwImage.Mask.getPlaneBitMask("SAT")
+        self.maskedimage.image[44, 63] = np.nan
+
         # Set a diagonal set of pixels as CR
         for i in range(74, 78):
             self.maskedimage.mask[i, i] = afwImage.Mask.getPlaneBitMask("CR")
@@ -85,8 +93,8 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
         np.random.seed(12345)
         self.noise.image.array[:, :] = np.random.normal(size=self.noise.image.array.shape)
 
-    @lsst.utils.tests.methodParameters(n_runs=(1, 2))
-    def test_interpolation(self, n_runs: int):
+    @lsst.utils.tests.methodParametersProduct(n_runs=(1, 2), flipXY=(False, True))
+    def test_interpolation(self, n_runs: int, flipXY: bool):
         """Test that the interpolation is done correctly.
 
         Parameters
@@ -94,6 +102,8 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
         n_runs : `int`
             Number of times to run the task. Running the task more than once
             should have no effect.
+        flipXY : `bool`
+            Whether to set the flipXY config parameter to True.
         """
         config = CloughTocher2DInterpolateTask.ConfigClass()
         config.badMaskPlanes = (
@@ -103,6 +113,7 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             "EDGE",
         )
         config.fillValue = 0.5
+        config.flipXY = flipXY
         task = CloughTocher2DInterpolateTask(config)
         for n in range(n_runs):
             task.run(self.maskedimage)
@@ -127,8 +138,14 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             atol=1e-08,
         )
 
-    @lsst.utils.tests.methodParametersProduct(pass_badpix=(True, False), pass_goodpix=(True, False))
-    def test_interpolation_with_noise(self, pass_badpix: bool = True, pass_goodpix: bool = True):
+    @lsst.utils.tests.methodParametersProduct(
+        pass_badpix=(True, False),
+        pass_goodpix=(True, False),
+        flipXY=(False, True),
+    )
+    def test_interpolation_with_noise(
+        self, pass_badpix: bool = True, pass_goodpix: bool = True, flipXY: bool = False
+    ):
         """Test that we can reuse the badpix and goodpix.
 
         Parameters
@@ -137,9 +154,12 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             Whether to pass the badpix to the task?
         pass_goodpix : `bool`
             Whether to pass the goodpix to the task?
+        flipXY : `bool`
+            Whether to set the flipXY config parameter to True.
         """
 
         config = CloughTocher2DInterpolateTask.ConfigClass()
+        config.flipXY = flipXY
         config.badMaskPlanes = (
             "BAD",
             "SAT",
@@ -170,6 +190,31 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             rtol=1e-05,
             atol=1e-08,
         )
+
+    def test_interpolation_with_flipXY(self):
+        """Test that the interpolation with both values for flipXY."""
+        config = CloughTocher2DInterpolateTask.ConfigClass()
+        config.badMaskPlanes = (
+            "BAD",
+            "SAT",
+            "CR",
+            "EDGE",
+        )
+        config.flipXY = True
+        task = CloughTocher2DInterpolateTask(config)
+        badpix_true, goodpix_true = task.run(self.maskedimage)
+
+        config.flipXY = False
+        task = CloughTocher2DInterpolateTask(config)
+        badpix_false, goodpix_false = task.run(self.maskedimage)
+
+        # Check that the locations of the bad and the good pixels, and the good
+        # pixel values themselves are identical.
+        np.testing.assert_array_equal(goodpix_false, goodpix_true)
+        np.testing.assert_array_equal(badpix_false[:, :2], badpix_true[:, :2])
+
+        # Check that the interpolated values at at least approximately equal.
+        np.testing.assert_array_equal(badpix_false[:, 2], badpix_true[:, 2])
 
 
 class CloughTocher2DInterpolatorUtilsTestCase(CloughTocher2DInterpolateTestCase):
