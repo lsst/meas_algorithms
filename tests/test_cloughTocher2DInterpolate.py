@@ -191,6 +191,31 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             atol=1e-08,
         )
 
+    def test_interpolation_with_flipXY(self):
+        """Test that the interpolation with both values for flipXY."""
+        config = CloughTocher2DInterpolateTask.ConfigClass()
+        config.badMaskPlanes = (
+            "BAD",
+            "SAT",
+            "CR",
+            "EDGE",
+        )
+        config.flipXY = True
+        task = CloughTocher2DInterpolateTask(config)
+        badpix_true, goodpix_true = task.run(self.maskedimage)
+
+        config.flipXY = False
+        task = CloughTocher2DInterpolateTask(config)
+        badpix_false, goodpix_false = task.run(self.maskedimage)
+
+        # Check that the locations of the bad and the good pixels, and the good
+        # pixel values themselves are identical.
+        np.testing.assert_array_equal(goodpix_false, goodpix_true)
+        np.testing.assert_array_equal(badpix_false[:, :2], badpix_true[:, :2])
+
+        # Check that the interpolated values at at least approximately equal.
+        np.testing.assert_array_equal(badpix_false[:, 2], badpix_true[:, 2])
+
 
 class CloughTocher2DInterpolatorUtilsTestCase(CloughTocher2DInterpolateTestCase):
     """Test the CloughTocher2DInterpolatorUtils."""
