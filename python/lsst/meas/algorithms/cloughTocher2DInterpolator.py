@@ -56,7 +56,7 @@ class CloughTocher2DInterpolateConfig(Config):
         "Delaunay triangulation. This may produce a slightly different result "
         "since the triangulation is not guaranteed to be invariant under "
         "coordinate flips.",
-        default=False,
+        default=True,
     )
 
 
