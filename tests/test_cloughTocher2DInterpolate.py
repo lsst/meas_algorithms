@@ -93,8 +93,8 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
         np.random.seed(12345)
         self.noise.image.array[:, :] = np.random.normal(size=self.noise.image.array.shape)
 
-    @lsst.utils.tests.methodParameters(n_runs=(1, 2))
-    def test_interpolation(self, n_runs: int):
+    @lsst.utils.tests.methodParametersProduct(n_runs=(1, 2), flipXY=(False, True))
+    def test_interpolation(self, n_runs: int, flipXY: bool):
         """Test that the interpolation is done correctly.
 
         Parameters
@@ -102,6 +102,8 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
         n_runs : `int`
             Number of times to run the task. Running the task more than once
             should have no effect.
+        flipXY : `bool`
+            Whether to set the flipXY config parameter to True.
         """
         config = CloughTocher2DInterpolateTask.ConfigClass()
         config.badMaskPlanes = (
@@ -111,6 +113,7 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             "EDGE",
         )
         config.fillValue = 0.5
+        config.flipXY = flipXY
         task = CloughTocher2DInterpolateTask(config)
         for n in range(n_runs):
             task.run(self.maskedimage)
@@ -135,8 +138,14 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             atol=1e-08,
         )
 
-    @lsst.utils.tests.methodParametersProduct(pass_badpix=(True, False), pass_goodpix=(True, False))
-    def test_interpolation_with_noise(self, pass_badpix: bool = True, pass_goodpix: bool = True):
+    @lsst.utils.tests.methodParametersProduct(
+        pass_badpix=(True, False),
+        pass_goodpix=(True, False),
+        flipXY=(False, True),
+    )
+    def test_interpolation_with_noise(
+        self, pass_badpix: bool = True, pass_goodpix: bool = True, flipXY: bool = False
+    ):
         """Test that we can reuse the badpix and goodpix.
 
         Parameters
@@ -145,9 +154,12 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
             Whether to pass the badpix to the task?
         pass_goodpix : `bool`
             Whether to pass the goodpix to the task?
+        flipXY : `bool`
+            Whether to set the flipXY config parameter to True.
         """
 
         config = CloughTocher2DInterpolateTask.ConfigClass()
+        config.flipXY = flipXY
         config.badMaskPlanes = (
             "BAD",
             "SAT",
