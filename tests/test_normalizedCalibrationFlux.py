@@ -27,7 +27,7 @@ import logging
 import lsst.afw.image
 import lsst.afw.table
 import lsst.utils.tests
-from lsst.meas.algorithms import NormalizedCalibrationFluxTask
+from lsst.meas.algorithms import NormalizedCalibrationFluxTask, NormalizedCalibrationFluxError
 
 
 class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
@@ -259,6 +259,20 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
             _ = norm_task2.run(catalog=catalog_run2, exposure=exposure_run1)
         warnings = '\n'.join(cm.output)
         self.assertIn("aperture correction map is missing base_CompensatedTophatFlux_12_instFlux", warnings)
+
+    def testNormalizedCalibrationFluxError(self):
+
+        np.random.seed(12345)
+        norm_task = self._make_task()
+        catalog = self._make_catalog(norm_task.schema)
+        catalog[norm_task.config.raw_calibflux_name + "_flag"] = True
+        nStars = len(catalog)
+
+        error_string = (f"There are no valid stars to compute normalized calibration fluxes. Of {nStars} "
+                        "initially selected sources, 0 have good raw calibration fluxes and {nStars} have "
+                        "good reference fluxes.")
+        with self.assertRaises(NormalizedCalibrationFluxError, msg=error_string):
+            norm_task.run(catalog=catalog, exposure=self.exposure)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):

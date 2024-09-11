@@ -19,7 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["NormalizedCalibrationFluxConfig", "NormalizedCalibrationFluxTask"]
+__all__ = ["NormalizedCalibrationFluxConfig", "NormalizedCalibrationFluxTask",
+           "NormalizedCalibrationFluxError"]
 
 import numpy as np
 
@@ -29,6 +30,35 @@ import lsst.pex.config
 import lsst.pipe.base
 from .measureApCorr import MeasureApCorrTask, MeasureApCorrError
 from .sourceSelector import sourceSelectorRegistry
+
+
+class NormalizedCalibrationFluxError(lsst.pipe.base.AlgorithmError):
+    """Raised if Aperture Correction fails in a non-recoverable way.
+
+    Parameters
+    ----------
+    n_initial_sources : `int`
+        Number of sources selected by the fallback source selector.
+    n_calib_flux_flag : `int`
+        Number of selected sources with raw calibration flux flag unset.
+    n_ref_flux_flag : `int`
+        Number of selected sources with reference flux flag unset.
+    """
+    def __init__(self, *, n_initial_sources, n_calib_flux_flag, n_ref_flux_flag):
+        msg = "There are no valid stars to compute normalized calibration fluxes."
+        msg += (f" Of {n_initial_sources} initially selected sources, {n_calib_flux_flag} have good raw"
+                f" calibration fluxes and {n_ref_flux_flag} have good reference fluxes.")
+        super().__init__(msg)
+        self.n_initial_sources = n_initial_sources
+        self.n_calib_flux_flag = n_calib_flux_flag
+        self.n_ref_flux_flag = n_ref_flux_flag
+
+    @property
+    def metadata(self):
+        metadata = {"n_init_sources": self.n_initial_sources,
+                    "n_calib_flux_flag": self.n_calib_flux_flag,
+                    "n_ref_flux_flag": self.n_ref_flux_flag}
+        return metadata
 
 
 class NormalizedCalibrationFluxConfig(lsst.pex.config.Config):
@@ -99,6 +129,11 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
         Schema for the input table; will be modified in place.
     **kwargs : `dict`
         Additional kwargs to pass to lsst.pipe.base.Task.__init__()
+
+    Raises
+    ------
+    NormalizedCalibrationFluxError
+        Raised if there are not enough sources to calculate normalization.
     """
     ConfigClass = NormalizedCalibrationFluxConfig
     _DefaultName = "normalizedCalibrationFlux"
@@ -265,18 +300,22 @@ class NormalizedCalibrationFluxTask(lsst.pipe.base.Task):
             ).apCorrMap
 
             ap_corr_field = ap_corr_map.get(raw_name + "_instFlux")
-        except MeasureApCorrError:
-            self.log.warning("Failed to measure full aperture correction for %s", raw_name)
+        except MeasureApCorrError as e:
+            self.log.warning("Failed to measure full aperture correction for %s with the following error %s",
+                             raw_name, e)
 
-            sel = self.fallback_source_selector.run(catalog, exposure=exposure).selected
-            sel &= (~catalog[self.config.raw_calibflux_name + "_flag"]
-                    & ~catalog[self.config.measure_ap_corr.refFluxName + "_flag"])
+            initSel = self.fallback_source_selector.run(catalog, exposure=exposure).selected
+            sel = (initSel & ~catalog[self.config.raw_calibflux_name + "_flag"]
+                   & ~catalog[self.config.measure_ap_corr.refFluxName + "_flag"])
 
-            n_sel = sel.sum()
-
-            if n_sel == 0:
+            if (n_sel := sel.sum()) == 0:
                 # This is a fatal error.
-                raise RuntimeError("There are no valid stars to compute normalized calibration fluxes.")
+                raise NormalizedCalibrationFluxError(
+                    n_initial_sources=initSel.sum(),
+                    n_calib_flux_flag=(initSel & ~catalog[self.config.raw_calibflux_name + "_flag"]).sum(),
+                    n_ref_flux_flag=(initSel
+                                     & ~catalog[self.config.measure_ap_corr.refFluxName + "_flag"]).sum()
+                )
             self.log.info("Measuring normalized flux correction with %d stars from fallback selector.",
                           n_sel)
 
