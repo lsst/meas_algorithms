@@ -46,7 +46,13 @@ The default Config assumes that the files are readable with ``format="csv"``; yo
 
 .. _lsst.meas.algorithms-refcat-config:
 
-2. Write a Config for the conversion
+2. Write a README for the reference catalog
+===========================================
+All reference catalogs should have a README file that describes the catalog, its provenance, and how it was converted.
+This README should be stored in the same directory as the reference catalog files.
+An example of a README can be found in the `Common Dataset Organization and Policy <https://developer.lsst.io/usdf/datasets.html#reference-catalogs>` page.
+
+3. Write a Config for the conversion
 ====================================
 
 `~lsst.meas.algorithms.ConvertReferenceCatalogConfig` specifies what fields in the input files get translated to the output data, and how they are converted along the way.
