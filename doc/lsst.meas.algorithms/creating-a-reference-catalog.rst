@@ -69,6 +69,10 @@ This is an example configuration that was used to convert the Gaia DR2 catalog (
     from lsst.meas.algorithms import convertRefcatManager
     config.manager.retarget(convertRefcatManager.ConvertGaiaManager)
 
+    # Default is ReadTextCatalogTask
+    # if you wanted to read fits files use
+    # config.file_reader.retarget(ReadFitsCatalogTask)
+
     # Ingest the data in parallel with this many processes; this is sized to
     # fill a single node on lsst-devl.
     config.n_processes = 48
@@ -138,6 +142,10 @@ Check the log output after several hours: ``ConvertReferenceCatalogTask`` report
 
 .. _lsst.meas.algorithms-refcat-ingest:
 
+5. Ensure refcat files are moved to the correct location for ingestion
+======================================================================
+For Gen3 on USDF the refcats should be placed in the directory ``/sdf/group/rubin/shared/refcats/refcatname_yyyymmdd``.
+
 4. Ingest the files into the butler
 ===================================
 
@@ -175,7 +183,7 @@ For LSST staff using ``lsst-devl``, see the `Reference catalogs policy <https://
 
 .. note::
 
-    The ``.ecsv`` files described here have already been created for the reference catalogs used in ``/repo/main`` at USDF, in the ``/sdf/group/rubin/datasets/refcats/htm/v1`` directory.
+    The ``.ecsv`` files described here have already been created for the reference catalogs used in ``/repo/main`` at USDF, in the ``/sdf/group/rubin/shared/refcats/htm/v1`` directory.
     If you wish to use these refcats in your own butler repo, just run the three commands at the end of this section; there is no need to generate the htm7 index lookup table file.
 
 Already existing reference catalogs (for example, the PS1 or Gaia DR2 catalogs that were used in gen2 butlers) can be directly ingested into a gen3 repo as they are already in the LSST format.
