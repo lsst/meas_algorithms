@@ -692,10 +692,6 @@ class ReferenceObjectLoader:
             refCat.extend(filteredCat)
             trimmedAmount += len(tmpCat) - len(filteredCat)
 
-        version = getFormatVersionFromRefCat(refCat)
-        if version > LATEST_FORMAT_VERSION:
-            raise ValueError(f"Unsupported refcat format version: {version} > {LATEST_FORMAT_VERSION}.")
-
         self.log.debug("Trimmed %d refCat objects lying outside padded region, leaving %d",
                        trimmedAmount, len(refCat))
         self.log.info("Loaded %d reference objects", len(refCat))
@@ -715,6 +711,13 @@ class ReferenceObjectLoader:
             expandedCat = expandedCat.copy(deep=True)
 
         fluxField = getRefFluxField(expandedCat.schema, filterName)
+
+        if expandedCat.schema[fluxField].asField().getUnits() != "nJy":
+            # if the flux field is not in nJy, check the refcat format version
+            version = getFormatVersionFromRefCat(refCat)
+            if version > LATEST_FORMAT_VERSION:
+                raise ValueError(f"Unsupported refcat format version: {version} > {LATEST_FORMAT_VERSION}.")
+
         return pipeBase.Struct(refCat=expandedCat, fluxField=fluxField)
 
     def loadSkyCircle(self, ctrCoord, radius, filterName, epoch=None):
