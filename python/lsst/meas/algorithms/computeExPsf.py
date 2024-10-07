@@ -28,7 +28,8 @@ import copy
 import numpy.typing as npt
 
 
-__all__ = ("ComputeExPsfTask")
+__all__ = "ComputeExPsfTask"
+
 
 class ComputeExPsfTask(Task):
     """Compute Ex for PSF.
