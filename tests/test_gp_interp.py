@@ -142,8 +142,7 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         # np.random.seed(12345)
         # self.noise.image.array[:, :] = np.random.normal(size=self.noise.image.array.shape)
 
-    @lsst.utils.tests.methodParameters(method=("jax"))
-    def test_interpolation(self, method: str):
+    def test_interpolation(self):
         """Test that the interpolation is done correctly.
 
         Parameters
@@ -155,7 +154,6 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         gp = InterpolateOverDefectGaussianProcess(
             self.maskedimage,
             defects=["BAD", "SAT", "CR", "EDGE"],
-            method=method,
             fwhm=self.correlation_length,
             bin_image=False,
             bin_spacing=30,
