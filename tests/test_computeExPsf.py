@@ -236,9 +236,9 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
         # to be close to the input variance for de1 and de2. Cross correlation
         # between de1 and de2 should be zeros are they are 2 indendant field.
 
-        np.testing.assert_allclose(output1.E1, 1.0, atol=2e-1)
-        np.testing.assert_allclose(output1.E2, 1.0, atol=2e-1)
-        np.testing.assert_allclose(output1.Ex, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output1.metric_E1, 1.0, atol=2e-1)
+        np.testing.assert_allclose(output1.metric_E2, 1.0, atol=2e-1)
+        np.testing.assert_allclose(output1.metric_Ex, 0.0, atol=1e-1)
 
         config = ComputeExPsfTask.ConfigClass()
 
@@ -253,9 +253,9 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
         task = ComputeExPsfTask(config)
         output2 = task.run(self.de1, self.de2, ra, dec, units="arcmin")
 
-        np.testing.assert_allclose(output2.E1, 0.20, atol=1e-1)
-        np.testing.assert_allclose(output2.E2, 0.05, atol=1e-1)
-        np.testing.assert_allclose(output2.Ex, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_E1, 0.20, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_E2, 0.05, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_Ex, 0.0, atol=1e-1)
 
         config = ComputeExPsfTask.ConfigClass()
 
@@ -271,9 +271,9 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
         task = ComputeExPsfTask(config)
         output2 = task.run(self.de1, self.de2, ra, dec, units="arcmin")
 
-        np.testing.assert_allclose(output2.E1, 0.0, atol=1e-1)
-        np.testing.assert_allclose(output2.E2, 0.0, atol=1e-1)
-        np.testing.assert_allclose(output2.Ex, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_E1, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_E2, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_Ex, 0.0, atol=1e-1)
 
 
 def setup_module(module):

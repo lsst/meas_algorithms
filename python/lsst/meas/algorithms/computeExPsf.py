@@ -28,7 +28,7 @@ import copy
 import numpy.typing as npt
 
 
-__all__ = "ComputeExPsfTask"
+__all__ = ("ComputeExPsfTask")
 
 
 class ComputeExPsfTask(Task):
@@ -100,4 +100,4 @@ class ComputeExPsfTask(Task):
         kk.process(cat1, cat2)
         kk_Ex = copy.deepcopy(kk.xi[0])
 
-        return pipeBase.Struct(E1=kk_E1, E2=kk_E2, Ex=kk_Ex)
+        return pipeBase.Struct(metric_E1=kk_E1, metric_E2=kk_E2, metric_Ex=kk_Ex)
