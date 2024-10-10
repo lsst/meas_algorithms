@@ -223,11 +223,11 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
 
         config = ComputeExPsfTask.ConfigClass()
 
-        config.min_sep = 0.01
-        config.max_sep = 5.0
-        config.nbins = 1
-        config.bin_type = "Linear"
-        config.sep_units = "arcmin"
+        config.treecorr_config.min_sep = 0.01
+        config.treecorr_config.max_sep = 5.0
+        config.treecorr_config.nbins = 1
+        config.treecorr_config.bin_type = "Linear"
+        config.treecorr_config.sep_units = "arcmin"
 
         task = ComputeExPsfTask(config)
         output1 = task.run(self.de1, self.de2, ra, dec, units="arcmin")
@@ -242,11 +242,11 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
 
         config = ComputeExPsfTask.ConfigClass()
 
-        config.min_sep = 5.0
-        config.max_sep = 600.0
-        config.nbins = 1
-        config.bin_type = "Linear"
-        config.sep_units = "arcmin"
+        config.treecorr_config.min_sep = 5.0
+        config.treecorr_config.max_sep = 600.0
+        config.treecorr_config.nbins = 1
+        config.treecorr_config.bin_type = "Linear"
+        config.treecorr_config.sep_units = "arcmin"
 
         # At intermediar scale, expect E1>E2>Ex.
 
@@ -259,11 +259,11 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
 
         config = ComputeExPsfTask.ConfigClass()
 
-        config.min_sep = 600.0
-        config.max_sep = 1000.0
-        config.nbins = 1
-        config.bin_type = "Linear"
-        config.sep_units = "arcmin"
+        config.treecorr_config.min_sep = 600.0
+        config.treecorr_config.max_sep = 1000.0
+        config.treecorr_config.nbins = 1
+        config.treecorr_config.bin_type = "Linear"
+        config.treecorr_config.sep_units = "arcmin"
 
         # At large scale, expect the scalar two-point correlation function to
         # be all close to 0.

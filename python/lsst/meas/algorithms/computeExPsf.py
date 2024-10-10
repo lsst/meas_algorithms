@@ -21,6 +21,7 @@
 
 
 from lsst.meas.algorithms.treecorrUtils import TreecorrConfig
+from lsst.pex.config import Config, ConfigField
 from lsst.pipe.base import Task
 import lsst.pipe.base as pipeBase
 import treecorr
@@ -28,7 +29,16 @@ import copy
 import numpy.typing as npt
 
 
-__all__ = ("ComputeExPsfTask")
+__all__ = ("ComputeExPsfTask", "ComputeExPsfConfig")
+
+
+class ComputeExPsfConfig(Config):
+    """Config class of ComputeExPsfTask."""
+
+    treecorr_config = ConfigField(
+        dtype=TreecorrConfig,
+        doc="treecorr config.",
+    )
 
 
 class ComputeExPsfTask(Task):
@@ -67,7 +77,7 @@ class ComputeExPsfTask(Task):
             in an angular bin define in TreecorrConfig.
     """
 
-    ConfigClass = TreecorrConfig
+    ConfigClass = ComputeExPsfConfig
     _DefaultName = "computeExPsf"
 
     def run(
@@ -89,7 +99,7 @@ class ComputeExPsfTask(Task):
         cat1 = treecorr.Catalog(k=de1, **kwargs_cat)
         cat2 = treecorr.Catalog(k=de2, **kwargs_cat)
 
-        config_kk = self.config.toDict()
+        config_kk = self.config.treecorr_config.toDict()
 
         kk = treecorr.KKCorrelation(config_kk)
 
