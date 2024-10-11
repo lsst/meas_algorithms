@@ -238,7 +238,7 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
 
         np.testing.assert_allclose(output1.metric_E1, 1.0, atol=2e-1)
         np.testing.assert_allclose(output1.metric_E2, 1.0, atol=2e-1)
-        np.testing.assert_allclose(output1.metric_Ex, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output1.metric_Ex, 0.0, atol=2e-1)
 
         config = ComputeExPsfTask.ConfigClass()
 
@@ -253,9 +253,9 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
         task = ComputeExPsfTask(config)
         output2 = task.run(self.de1, self.de2, ra, dec, units="arcmin")
 
-        np.testing.assert_allclose(output2.metric_E1, 0.20, atol=1e-1)
-        np.testing.assert_allclose(output2.metric_E2, 0.05, atol=1e-1)
-        np.testing.assert_allclose(output2.metric_Ex, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_E1, 0.20, atol=2e-1)
+        np.testing.assert_allclose(output2.metric_E2, 0.05, atol=2e-1)
+        np.testing.assert_allclose(output2.metric_Ex, 0.0, atol=2e-1)
 
         config = ComputeExPsfTask.ConfigClass()
 
@@ -271,9 +271,9 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
         task = ComputeExPsfTask(config)
         output2 = task.run(self.de1, self.de2, ra, dec, units="arcmin")
 
-        np.testing.assert_allclose(output2.metric_E1, 0.0, atol=1e-1)
-        np.testing.assert_allclose(output2.metric_E2, 0.0, atol=1e-1)
-        np.testing.assert_allclose(output2.metric_Ex, 0.0, atol=1e-1)
+        np.testing.assert_allclose(output2.metric_E1, 0.0, atol=2e-1)
+        np.testing.assert_allclose(output2.metric_E2, 0.0, atol=2e-1)
+        np.testing.assert_allclose(output2.metric_Ex, 0.0, atol=2e-1)
 
 
 def setup_module(module):

@@ -29,7 +29,7 @@ class TreecorrConfig(Config):
     The fields in this class correspond to the parameters that can be passed to
     any calls to `treecorr` methods, including catalog creation and two-point
     correlation function calculations. The default values set for the fields
-    are identical to the default values set in v4.2 of `treecorr`.
+    are identical to the default values set in v4.3 of `treecorr`.
 
     A separate config class is used instead
     of constructing a `~lsst.pex.config.DictField` so that mixed types can be
@@ -38,8 +38,9 @@ class TreecorrConfig(Config):
 
     Notes
     -----
-    This is intended to be used in CalcRhoStatistics class. It only supports
-    some of the fields that are relevant for rho-statistics calculations.
+    This is intended to be used with correlations of PSF residuals. It only supports
+    some of the fields that are relevant for rho-statistics calculations and the likes
+    of it.
     """
 
     nbins = Field[int](
@@ -92,7 +93,7 @@ class TreecorrConfig(Config):
             "This includes both min_sep and max_sep above, as well as the "
             "units of the output distance values."
         ),
-        default="radian",
+        default=None,
         optional=True,
         allowed={
             units: units for units in ["arcsec", "arcmin", "degree", "hour", "radian"]
@@ -202,9 +203,10 @@ class TreecorrConfig(Config):
         optional=True,
     )
 
-    rng_seed = Field[int](
+    rng = Field[int](
         doc="Value to seed the treecorr random number generator with. Used to generate patches.",
-        default=13579,
+        default=None,
+        optional=True,
     )
 
     def validate(self):
