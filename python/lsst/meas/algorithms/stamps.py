@@ -168,6 +168,10 @@ def readFitsWithOptions(filename, stamp_factory, options):
         for idx in range(nExtensions - 1):
             dtype = None
             md = readMetadata(filename, hdu=idx + 1)
+            # Skip binary tables that aren't images or archives.
+            if md["XTENSION"] == "BINTABLE" and not ("ZIMAGE" in md and md["ZIMAGE"]):
+                if md["EXTNAME"] != "ARCHIVE_INDEX":
+                    continue
             if md["EXTNAME"] in ("IMAGE", "VARIANCE"):
                 reader = ImageFitsReader(filename, hdu=idx + 1)
                 if md["EXTNAME"] == "VARIANCE":
