@@ -40,6 +40,15 @@ class ComputeExPsfConfig(Config):
         doc="treecorr config.",
     )
 
+    def setDefaults(self):
+        super().setDefaults()
+
+        self.treecorr.min_sep = 1.0 / 60.0
+        self.treecorr.max_sep = 5.0 / 60.0
+        self.treecorr.nbins = 1
+        self.treecorr.bin_type = "Linear"
+        self.treecorr.sep_units = "degree"
+
 
 class ComputeExPsfTask(Task):
     """Compute Ex for PSF.
