@@ -203,10 +203,9 @@ class TreecorrConfig(Config):
         optional=True,
     )
 
-    rng = Field[int](
+    rng_seed = Field[int](
         doc="Value to seed the treecorr random number generator with. Used to generate patches.",
-        default=None,
-        optional=True,
+        default=13579,
     )
 
     def validate(self):
