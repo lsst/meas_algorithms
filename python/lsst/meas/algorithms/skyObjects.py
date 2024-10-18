@@ -191,6 +191,7 @@ class SkyObjectsTask(Task):
         skyFootprints = generateSkyObjects(mask, seed, self.config)
         self.log.info("Added %d of %d requested sky sources (%.0f%%)", len(skyFootprints),
                       self.config.nSources, 100*len(skyFootprints)/self.config.nSources)
+        self.metadata["sky_footprint_count"] = len(skyFootprints)
 
         if skyFootprints and self.skySourceKey is not None and catalog is not None:
             for footprint in skyFootprints:
