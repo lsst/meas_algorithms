@@ -216,6 +216,30 @@ class SourceDetectionTaskTestCase(lsst.utils.tests.TestCase):
         checkExposure(original, False, True)
         checkExposure(original, True, True)
 
+    def test_removeBadPixels(self):
+        """Test that if we set a NO_DATA region on top of a source,
+        One fewer sources is detected than when we don't do that."""
+        badMaskPlanes = ["NO_DATA", ]
+        exposure_regular, schema, numX, numY, starSigma = self._create_exposure()
+        exposure_removed = exposure_regular.clone()
+
+        # Define a region on one test exposure we will set to NO_DATA, blocking out one source
+        region = lsst.geom.Box2I(exposure_removed.getXY0(), lsst.geom.Extent2I(25, 35))
+        exposure_removed[region].mask.array |= exposure_removed.mask.getPlaneBitMask(badMaskPlanes)
+
+        config = SourceDetectionTask.ConfigClass()
+        config.reEstimateBackground = False
+        config.thresholdType = "stdev"
+        config.excludeMaskPlanes = badMaskPlanes
+        task = SourceDetectionTask(config=config, schema=schema)
+
+        # The regular test exposure finds 25 sources
+        self._check_detectFootprints(exposure_regular, numX, numY, starSigma, task, config, doSmooth=True)
+
+        # Modify numx and numy, which check_detectFootprints multiplies, to yield 24 instead of 25
+        self.assertEqual(numX, numY)
+        self._check_detectFootprints(exposure_removed, numX-1, numY+1, starSigma, task, config, doSmooth=True)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
