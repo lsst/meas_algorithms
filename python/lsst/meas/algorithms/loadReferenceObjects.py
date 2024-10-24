@@ -233,12 +233,20 @@ class ReferenceObjectLoader:
                 return
 
         # Warn/raise for a catalog in an incorrect format, if epoch was specified.
-        if ("pm_ra" in catalog.schema
-                and not isinstance(catalog.schema["pm_ra"].asKey(), afwTable.KeyAngle)):
-            if self.config.requireProperMotion:
-                raise RuntimeError("requireProperMotion=True but refcat pm_ra field is not an Angle.")
-            else:
-                self.log.warning("Reference catalog pm_ra field is not an Angle; cannot apply proper motion.")
+        if "pm_ra" in catalog.schema:
+            pm_ra_radians = False
+            field = catalog.schema["pm_ra"].asField()
+            if field.getTypeString() == "Angle" or field.getUnits() == "rad":
+                pm_ra_radians = True
+
+            if self.config.requireProperMotion and not pm_ra_radians:
+                raise RuntimeError(
+                    "requireProperMotion=True but refcat pm_ra field is not an Angle or radians.",
+                )
+            elif not pm_ra_radians:
+                self.log.warning(
+                    "Reference catalog pm_ra field is not an Angle or radians; cannot apply proper motion.",
+                )
                 return
 
         if ("epoch" not in catalog.schema or "pm_ra" not in catalog.schema):
