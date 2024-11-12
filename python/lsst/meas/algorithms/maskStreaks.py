@@ -600,7 +600,9 @@ class MaskStreaksTask(pipeBase.Task):
         """
         streaks = self.find(maskedImage)
 
-        maskedImage.mask.addMaskPlane(self.config.streaksMaskPlane)
+        if (self.config.streaksMaskPlane != "STREAK") and \
+           (self.config.streaksMaskPlane not in maskedImage.mask.getMaskPlaneDict()):
+            maskedImage.mask.addMaskPlane(self.config.streaksMaskPlane)
         maskedImage.mask.array[streaks.mask] |= maskedImage.mask.getPlaneBitMask(self.config.streaksMaskPlane)
 
         return pipeBase.Struct(
