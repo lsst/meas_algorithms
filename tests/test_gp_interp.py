@@ -69,6 +69,8 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         self.correlation_length = 10.0
         self.white_noise = 1e-5
 
+        np.random.seed(42)
+
         x1 = np.random.uniform(0, 99, npoints)
         x2 = np.random.uniform(0, 120, npoints)
         coord1 = np.array([x1, x2]).T
@@ -80,7 +82,6 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         # on a 100 * 100 is to slow. So generate 1e3 points
         # and then interpolate it with a GP to do data augmentation.
 
-        np.random.seed(42)
         z1 = np.random.multivariate_normal(np.zeros(npoints), kernel)
 
         x1 = np.linspace(0, 99, 100)
