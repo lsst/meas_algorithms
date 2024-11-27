@@ -76,6 +76,9 @@ class InstallGaussianPsfTask(pipeBase.Task):
         if exposure.hasPsf():
             psfModel = exposure.getPsf()
             psfSigma = psfModel.computeShape(psfModel.getAveragePosition()).getDeterminantRadius()
+            if math.isnan(psfSigma):
+                raise RuntimeError("Cannot create a Gaussian PSF model. "
+                                   "The computed exposure psfSigma is NaN!")
             width, height = psfModel.computeImage(psfModel.getAveragePosition()).getDimensions()
         else:
             psfSigma = self.config.fwhm / FwhmPerSigma
