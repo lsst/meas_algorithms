@@ -145,7 +145,7 @@ class LineProfile:
         self.mask = (weights != 0)
 
         self._initLine = line
-        self.setLineMask(line, maxStreakWidth=0)
+        self.setLineMask(line, maxStreakWidth=0, nSigmaMask=5)
 
     def getLineXY(self, line):
         """Return the pixel coordinates of the ends of the line.
@@ -191,7 +191,7 @@ class LineProfile:
 
         return boxIntersections
 
-    def setLineMask(self, line, maxStreakWidth):
+    def setLineMask(self, line, maxStreakWidth, nSigmaMask):
         """Set mask around the image region near the line.
 
         Parameters
@@ -203,7 +203,7 @@ class LineProfile:
             # Only fit pixels within 5 sigma of the estimated line
             radtheta = np.deg2rad(line.theta)
             distance = (np.cos(radtheta) * self._xmesh + np.sin(radtheta) * self._ymesh - line.rho)
-            width = maxStreakWidth/2 if maxStreakWidth > 0 else 5 * line.sigma
+            width = maxStreakWidth/2 if maxStreakWidth > 0 else nSigmaMask * line.sigma
             m = (abs(distance) < width)
             self.lineMask = self.mask & m
         else:
@@ -437,6 +437,11 @@ class MaskStreaksConfig(pexConfig.Config):
             "procedure",
         dtype=float,
         default=2,
+    )
+    nSigmaMask = pexConfig.Field(
+        doc="Number of sigmas from center of kernel to mask",
+        dtype=float,
+        default=5,
     )
     rhoBinSize = pexConfig.Field(
         doc="Binsize in pixels for position parameter rho when finding "
@@ -766,7 +771,7 @@ class MaskStreaksTask(pipeBase.Task):
                 continue
 
             # Make mask
-            lineModel.setLineMask(fit, self.config.maxStreakWidth)
+            lineModel.setLineMask(fit, self.config.maxStreakWidth, self.config.nSigmaMask)
             finalModel = lineModel.makeProfile(fit)
             # Take absolute value, as streaks are allowed to be negative
             finalModelMax = abs(finalModel).max()
