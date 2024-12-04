@@ -145,7 +145,7 @@ class LineProfile:
         self.mask = (weights != 0)
 
         self._initLine = line
-        self.setLineMask(line, maxStreakWidth=0)
+        self.setLineMask(line, maxStreakWidth=0, nSigmaMask=5)
 
     def getLineXY(self, line):
         """Return the pixel coordinates of the ends of the line.
@@ -191,7 +191,7 @@ class LineProfile:
 
         return boxIntersections
 
-    def setLineMask(self, line, maxStreakWidth, logger=None):
+    def setLineMask(self, line, maxStreakWidth, nSigmaMask, logger=None):
         """Set mask around the image region near the line.
 
         Parameters
@@ -200,11 +200,11 @@ class LineProfile:
             Parameters of line in the image.
         """
         if line:
-            # Only fit pixels within 5 sigma of the estimated line
+            # Only fit pixels within nSigmaMask * sigma of the estimated line
             radtheta = np.deg2rad(line.theta)
             distance = (np.cos(radtheta) * self._xmesh + np.sin(radtheta) * self._ymesh - line.rho)
 
-            width = 2 * 5 * line.sigma
+            width = 2 * nSigmaMask * line.sigma
             if (maxStreakWidth > 0) and (maxStreakWidth < width):
                 if logger is not None:
                     logger.info("Line with width %d exceeded maximum configured width of %d",
@@ -443,6 +443,11 @@ class MaskStreaksConfig(pexConfig.Config):
             "procedure",
         dtype=float,
         default=2,
+    )
+    nSigmaMask = pexConfig.Field(
+        doc="Number of sigmas from center of kernel to mask",
+        dtype=float,
+        default=5,
     )
     rhoBinSize = pexConfig.Field(
         doc="Binsize in pixels for position parameter rho when finding "
@@ -772,7 +777,7 @@ class MaskStreaksTask(pipeBase.Task):
                 continue
 
             # Make mask
-            lineModel.setLineMask(fit, self.config.maxStreakWidth, logger=self.log)
+            lineModel.setLineMask(fit, self.config.maxStreakWidth, self.config.nSigmaMask, logger=self.log)
             finalModel = lineModel.makeProfile(fit)
             # Take absolute value, as streaks are allowed to be negative
             finalModelMax = abs(finalModel).max()
