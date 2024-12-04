@@ -145,7 +145,7 @@ class LineProfile:
         self.mask = (weights != 0)
 
         self._initLine = line
-        self.setLineMask(line)
+        self.setLineMask(line, maxStreakWidth=0)
 
     def getLineXY(self, line):
         """Return the pixel coordinates of the ends of the line.
@@ -191,7 +191,7 @@ class LineProfile:
 
         return boxIntersections
 
-    def setLineMask(self, line):
+    def setLineMask(self, line, maxStreakWidth):
         """Set mask around the image region near the line.
 
         Parameters
@@ -203,7 +203,8 @@ class LineProfile:
             # Only fit pixels within 5 sigma of the estimated line
             radtheta = np.deg2rad(line.theta)
             distance = (np.cos(radtheta) * self._xmesh + np.sin(radtheta) * self._ymesh - line.rho)
-            m = (abs(distance) < 5 * line.sigma)
+            width = maxStreakWidth/2 if maxStreakWidth > 0 else 5 * line.sigma
+            m = (abs(distance) < width)
             self.lineMask = self.mask & m
         else:
             self.lineMask = np.copy(self.mask)
@@ -490,6 +491,14 @@ class MaskStreaksConfig(pexConfig.Config):
         dtype=str,
         default=("NO_DATA", "INTRP", "BAD", "SAT", "EDGE"),
     )
+    maxStreakWidth = pexConfig.Field(
+        doc="Maximum width in pixels to allow for masking a streak."
+            "The fit streak parameters will not be modified, and a warning will "
+            "be issued if the fitted width is larger than this value."
+            "Set to 0 to disable.",
+        dtype=float,
+        default=0.,
+    )
 
 
 class MaskStreaksTask(pipeBase.Task):
@@ -757,7 +766,7 @@ class MaskStreaksTask(pipeBase.Task):
                 continue
 
             # Make mask
-            lineModel.setLineMask(fit)
+            lineModel.setLineMask(fit, self.config.maxStreakWidth)
             finalModel = lineModel.makeProfile(fit)
             # Take absolute value, as streaks are allowed to be negative
             finalModelMax = abs(finalModel).max()
