@@ -561,7 +561,7 @@ class MaskStreaksTask(pipeBase.Task):
             sset_dilated = sset.dilated(1)
             sset_dilated.clippedTo(mask.getBBox()).setMask(mask, mask.getPlaneBitMask("BAD"))
         dilatedBadMask = (mask.array & badPixelMask) == 0
-        # detectionMask = (detectionMask & dilatedBadMask) > 0
+        detectionMask = (detectionMask > 0) & dilatedBadMask
 
         self.edges = self._cannyFilter(detectionMask)
         self.lines = self._runKHT(self.edges)
