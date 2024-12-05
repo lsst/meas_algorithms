@@ -354,7 +354,7 @@ class LineProfile:
         outline : `Line`
             Coordinates, inverse width, and chi2 of fit line.
         fitFailure : `bool`
-            Boolean where `False` corresponds to a successful  fit.
+            Boolean where `False` corresponds to a successful fit.
         """
         # Do minimization on inverse of sigma to simplify derivatives:
         x = np.array([self._initLine.rho, self._initLine.theta, self._initLine.sigma**-1])
@@ -553,7 +553,6 @@ class MaskStreaksTask(pipeBase.Task):
         mask = maskedImage.mask
         detectionMask = (mask.array & mask.getPlaneBitMask(self.config.detectedMaskPlane))
 
-        initEdges = self._cannyFilter(detectionMask)
         # Ignore regions with known bad masks, adding a one-pixel buffer around
         # each to ensure that the edges of bad regions are also ignored.
         badPixelMask = mask.getPlaneBitMask(self.config.badMaskPlanes)
@@ -561,8 +560,10 @@ class MaskStreaksTask(pipeBase.Task):
         for sset in badMaskSpanSet:
             sset_dilated = sset.dilated(1)
             sset_dilated.clippedTo(mask.getBBox()).setMask(mask, mask.getPlaneBitMask("BAD"))
-        dilatedBadMask = (mask.array & badPixelMask) > 0
-        self.edges = initEdges & ~dilatedBadMask
+        dilatedBadMask = (mask.array & badPixelMask) == 0
+        # detectionMask = (detectionMask & dilatedBadMask) > 0
+
+        self.edges = self._cannyFilter(detectionMask)
         self.lines = self._runKHT(self.edges)
 
         if len(self.lines) == 0:
