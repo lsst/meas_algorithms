@@ -409,12 +409,12 @@ class MaskStreaksConfig(pexConfig.Config):
     minimumKernelHeight = pexConfig.Field(
         doc="Minimum height of the streak-finding kernel relative to the tallest kernel",
         dtype=float,
-        default=0.0,
+        default=0.002,
     )
     absMinimumKernelHeight = pexConfig.Field(
         doc="Minimum absolute height of the streak-finding kernel",
         dtype=float,
-        default=5,
+        default=2,
     )
     clusterMinimumSize = pexConfig.Field(
         doc="Minimum size in pixels of detected clusters",
