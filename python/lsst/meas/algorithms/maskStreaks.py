@@ -479,6 +479,12 @@ class MaskStreaksConfig(pexConfig.Config):
         dtype=float,
         default=0.1
     )
+    maxFitIter = pexConfig.Field(
+        doc="Maximum number of line profile fitting iterations that is "
+            "acceptable for convergence",
+        dtype=int,
+        default=100
+    )
     detectedMaskPlane = pexConfig.Field(
         doc="Name of mask with pixels above detection threshold, used for first"
             "estimate of streak locations",
@@ -763,7 +769,8 @@ class MaskStreaksTask(pipeBase.Task):
             if lineModel.lineMaskSize == 0:
                 continue
 
-            fit, fitFailure = lineModel.fit(dChi2Tol=self.config.dChi2Tolerance, log=self.log)
+            fit, fitFailure = lineModel.fit(dChi2Tol=self.config.dChi2Tolerance, log=self.log,
+                                            maxIter=self.config.maxFitIter)
 
             # Initial estimate should be quite close: fit is deemed unsuccessful if rho or theta
             # change more than the allowed bin in rho or theta:
