@@ -69,6 +69,7 @@ from .coaddBoundedField import *
 from .variance_plane import *
 from .maskStreaks import *
 from .normalizedCalibrationFlux import *
+from .measurementDriver import *
 
 from .version import *
 
