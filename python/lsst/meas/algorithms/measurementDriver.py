@@ -141,8 +141,8 @@ class MeasurementDriverTask(pipeBase.Task):
     def __init__(self, schema=None, **kwargs):
         super().__init__(**kwargs)
 
-        # Create a minimal schema that will be extended by tasks, if not given.
         if schema is None:
+            # Create a minimal schema that will be extended by tasks.
             self.schema = afwTable.SourceTable.makeMinimalSchema()
         else:
             self.schema = schema
@@ -181,37 +181,35 @@ class MeasurementDriverTask(pipeBase.Task):
             `list` of `~lsst.afw.image.Exposure`
             The image on which to detect, deblend and measure sources. If
             provided as a multiband exposure, or a list of `Exposure` objects,
-            it can only be used with the 'scarlet' deblender. When using a list
-            of `Exposure` objects, the ``bands`` parameter must also be
-            provided for scarlet deblending.
+            it can be taken advantage of by the 'scarlet' deblender. When using
+            a list of `Exposure` objects, the ``bands`` parameter must also be
+            provided.
         bands: `str` or `list` of `str`, optional
-            The band(s) of the image. Required if ``image`` is provided as a
-            list of `Exposure` objects to use in scarlet deblending. Example:
-            ["g", "r", "i", "z", "y"] or "grizy".
+            The bands of the input image. Required if ``image`` is provided as
+            a list of `Exposure` objects. Example: ["g", "r", "i", "z", "y"]
+            or "grizy".
         band: `str`, optional
             The target band of the image to use for detection and measurement.
-            Required for scarlet deblending when ``image`` is provided as a
-            `MultibandExposure`, or a list of `Exposure` objects.
+            Required when ``image`` is provided as a `MultibandExposure`, or a
+            list of `Exposure` objects.
         mask: `~lsst.afw.image.Mask`, optional
-            The mask to use for detection. Will be ignored if ``image`` is
-            provided as a `MaskedImage`, a `MultibandExposure`, an `Exposure`
-           , or a list of `Exposure` objects.
+            The mask for the input image. Only used if ``image`` is provided
+            as an afw `Image` or a numpy `ndarray`.
         variance: `~lsst.afw.image.Image`, optional
-            The variance image to use for measurement. Will be ignored if
-            ``image`` is provided as a `MaskedImage`, a `MultibandExposure`, an
-            `Exposure`, or a list of `Exposure` objects.
+            The variance image for the input image. Only used if ``image`` is
+            provided as an afw `Image` or a numpy `ndarray`.
         psf: `~lsst.afw.detection.Psf`, optional
-            The PSF model to use for measurement. Will be ignored if ``image``
-            is provided as a `MultibandExposure`, an `Exposure`, or a list of
+            The PSF model for the input image. Will be ignored if ``image`` is
+            provided as an `Exposure`, `MultibandExposure`, or a list of
             `Exposure` objects.
         wcs: `~lsst.afw.image.Wcs`, optional
-            The World Coordinate System (WCS) model to use for measurement.
-            Will be ignored if ``image`` is provided as a `MultibandExposure`,
-            an `Exposure`, or a list of `Exposure` objects.
+            The World Coordinate System (WCS) model for the input image. Will
+            be ignored if ``image`` is provided as an `Exposure`,
+            `MultibandExposure`, or a list of `Exposure` objects.
         photo_calib : `~lsst.afw.image.PhotoCalib`, optional
-            Photometric calibration model to use for measurement. Will be
-            ignored if ``image`` is provided as a `MultibandExposure`, an
-            `Exposure`, or a list of `Exposure` objects.
+            Photometric calibration model for the input image. Will be ignored
+            if ``image`` is provided as an `Exposure`, `MultibandExposure`, or
+            a list of `Exposure` objects.
         id_generator : `~lsst.meas.base.IdGenerator`, optional
             Object that generates source IDs and provides random seeds.
 
@@ -234,7 +232,8 @@ class MeasurementDriverTask(pipeBase.Task):
         # as retargeting the `deblend` subtask, because the `makeSubtask`
         # method locks in its config just before creating the subtask. If the
         # subtask was already made in __init__ using the initial config, it
-        # cannot be retargeted now because retargeting happens to the config.
+        # cannot be retargeted now because retargeting happens at the config
+        # level, not the subtask level.
 
         if id_generator is None:
             id_generator = measBase.IdGenerator()
@@ -244,7 +243,7 @@ class MeasurementDriverTask(pipeBase.Task):
                 self.log.debug(
                     "Supplied a multiband exposure, or a list of exposures, while the deblender is set to "
                     f"'{self.config.deblender}'. A single exposure corresponding to target `band` will be "
-                    "used."
+                    "used for everything."
                 )
             if band is None:
                 raise ValueError(
@@ -349,11 +348,11 @@ class MeasurementDriverTask(pipeBase.Task):
             elif self.config.deblender == "scarlet":
                 if not isinstance(image, (afwImage.MultibandExposure, list)):
                     # We need to have a multiband exposure to satisfy scarlet
-                    # function's signature, even when only using a single band.
+                    # function's signature, even when using a single band.
                     exposures = afwImage.MultibandExposure.fromExposures([band], [exposure])
                 catalog, model_data = self.deblend.run(mExposure=exposures, mergedSources=catalog)
                 # The footprints need to be updated for the subsequent
-                # measurement to work.
+                # measurement.
                 scarlet.io.updateCatalogFootprints(
                     modelData=model_data,
                     catalog=catalog,
