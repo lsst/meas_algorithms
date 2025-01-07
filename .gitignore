@@ -34,3 +34,4 @@ python/lsst/meas/algorithms/version.py
 .pytest_cache
 pytest_session.txt
 .coverage*
+python/*.dist-info/
