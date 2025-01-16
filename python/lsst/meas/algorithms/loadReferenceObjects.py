@@ -297,6 +297,7 @@ class ReferenceObjectLoader:
             mapper.editOutputSchema().addField("centroid_x", type=float, doReplace=True)
             mapper.editOutputSchema().addField("centroid_y", type=float, doReplace=True)
             mapper.editOutputSchema().addField("hasCentroid", type="Flag", doReplace=True)
+            # TODO: this shouldn't work: refcats are SimpleCatalog!
             mapper.editOutputSchema().getAliasMap().set("slot_Centroid", "centroid")
 
         expandedCat = afwTable.SimpleCatalog(mapper.getOutputSchema())
