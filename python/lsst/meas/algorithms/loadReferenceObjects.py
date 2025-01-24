@@ -180,10 +180,13 @@ class ReferenceObjectLoader:
     log : `lsst.log.Log`, `logging.Logger` or `None`, optional
         Logger object used to write out messages. If `None` a default
         logger will be used.
+    instrument : `lsst.obs.base.Instrument`, optional
+        If provided, an instrument to be used to obtain filter mappings from.
+        If not provided, configured filter mappings will be used instead.
     """
     ConfigClass = LoadReferenceObjectsConfig
 
-    def __init__(self, dataIds, refCats, name=None, log=None, config=None):
+    def __init__(self, dataIds, refCats, name=None, log=None, config=None, instrument=None):
         if config is None:
             config = self.ConfigClass()
         self.config = config
@@ -191,6 +194,20 @@ class ReferenceObjectLoader:
         self.refCats = list(refCats)
         self.name = name
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
+        self._anyFilterMapsToThis = self.config.anyFilterMapsToThis
+        self._filterMap = dict(self.config.filterMap)
+        if instrument is not None:
+            try:
+                instrumentFilterMap = instrument.get_ref_cat_filter_map(self.name)
+            except NotImplementedError:
+                # This instrument doesn't have refcat information yet.
+                return
+            if isinstance(instrumentFilterMap, str):
+                self._anyFilterMapsToThis = instrumentFilterMap
+                self._filterMap = {}
+            else:
+                self._anyFilterMapsToThis = None
+                self._filterMap = dict(instrumentFilterMap)
 
     def applyProperMotions(self, catalog, epoch):
         """Apply proper motion correction to a reference catalog.
@@ -711,8 +728,8 @@ class ReferenceObjectLoader:
         self.applyProperMotions(refCat, epoch)
 
         expandedCat = self._remapReferenceCatalogSchema(refCat,
-                                                        anyFilterMapsToThis=self.config.anyFilterMapsToThis,
-                                                        filterMap=self.config.filterMap)
+                                                        anyFilterMapsToThis=self._anyFilterMapsToThis,
+                                                        filterMap=self._filterMap)
 
         # Ensure that the returned reference catalog is continuous in memory
         if not expandedCat.isContiguous():
@@ -796,8 +813,8 @@ class ReferenceObjectLoader:
         emptyCat = type(cat)(cat.table.clone())
         expandedEmptyCat = self._remapReferenceCatalogSchema(
             emptyCat,
-            anyFilterMapsToThis=self.config.anyFilterMapsToThis,
-            filterMap=self.config.filterMap,
+            anyFilterMapsToThis=self._anyFilterMapsToThis,
+            filterMap=self._filterMap,
         )
         fluxField = getRefFluxField(expandedEmptyCat.schema, filterName)
         if expandedEmptyCat.schema[fluxField].asField().getUnits() != "nJy":
