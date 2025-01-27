@@ -110,7 +110,7 @@ class NoiseVarianceTestCase(lsst.utils.tests.TestCase):
             a1, a2 = 0, 0
             corr_noise = self.noise + background_value
 
-        self.mi.image.array = corr_noise[1:-1, 1:-1]
+        self.mi.image.array = corr_noise[1:-1, 1:-1].astype(np.float32)
 
     @lsst.utils.tests.methodParameters(
         rho=((0.0, 0.0), (-0.2, 0.0), (0.0, 0.1), (0.15, 0.25), (0.25, -0.15))
