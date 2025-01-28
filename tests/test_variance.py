@@ -49,14 +49,14 @@ class NoiseVarianceTestCase(lsst.utils.tests.TestCase):
 
         super().setUpClass()
 
-        np.random.seed(seed)
-        cls.noise = np.random.randn(size, size).astype(np.float32)
+        rng = np.random.Generator(np.random.MT19937(seed))
+        cls.noise = rng.standard_normal((size, size)).astype(np.float32)
 
         # We will clip the edges, so the variance plane will be smaller by 2.
         variance_array = np.ones((size - 2, size - 2), dtype=np.float32)
 
         # Randomly set some mask bits to be non-zero.
-        mask_array = (np.random.geometric(0.85, size=(size - 2, size - 2)) - 1).astype(
+        mask_array = (rng.geometric(0.85, size=(size - 2, size - 2)) - 1).astype(
             np.int32
         )
         # Set some masked variance values to zero.

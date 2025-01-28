@@ -12,7 +12,7 @@ from lsst.meas.algorithms import AccumulatorMeanStack
 class AccumulatorMeanStackTestCase(lsst.utils.tests.TestCase):
     def make_test_images_to_coadd(self):
         """Make test images to coadd."""
-        np.random.seed(12345)
+        rng = np.random.Generator(np.random.MT19937(5))
 
         # Choose an arbitrary number of images and image size.
         # Below we set bad pixels for either 1 or half these images,
@@ -25,18 +25,18 @@ class AccumulatorMeanStackTestCase(lsst.utils.tests.TestCase):
         # Create some bad pixels at random positions, and some others at
         # fixed positions (but not in all images).
         exposures = []
-        variances = np.random.uniform(size=n_image, low=5.0, high=10.0)
+        variances = rng.uniform(size=n_image, low=5.0, high=10.0)
 
         for i in range(n_image):
             exposure = afwImage.ExposureF(width=image_size[0], height=image_size[1])
             exposure.variance.array[:, :] = variances[i]
-            exposure.image.array[:, :] = np.random.normal(loc=0.0,
-                                                          scale=np.sqrt(variances[i]),
-                                                          size=image_size)
-            exposure.image.array[50, 50] = np.random.normal(loc=100.0,
-                                                            scale=np.sqrt(100.0))
-            exposure.image.array[100, 100] = np.random.normal(loc=200.0,
-                                                              scale=np.sqrt(200.0))
+            exposure.image.array[:, :] = rng.normal(loc=0.0,
+                                                    scale=np.sqrt(variances[i]),
+                                                    size=image_size)
+            exposure.image.array[50, 50] = rng.normal(loc=100.0,
+                                                      scale=np.sqrt(100.0))
+            exposure.image.array[100, 100] = rng.normal(loc=200.0,
+                                                        scale=np.sqrt(200.0))
             if (i == 2):
                 # Create one outlier pixel
                 exposure.image.array[150, 125] = 1000.0
@@ -54,7 +54,7 @@ class AccumulatorMeanStackTestCase(lsst.utils.tests.TestCase):
 
             exposures.append(exposure)
 
-        weights = np.random.uniform(size=n_image, low=0.9, high=1.1)
+        weights = rng.uniform(size=n_image, low=0.9, high=1.1)
 
         return exposures, weights
 

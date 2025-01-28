@@ -152,8 +152,8 @@ class InterpolationTestCase(lsst.utils.tests.TestCase):
         for nBadCol in range(0, 20):
             mi.set((0, 0x0, 0))
 
-            np.random.seed(666)
-            ima[:] = np.random.uniform(-1, 1, ima.shape)
+            rng = np.random.Generator(np.random.MT19937(5))
+            ima[:] = rng.uniform(-1, 1, ima.shape)
 
             defects = []
 

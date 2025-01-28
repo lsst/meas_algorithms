@@ -69,10 +69,10 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         self.correlation_length = 10.0
         self.white_noise = 1e-5
 
-        np.random.seed(42)
+        rng = np.random.Generator(np.random.MT19937(5))
 
-        x1 = np.random.uniform(0, 99, npoints)
-        x2 = np.random.uniform(0, 120, npoints)
+        x1 = rng.uniform(0, 99, npoints)
+        x2 = rng.uniform(0, 120, npoints)
         coord1 = np.array([x1, x2]).T
 
         kernel = rbf_kernel(coord1, coord1, self.std, self.correlation_length)
@@ -82,7 +82,7 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         # on a 100 * 100 is to slow. So generate 1e3 points
         # and then interpolate it with a GP to do data augmentation.
 
-        z1 = np.random.multivariate_normal(np.zeros(npoints), kernel)
+        z1 = rng.multivariate_normal(np.zeros(npoints), kernel)
 
         x1 = np.linspace(0, 99, 100)
         x2 = np.linspace(0, 120, 121)
@@ -140,8 +140,8 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
 
         # Create a noise image
         # self.noise = self.maskedimage.clone()
-        # np.random.seed(12345)
-        # self.noise.image.array[:, :] = np.random.normal(size=self.noise.image.array.shape)
+        # rng = np.random.Generator(np.random.MT19937(5))
+        # self.noise.image.array[:, :] = rng.normal(size=self.noise.image.array.shape)
 
     def test_interpolation(self):
         """Test that the interpolation is done correctly.

@@ -85,9 +85,10 @@ def plantSources(bbox, kwid, sky, coordList, addPoissonNoise=True):
 
     # add Poisson noise
     if (addPoissonNoise):
-        np.random.seed(seed=1)  # make results reproducible
+        # Make results predictable over different numpy versions.
+        rng = np.random.Generator(np.random.MT19937(5))
         imgArr = img.getArray()
-        imgArr[:] = np.random.poisson(imgArr)
+        imgArr[:] = rng.poisson(imgArr)
 
     # bundle into a maskedimage and an exposure
     mask = afwImage.Mask(bbox)

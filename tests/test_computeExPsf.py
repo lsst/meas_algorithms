@@ -98,7 +98,7 @@ def generate_gaussian_random_field(
         Default: ``10000``
     nmax: `int`
         Max number of data points generated using
-        `np.random.multivariate_normal`. If
+        `np.random.Generator.multivariate_normal`. If
         npoints>nmax, a GP will be used in addition.
         Default: ``1000``
     std: `float`
@@ -126,7 +126,8 @@ def generate_gaussian_random_field(
         ``z``: `np.ndarray`
             Scalar value of the gaussian random field
     """
-    np.random.seed(seed)
+    # Choose explicit RNG.
+    rng = np.random.Generator(np.random.MT19937(seed))
 
     if input_coord is not None:
         npoints = len(input_coord[:, 0])
@@ -137,15 +138,15 @@ def generate_gaussian_random_field(
         ngenerated = npoints
 
     if input_coord is None or npoints > nmax:
-        x1 = np.random.uniform(xmin, xmax, ngenerated)
-        x2 = np.random.uniform(ymin, ymax, ngenerated)
+        x1 = rng.uniform(xmin, xmax, ngenerated)
+        x2 = rng.uniform(ymin, ymax, ngenerated)
         coord1 = np.array([x1, x2]).T
     else:
         coord1 = input_coord
     kernel = rbf_kernel(coord1, coord1, std, correlation_length)
     kernel += np.eye(ngenerated) * white_noise**2
 
-    z1 = np.random.multivariate_normal(np.zeros(ngenerated), kernel)
+    z1 = rng.multivariate_normal(np.zeros(ngenerated), kernel)
 
     # Data augmentation. Create a gaussian random field
     # with npoints>nmax is to slow. So generate nmax points
@@ -153,8 +154,8 @@ def generate_gaussian_random_field(
 
     if npoints > nmax:
         if input_coord is None:
-            x1 = np.random.uniform(xmin, xmax, npoints)
-            x2 = np.random.uniform(ymin, ymax, npoints)
+            x1 = rng.uniform(xmin, xmax, npoints)
+            x2 = rng.uniform(ymin, ymax, npoints)
             coord = np.array([x1, x2]).T
         else:
             coord = input_coord
@@ -190,7 +191,7 @@ class ComputeExPsfTestCase(lsst.utils.tests.TestCase):
             std=1.0,
             correlation_length=200.0,
             white_noise=0.01,
-            seed=42,
+            seed=1,
             input_coord=None,
         )
 

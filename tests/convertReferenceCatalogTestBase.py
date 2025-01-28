@@ -129,22 +129,22 @@ class ConvertReferenceCatalogTestBase:
         refCatData : `np.ndarray`
             The data contained in the on-sky catalog files.
         """
-        np.random.seed(seed)
+        rng = np.random.Generator(np.random.MT19937(seed))
         ident = np.arange(idStart, size + idStart, dtype=int)
-        ra = np.random.random(size)*360.
-        dec = np.degrees(np.arccos(2.*np.random.random(size) - 1.))
+        ra = rng.random(size)*360.
+        dec = np.degrees(np.arccos(2.*rng.random(size) - 1.))
         dec -= 90.
         ra_err = np.ones(size)*0.1  # arcsec
         dec_err = np.ones(size)*0.1  # arcsec
-        a_mag = 16. + np.random.random(size)*4.
-        a_mag_err = 0.01 + np.random.random(size)*0.2
-        b_mag = 17. + np.random.random(size)*5.
-        b_mag_err = 0.02 + np.random.random(size)*0.3
-        is_photometric = np.random.randint(2, size=size)
-        is_resolved = np.random.randint(2, size=size)
-        is_variable = np.random.randint(2, size=size)
-        extra_col1 = np.random.normal(size=size)
-        extra_col2 = np.random.normal(1000., 100., size=size)
+        a_mag = 16. + rng.random(size)*4.
+        a_mag_err = 0.01 + rng.random(size)*0.2
+        b_mag = 17. + rng.random(size)*5.
+        b_mag_err = 0.02 + rng.random(size)*0.3
+        is_photometric = rng.integers(2, size=size)
+        is_resolved = rng.integers(2, size=size)
+        is_variable = rng.integers(2, size=size)
+        extra_col1 = rng.normal(size=size)
+        extra_col2 = rng.normal(1000., 100., size=size)
         # compute proper motion and PM error in arcseconds/year
         # and let the convert task scale them to radians
         pm_amt_arcsec = cls.properMotionAmt.asArcseconds()
@@ -155,21 +155,21 @@ class ConvertReferenceCatalogTestBase:
         pm_dec_err = np.ones(size)*cls.properMotionErr.asArcseconds()*abs(math.sin(pm_dir_rad))
         parallax = np.ones(size)*0.1  # arcseconds
         parallax_error = np.ones(size)*0.003  # arcseconds
-        ra_dec_corr = 2 * np.random.random(size) - 1
-        ra_parallax_corr = 2 * np.random.random(size) - 1
-        ra_pmra_corr = 2 * np.random.random(size) - 1
-        ra_pmdec_corr = 2 * np.random.random(size) - 1
-        dec_parallax_corr = 2 * np.random.random(size) - 1
-        dec_pmra_corr = 2 * np.random.random(size) - 1
-        dec_pmdec_corr = 2 * np.random.random(size) - 1
-        parallax_pmra_corr = 2 * np.random.random(size) - 1
-        parallax_pmdec_corr = 2 * np.random.random(size) - 1
-        pmra_pmdec_corr = 2 * np.random.random(size) - 1
+        ra_dec_corr = 2 * rng.random(size) - 1
+        ra_parallax_corr = 2 * rng.random(size) - 1
+        ra_pmra_corr = 2 * rng.random(size) - 1
+        ra_pmdec_corr = 2 * rng.random(size) - 1
+        dec_parallax_corr = 2 * rng.random(size) - 1
+        dec_pmra_corr = 2 * rng.random(size) - 1
+        dec_pmdec_corr = 2 * rng.random(size) - 1
+        parallax_pmra_corr = 2 * rng.random(size) - 1
+        parallax_pmdec_corr = 2 * rng.random(size) - 1
+        pmra_pmdec_corr = 2 * rng.random(size) - 1
         unixtime = np.ones(size)*cls.epoch.unix
 
         def get_word(word_len):
-            return "".join(np.random.choice([s for s in string.ascii_letters], word_len))
-        extra_col3 = np.array([get_word(num) for num in np.random.randint(11, size=size)])
+            return "".join(rng.choice([s for s in string.ascii_letters], word_len))
+        extra_col3 = np.array([get_word(num) for num in rng.integers(11, size=size)])
 
         dtype = np.dtype([('id', float), ('ra', float), ('dec', float),
                           ('ra_error', float), ('dec_error', float), ('a', float),

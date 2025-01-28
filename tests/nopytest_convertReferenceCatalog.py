@@ -124,7 +124,7 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
     Uses mocks to force particular behavior regarding e.g. catalogs.
     """
     def setUp(self):
-        np.random.seed(10)
+        self.rng = np.random.Generator(np.random.MT19937(5))
 
         self.tempDir = tempfile.TemporaryDirectory()
         tempPath = self.tempDir.name
@@ -176,7 +176,7 @@ class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceC
         catalog = lsst.afw.table.SimpleCatalog(self.schema)
         catalog.resize(nOld)
         for x in self.schema:
-            catalog[x.key] = np.random.random(nOld)
+            catalog[x.key] = self.rng.random(nOld)
         # do the ids separately, so there are no duplicates
         catalog['id'] = np.arange(idStart, idStart + nOld)
         catalog.resize(nOld + nNew)  # make space for the elements we will add
