@@ -208,6 +208,33 @@ class ReferenceObjectLoader:
             else:
                 self._anyFilterMapsToThis = None
                 self._filterMap = dict(instrumentFilterMap)
+        self._instrument = instrument
+
+    def getColorterm(self, physical_filter):
+        """Return the colorterm for the given filter.
+
+        Parameters
+        ----------
+        physical_filter : `str`
+            Physical filter name.
+
+        Returns
+        -------
+        colorterm : `lsst.obs.base.ref_cat_instrument_data.ColortermModel` \
+                or `None`
+            Struct containing colorterm parameters.  `None` if this loader was
+            initialized without an `Instrument`, or with an instrument that has
+            not implemented colorterm lookup.
+
+        Raises
+        ------
+        LookupError
+            Raises if the loader was initialized with an instrument, but there
+            was no colorterm for this reference catalog and band.
+        """
+        if self._instrument is not None:
+            return self._instrument.get_refcat_colorterm(self.name, physical_filter)
+        return None
 
     def applyProperMotions(self, catalog, epoch):
         """Apply proper motion correction to a reference catalog.
