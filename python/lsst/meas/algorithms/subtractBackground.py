@@ -20,10 +20,11 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask")
+__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask", "backgroundFlatContext")
 
 import itertools
 
+from contextlib import contextmanager
 import numpy
 
 from lsstDebug import getDebugFrame
@@ -34,6 +35,51 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+
+
+@contextmanager
+def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=None):
+    """Context manager to convert from photometric-flattened to background-
+    flattened image.
+
+    Parameters
+    ----------
+    maskedImage : `lsst.afw.image.MaskedImage`
+        Masked image (image + mask + variance) to convert from a
+        photometrically flat image to an image suitable for background
+        subtraction.
+    doApply : `bool`
+        Apply the conversion? If False, this context manager will not
+        do anything.
+    backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+        Image to convert photometrically-flattened image to
+        background-flattened image (and back).
+
+    Yields
+    ------
+    maskedImage : `lsst.afw.image.MaskedImage`
+        Masked image converted into an image suitable for background
+        subtraction.
+
+    Raises
+    ------
+    RuntimeError if doApply is True and no ratio is supplied.
+    ValueError if the ratio is not an `lsst.afw.image.Image`.
+    """
+    if doApply:
+        if backgroundToPhotometricRatio is None:
+            raise RuntimeError("backgroundFlatContext called with doApply=True, "
+                               "but without a backgroundToPhotometricRatio")
+        if not isinstance(backgroundToPhotometricRatio, afwImage.Image):
+            raise ValueError("The backgroundToPhotometricRatio must be an lsst.afw.image.Image")
+
+        maskedImage /= backgroundToPhotometricRatio
+
+    try:
+        yield maskedImage
+    finally:
+        if doApply:
+            maskedImage *= backgroundToPhotometricRatio
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
@@ -139,6 +185,10 @@ class SubtractBackgroundTask(pipeBase.Task):
             Key names used to store the mean and variance of the background in the
             exposure's metadata (another tuple); if None then use ("BGMEAN", "BGVAR");
             ignored if stats is false.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Image to convert photometrically-flattened image to
+            background-flattened image (and back).
+            Only used if config.doApplyFlatBackgroundRatio = True.
 
         Returns
         -------
