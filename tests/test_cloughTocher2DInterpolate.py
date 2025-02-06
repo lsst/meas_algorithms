@@ -90,8 +90,8 @@ class CloughTocher2DInterpolateTestCase(lsst.utils.tests.TestCase):
 
         # Create a noise image
         self.noise = self.maskedimage.clone()
-        np.random.seed(12345)
-        self.noise.image.array[:, :] = np.random.normal(size=self.noise.image.array.shape)
+        rng = np.random.Generator(np.random.MT19937(5))
+        self.noise.image.array[:, :] = rng.normal(size=self.noise.image.array.shape)
 
     @lsst.utils.tests.methodParametersProduct(n_runs=(1, 2), flipXY=(False, True))
     def test_interpolation(self, n_runs: int, flipXY: bool):

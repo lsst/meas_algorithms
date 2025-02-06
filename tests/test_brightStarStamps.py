@@ -34,23 +34,23 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
     """Test BrightStarStamps.
     """
     def setUp(self):
-        np.random.seed(12)
+        rng = np.random.Generator(np.random.MT19937(5))
         stampSize = (25, 25)
         # create dummy star stamps
         starImages = [afwImage.MaskedImageF(*stampSize)
                       for _ in range(3)]
         for starIm in starImages:
             starImArray = starIm.image.array
-            starImArray += np.random.rand(*stampSize)
+            starImArray += rng.random(stampSize)
         ids = ["111", "aaa", "bbb"]
         positions = [Point2I(x0, y0)
-                     for x0, y0 in zip(np.random.randint(11, size=3), np.random.randint(11, size=3))]
-        mags = np.random.rand(3)
+                     for x0, y0 in zip(rng.integers(11, size=3), rng.integers(11, size=3))]
+        mags = rng.random(3)
         # faint object to test magnitude cuts
         self.faintObjIdx = 1
         mags[self.faintObjIdx] = 18.
         ids[self.faintObjIdx] = "faint"
-        fluxes = np.random.rand(3)
+        fluxes = rng.random(3)
         self.starStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
                                                             gaiaGMag=mag,
                                                             position=pos,

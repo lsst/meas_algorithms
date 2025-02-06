@@ -42,23 +42,23 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
         warped images (which implicitly include the Jacobian) against the behavior of CoaddBoundedField
         (which intentionally does not).
         """
-        crpix = lsst.geom.Point2D(*np.random.uniform(low=-maxOffset, high=maxOffset, size=2))
+        crpix = lsst.geom.Point2D(*self.rng.uniform(low=-maxOffset, high=maxOffset, size=2))
         scale = 0.01*lsst.geom.arcseconds
-        orientation = np.pi*np.random.rand()*lsst.geom.radians
+        orientation = np.pi*self.rng.random()*lsst.geom.radians
         cdMatrix = lsst.afw.geom.makeCdMatrix(scale=scale, orientation=orientation)
         return lsst.afw.geom.makeSkyWcs(crpix=crpix, crval=crval, cdMatrix=cdMatrix)
 
     def makeRandomField(self, bbox):
         """Create a random ChebyshevBoundedField"""
-        coefficients = np.random.randn(3, 3)
+        coefficients = self.rng.standard_normal((3, 3))
         # We add a positive DC offset to make sure our fields more likely to combine constructively;
         # this makes the test more stringent, because we get less accidental small numbers.
-        coefficients[0, 0] = np.random.uniform(low=4, high=6)
+        coefficients[0, 0] = self.rng.uniform(low=4, high=6)
         return lsst.afw.math.ChebyshevBoundedField(bbox, coefficients)
 
     def constructElements(self, validBox):
         """Construct the elements of a CoaddBoundedField."""
-        np.random.seed(50)
+        rng = np.random.Generator(np.random.MT19937(50))
         validPolygon = lsst.afw.geom.Polygon(lsst.geom.Box2D(validBox)) if validBox else None
         elements = []
         validBoxes = []
@@ -69,13 +69,14 @@ class CoaddBoundedFieldTestCase(lsst.utils.tests.TestCase):
                     self.makeRandomField(self.elementBBox),
                     self.makeRandomWcs(self.crval),
                     validPolygon,
-                    np.random.uniform(low=0.5, high=1.5)
+                    rng.uniform(low=0.5, high=1.5)
                 )
             )
             validBoxes.append(validBox)
         return elements, validBoxes
 
     def setUp(self):
+        self.rng = np.random.Generator(np.random.MT19937(50))
         self.crval = lsst.geom.SpherePoint(45.0, 45.0, lsst.geom.degrees)
         self.elementBBox = lsst.geom.Box2I(lsst.geom.Point2I(-50, -50), lsst.geom.Point2I(50, 50))
         self.coaddWcs = self.makeRandomWcs(self.crval, maxOffset=0.0)

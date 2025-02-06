@@ -50,8 +50,8 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         sourceCat = afwTable.SourceCatalog(self.schema)
 
         centroidKey = afwTable.Point2DKey(self.schema["slot_Centroid"])
-        x = np.random.rand(numSources)*self.exposure.getWidth() + self.exposure.getX0()
-        y = np.random.rand(numSources)*self.exposure.getHeight() + self.exposure.getY0()
+        x = self.rng.random(numSources)*self.exposure.getWidth() + self.exposure.getX0()
+        y = self.rng.random(numSources)*self.exposure.getHeight() + self.exposure.getY0()
         for _i in range(numSources):
             source_test_centroid = lsst.geom.Point2D(x[_i], y[_i])
             source = sourceCat.addNew()
@@ -73,6 +73,7 @@ class MeasureApCorrTestCase(lsst.meas.base.tests.AlgorithmTestCase, lsst.utils.t
         return sourceCat
 
     def setUp(self):
+        self.rng = np.random.Generator(np.random.MT19937(1))
         schema = afwTable.SourceTable.makeMinimalSchema()
         apNameStr = "Ap"
         config = measureApCorr.MeasureApCorrTask.ConfigClass()

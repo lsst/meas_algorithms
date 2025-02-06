@@ -89,9 +89,10 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         """
         source_cat = lsst.afw.table.SourceCatalog(schema)
 
-        x = np.random.rand(num_sources)*self.exposure.getWidth() + self.exposure.getX0()
-        y = np.random.rand(num_sources)*self.exposure.getHeight() + self.exposure.getY0()
-        flux = np.random.uniform(low=10000.0, high=100000.0, size=num_sources)
+        rng = np.random.Generator(np.random.MT19937(self.seed))
+        x = rng.random(num_sources)*self.exposure.getWidth() + self.exposure.getX0()
+        y = rng.random(num_sources)*self.exposure.getHeight() + self.exposure.getY0()
+        flux = rng.uniform(low=10000.0, high=100000.0, size=num_sources)
 
         source_cat.resize(num_sources)
         source_cat["slot_Centroid_x"] = x
@@ -116,7 +117,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         del self.exposure
 
     def testNormalizedCalibrationFlux(self):
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task = self._make_task()
         catalog = self._make_catalog(norm_task.schema)
 
@@ -149,7 +150,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         )
 
     def testNormalizedCalibrationFluxOffset(self):
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task = self._make_task()
 
         for offset in [-10.0, 10.0]:
@@ -178,7 +179,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
             self.assertFloatsAlmostEqual(ratio_used, 1.0, rtol=1e-10)
 
     def testNormalizedCalibrationFluxTooFew(self):
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task = self._make_task()
         catalog = self._make_catalog(norm_task.schema)
 
@@ -200,7 +201,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
 
     def testNormalizedCalibrationFluxApplyOnly(self):
         # Run the regular task in default mode first.
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task = self._make_task()
         catalog_run1 = self._make_catalog(norm_task.schema)
         exposure_run1 = self.exposure.clone()
@@ -210,7 +211,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         exposure_run1.info.setApCorrMap(ap_corr_map)
 
         # Rerun the task; we need to make sure we have the same input so re-seed.
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task2 = self._make_task(apply_only=True)
         catalog_run2 = self._make_catalog(norm_task.schema)
 
@@ -234,14 +235,14 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
         )
 
     def testNormalizedCalibrationFluxApplyOnlyFail(self):
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task = self._make_task()
         catalog_run1 = self._make_catalog(norm_task.schema)
         exposure_run1 = self.exposure.clone()
 
         norm_task.run(catalog=catalog_run1, exposure=exposure_run1).ap_corr_map
 
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task2 = self._make_task(apply_only=True)
         catalog_run2 = self._make_catalog(norm_task.schema)
 
@@ -262,7 +263,7 @@ class NormalizedCalibrationFluxTestCase(lsst.utils.tests.TestCase):
 
     def testNormalizedCalibrationFluxError(self):
 
-        np.random.seed(12345)
+        self.seed = 12345
         norm_task = self._make_task()
         catalog = self._make_catalog(norm_task.schema)
         catalog[norm_task.config.raw_calibflux_name + "_flag"] = True

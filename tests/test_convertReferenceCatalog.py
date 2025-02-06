@@ -281,9 +281,6 @@ class ConvertGaiaManagerTests(convertReferenceCatalogTestBase.ConvertReferenceCa
     """Unittests specific to the Gaia catalog.
     """
     def setUp(self):
-
-        np.random.seed(10)
-
         self.tempDir = tempfile.TemporaryDirectory()
         tempPath = self.tempDir.name
         self.log = logging.getLogger("lsst.TestConvertRefcatManager")

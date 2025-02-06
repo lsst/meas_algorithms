@@ -32,7 +32,7 @@ import lsst.geom as geom
 import lsst.afw.geom.transformFactory as tF
 import lsst.utils.tests
 
-np.random.seed(90210)
+_RNG = np.random.Generator(np.random.MT19937(5))
 
 
 def make_stamps(n_stamps=3, use_archive=False):
@@ -42,14 +42,14 @@ def make_stamps(n_stamps=3, use_archive=False):
                    for _ in range(n_stamps)]
     for stampIm in stampImages:
         stampImArray = stampIm.image.array
-        stampImArray += np.random.rand(stampSize, stampSize)
+        stampImArray += _RNG.random((stampSize, stampSize))
         stampMaskArray = stampIm.mask.array
         stampMaskArray += 10
         stampVarArray = stampIm.variance.array
         stampVarArray += 1000.
-    ras = np.random.rand(n_stamps)*360.
-    decs = np.random.rand(n_stamps)*180 - 90
-    archive_elements = [tF.makeTransform(geom.AffineTransform(np.random.rand(2))) if use_archive else None
+    ras = _RNG.random(n_stamps)*360.
+    decs = _RNG.random(n_stamps)*180 - 90
+    archive_elements = [tF.makeTransform(geom.AffineTransform(_RNG.random(2))) if use_archive else None
                         for _ in range(n_stamps)]
     stamp_list = [stamps.Stamp(stamp_im=stampIm,
                                position=geom.SpherePoint(geom.Angle(ra, geom.degrees),

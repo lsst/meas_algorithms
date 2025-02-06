@@ -47,7 +47,7 @@ else:
     afwDisplay.setDefaultMaskTransparency(75)
 
 
-def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
+def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, rng, useRandom=False):
 
     pixToTanPix = detector.getTransform(cameraGeom.PIXELS, cameraGeom.TAN_PIXELS)
 
@@ -76,7 +76,7 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
 
         # get our position
         if useRandom:
-            xcen0, ycen0 = np.random.uniform(nx), np.random.uniform(ny)
+            xcen0, ycen0 = rng.uniform(nx), rng.uniform(ny)
         else:
             xcen0, ycen0 = xstep*((i % nRow) + 1), ystep*(int(i/nRow) + 1)
         ixcen0, iycen0 = int(xcen0), int(ycen0)
@@ -150,8 +150,8 @@ def plantSources(x0, y0, nx, ny, sky, nObj, wid, detector, useRandom=False):
     noise0 = afwImage.ImageF(lsst.geom.ExtentI(nx, ny))
     for i in range(nx):
         for j in range(ny):
-            noise[i, j, afwImage.LOCAL] = np.random.poisson(img[i, j, afwImage.LOCAL])
-            noise0[i, j, afwImage.LOCAL] = np.random.poisson(img0[i, j, afwImage.LOCAL])
+            noise[i, j, afwImage.LOCAL] = rng.poisson(img[i, j, afwImage.LOCAL])
+            noise0[i, j, afwImage.LOCAL] = rng.poisson(img0[i, j, afwImage.LOCAL])
 
     edgeWidth = int(0.5*edgeBuffer)
     mask = afwImage.Mask(lsst.geom.ExtentI(nx, ny))
@@ -179,7 +179,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
     """Test the aperture correction."""
 
     def setUp(self):
-        np.random.seed(500)  # make test repeatable
+        self.rng = np.random.Generator(np.random.MT19937(500))
         self.x0, self.y0 = 0, 0
         self.nx, self.ny = 512, 512  # 2048, 4096
         self.sky = 100.0
@@ -277,7 +277,7 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         psfSigma = 1.5
         exposDist, nGoodDist, expos0, nGood0 = plantSources(self.x0, self.y0,
                                                             self.nx, self.ny,
-                                                            self.sky, self.nObj, psfSigma, detector)
+                                                            self.sky, self.nObj, psfSigma, detector, self.rng)
 
         # set the psf
         kwid = 21
@@ -366,11 +366,15 @@ class PsfSelectionTestCase(lsst.utils.tests.TestCase):
         detector = self.detector
 
         psfSigma = 1.5
-        stars = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, self.nObj, psfSigma, detector)
+        stars = plantSources(
+            self.x0, self.y0, self.nx, self.ny, self.sky, self.nObj, psfSigma, detector, self.rng
+        )
         expos, starXy = stars[0], stars[1]
 
         # add some faint round galaxies ... only slightly bigger than the psf
-        gxy = plantSources(self.x0, self.y0, self.nx, self.ny, self.sky, 10, 1.07*psfSigma, detector)
+        gxy = plantSources(
+            self.x0, self.y0, self.nx, self.ny, self.sky, 10, 1.07*psfSigma, detector, self.rng
+        )
         mi = expos.getMaskedImage()
         mi += gxy[0].getMaskedImage()
         gxyXy = gxy[1]

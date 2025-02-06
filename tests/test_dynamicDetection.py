@@ -27,10 +27,10 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         starBox.grow(-int(buffer*sigma))
         scale = 1.0e-5*degrees  # Pixel scale
 
-        np.random.seed(12345)
+        rng = np.random.Generator(np.random.MT19937(12345))
         stars = [(xx, yy, ff, sigma) for xx, yy, ff in
-                 zip(np.random.uniform(starBox.getMinX(), starBox.getMaxX(), numStars),
-                     np.random.uniform(starBox.getMinY(), starBox.getMaxY(), numStars),
+                 zip(rng.uniform(starBox.getMinX(), starBox.getMaxX(), numStars),
+                     rng.uniform(starBox.getMinY(), starBox.getMaxY(), numStars),
                      np.linspace(faint, bright, numStars))]
         self.exposure = plantSources(box, 2*int(nSigmaForKernel*sigma) + 1, sky, stars, True)
         self.exposure.setWcs(makeSkyWcs(crpix=Point2D(0, 0),
