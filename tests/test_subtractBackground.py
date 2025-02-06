@@ -85,6 +85,34 @@ class SubtractBackgroundTaskTestCase(lsst.utils.tests.TestCase):
         backgroundImage2 = results2.background.getImage()
         self.assertFloatsAlmostEqual(np.mean(backgroundImage2.array), self.sky, atol=0.1)
 
+    def test_subtractBackgroundWithFlatRatio(self):
+        exp = self._create_exposure()
+
+        config = SubtractBackgroundConfig()
+        config.doApplyFlatBackgroundRatio = True
+        task = SubtractBackgroundTask(config=config)
+
+        ratioImage = exp.image.clone()
+        ratioImage.array[:, :] = 0.5
+
+        results = task.run(exp, backgroundToPhotometricRatio=ratioImage)
+
+        # Check the background was subtracted.
+        self.assertFloatsAlmostEqual(np.mean(exp.image.array), 0.0, atol=0.1)
+
+        # Check the background level.
+        # This will be twice as large (in "background units") because of the
+        # ratio scaling.
+        backgroundImage = results.background.getImage()
+        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), self.sky / 0.5, atol=0.2)
+
+        # Check that we get Raises with improper inputs.
+        with self.assertRaises(RuntimeError):
+            _ = task.run(exp)
+
+        with self.assertRaises(ValueError):
+            _ = task.run(exp, backgroundToPhotometricRatio=exp.maskedImage)
+
     def test_backgroundFlatContext(self):
         exp = self._create_exposure(keepSky=False)
 
