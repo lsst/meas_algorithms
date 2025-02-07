@@ -37,7 +37,7 @@ import lsst.afw.table as afwTable
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.utils.timer import timeMethod
-from .subtractBackground import SubtractBackgroundTask
+from .subtractBackground import SubtractBackgroundTask, backgroundFlatContext
 
 
 class SourceDetectionConfig(pexConfig.Config):
@@ -102,6 +102,13 @@ class SourceDetectionConfig(pexConfig.Config):
         dtype=bool,
         doc="Estimate the background again after final source detection?",
         default=True, optional=False,
+    )
+    doApplyFlatBackgroundRatio = pexConfig.Field(
+        doc="Convert from a photometrically flat image to one suitable for background subtraction? "
+            "Only used if reEstimateBackground is True."
+            "If True, then a backgroundToPhotometricRatio must be supplied to the task run method.",
+        dtype=bool,
+        default=False,
     )
     background = pexConfig.ConfigurableField(
         doc="Background re-estimation; ignored if reEstimateBackground false",
@@ -218,7 +225,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     @timeMethod
     def run(self, table, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
-            background=None):
+            background=None, backgroundToPhotometricRatio=None):
         r"""Detect sources and return catalog(s) of detections.
 
         Parameters
@@ -242,6 +249,10 @@ class SourceDetectionTask(pipeBase.Task):
         background : `lsst.afw.math.BackgroundList`, optional
             Background that was already subtracted from the exposure; will be
             modified in-place if ``reEstimateBackground=True``.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Image to convert photometric-flattened image to
+            background-flattened image if ``reEstimateBackground=True`` and
+            exposure has been photometric-flattened.
 
         Returns
         -------
@@ -287,7 +298,8 @@ class SourceDetectionTask(pipeBase.Task):
         if self.negativeFlagKey is not None and self.negativeFlagKey not in table.getSchema():
             raise ValueError("Table has incorrect Schema")
         results = self.detectFootprints(exposure=exposure, doSmooth=doSmooth, sigma=sigma,
-                                        clearMask=clearMask, expId=expId, background=background)
+                                        clearMask=clearMask, expId=expId, background=background,
+                                        backgroundToPhotometricRatio=backgroundToPhotometricRatio)
         sources = afwTable.SourceCatalog(table)
         sources.reserve(results.numPos + results.numNeg)
         if results.negative:
@@ -658,7 +670,7 @@ class SourceDetectionTask(pipeBase.Task):
                       self.config.thresholdValue*self.config.includeThresholdMultiplier*factorNeg,
                       "DN" if self.config.thresholdType == "value" else "sigma")
 
-    def reEstimateBackground(self, maskedImage, backgrounds):
+    def reEstimateBackground(self, maskedImage, backgrounds, backgroundToPhotometricRatio=None):
         """Estimate the background after detection
 
         Parameters
@@ -667,24 +679,32 @@ class SourceDetectionTask(pipeBase.Task):
             Image on which to estimate the background.
         backgrounds : `lsst.afw.math.BackgroundList`
             List of backgrounds; modified.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Image to convert photometric-flattened image to
+            background-flattened image.
 
         Returns
         -------
         bg : `lsst.afw.math.backgroundMI`
             Empirical background model.
         """
-        bg = self.background.fitBackground(maskedImage)
-        if self.config.adjustBackground:
-            self.log.warning("Fiddling the background by %g", self.config.adjustBackground)
-            bg += self.config.adjustBackground
-        self.log.info("Resubtracting the background after object detection")
-        maskedImage -= bg.getImageF(self.background.config.algorithm,
-                                    self.background.config.undersampleStyle)
+        with backgroundFlatContext(
+            maskedImage,
+            self.config.doApplyFlatBackgroundRatio,
+            backgroundToPhotometricRatio=backgroundToPhotometricRatio,
+        ):
+            bg = self.background.fitBackground(maskedImage)
+            if self.config.adjustBackground:
+                self.log.warning("Fiddling the background by %g", self.config.adjustBackground)
+                bg += self.config.adjustBackground
+            self.log.info("Resubtracting the background after object detection")
+            maskedImage -= bg.getImageF(self.background.config.algorithm,
+                                        self.background.config.undersampleStyle)
 
-        actrl = bg.getBackgroundControl().getApproximateControl()
-        backgrounds.append((bg, getattr(afwMath.Interpolate, self.background.config.algorithm),
-                            bg.getAsUsedUndersampleStyle(), actrl.getStyle(), actrl.getOrderX(),
-                            actrl.getOrderY(), actrl.getWeighting()))
+            actrl = bg.getBackgroundControl().getApproximateControl()
+            backgrounds.append((bg, getattr(afwMath.Interpolate, self.background.config.algorithm),
+                                bg.getAsUsedUndersampleStyle(), actrl.getStyle(), actrl.getOrderX(),
+                                actrl.getOrderY(), actrl.getWeighting()))
         return bg
 
     def clearUnwantedResults(self, mask, results):
@@ -712,7 +732,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     @timeMethod
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
-                         background=None):
+                         background=None, backgroundToPhotometricRatio=None):
         """Detect footprints on an exposure.
 
         Parameters
@@ -738,6 +758,10 @@ class SourceDetectionTask(pipeBase.Task):
         background : `lsst.afw.math.BackgroundList`, optional
             Background that was already subtracted from the exposure; will be
             modified in-place if ``reEstimateBackground=True``.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Image to convert photometric-flattened image to
+            background-flattened image if ``reEstimateBackground=True`` and
+            exposure has been photometric-flattened.
 
         Returns
         -------
@@ -791,7 +815,11 @@ class SourceDetectionTask(pipeBase.Task):
                                                         negative=True)
 
             if self.config.reEstimateBackground:
-                self.reEstimateBackground(maskedImage, results.background)
+                self.reEstimateBackground(
+                    maskedImage,
+                    results.background,
+                    backgroundToPhotometricRatio=backgroundToPhotometricRatio,
+                )
 
             self.clearUnwantedResults(maskedImage.getMask(), results)
 
