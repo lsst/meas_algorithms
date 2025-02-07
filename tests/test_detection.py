@@ -299,7 +299,7 @@ class SourceDetectionTaskTestCase(lsst.utils.tests.TestCase):
         bkgTask = SubtractBackgroundTask(config=bkgConfig)
 
         ratioImage = exp.image.clone()
-        ratioImage.array[:, :] = 0.5
+        ratioImage.array[:, :] = 2.0
 
         result = bkgTask.run(exp, backgroundToPhotometricRatio=ratioImage)
         background = result.background
@@ -321,7 +321,7 @@ class SourceDetectionTaskTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(len(background), 2)
 
         backgroundImage = background.getImage()
-        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), sky*2, atol=0.2)
+        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), sky * 2.0, atol=0.2)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
