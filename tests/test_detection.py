@@ -27,7 +27,7 @@ import lsst.geom
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
-from lsst.meas.algorithms import SourceDetectionTask
+from lsst.meas.algorithms import SourceDetectionTask, SubtractBackgroundTask
 from lsst.meas.algorithms.testUtils import plantSources
 import lsst.utils.tests
 
@@ -43,11 +43,14 @@ import lsst.utils.tests
 
 class SourceDetectionTaskTestCase(lsst.utils.tests.TestCase):
 
-    def _create_exposure(self):
+    def _create_exposure(self, bigBbox=False):
         """Return a simulated exposure (and relevant parameters) with Gaussian
         stars.
         """
-        bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
+        if bigBbox:
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(1024, 1024))
+        else:
+            bbox = lsst.geom.Box2I(lsst.geom.Point2I(256, 100), lsst.geom.Extent2I(128, 127))
         minCounts = 5000
         maxCounts = 50000
         starSigma = 1.5
@@ -239,6 +242,86 @@ class SourceDetectionTaskTestCase(lsst.utils.tests.TestCase):
         # Modify numx and numy, which check_detectFootprints multiplies, to yield 24 instead of 25
         self.assertEqual(numX, numY)
         self._check_detectFootprints(exposure_removed, numX-1, numY+1, starSigma, task, config, doSmooth=True)
+
+    def _create_exposure_bkg(self):
+        """Return a simulated exposure for reestimating background."""
+
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(0, 0), lsst.geom.Extent2I(1024, 1024))
+        kwid = 11
+        sky = 2000
+
+        coordList = [[10, 10, 0, 2.0]]
+
+        exposure = plantSources(
+            bbox=bbox,
+            kwid=kwid,
+            sky=sky,
+            coordList=coordList,
+            addPoissonNoise=True,
+        )
+
+        return exposure
+
+    def test_reEstimateBackground(self):
+        exp, schema, _, _, _ = self._create_exposure(bigBbox=True)
+
+        # Add in some sky.
+        sky = 2000.0
+        exp.image.array[:, :] += sky
+
+        # Subtract that sky using the background task.
+        bkgTask = SubtractBackgroundTask()
+        result = bkgTask.run(exp)
+        background = result.background
+
+        config = SourceDetectionTask.ConfigClass()
+        config.reEstimateBackground = True
+        task = SourceDetectionTask(config=config, schema=schema)
+
+        result = task.detectFootprints(exposure=exp, doSmooth=True, sigma=2.0, background=background)
+
+        # Check that an additional background has been added to the list.
+        self.assertEqual(len(background), 2)
+
+        backgroundImage = background.getImage()
+        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), sky, atol=0.1)
+
+    def test_reEstimateBackgroundWithFlatRatio(self):
+        exp, schema, _, _, _ = self._create_exposure(bigBbox=True)
+
+        # Add in some sky.
+        sky = 2000.0
+        exp.image.array[:, :] += sky
+
+        # Subtract that sky using the background task.
+        bkgConfig = SubtractBackgroundTask.ConfigClass()
+        bkgConfig.doApplyFlatBackgroundRatio = True
+        bkgTask = SubtractBackgroundTask(config=bkgConfig)
+
+        ratioImage = exp.image.clone()
+        ratioImage.array[:, :] = 0.5
+
+        result = bkgTask.run(exp, backgroundToPhotometricRatio=ratioImage)
+        background = result.background
+
+        config = SourceDetectionTask.ConfigClass()
+        config.reEstimateBackground = True
+        config.doApplyFlatBackgroundRatio = True
+        task = SourceDetectionTask(config=config, schema=schema)
+
+        result = task.detectFootprints(
+            exposure=exp,
+            doSmooth=True,
+            sigma=2.0,
+            background=background,
+            backgroundToPhotometricRatio=ratioImage,
+        )
+
+        # Check that an additional background has been added to the list.
+        self.assertEqual(len(background), 2)
+
+        backgroundImage = background.getImage()
+        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), sky*2, atol=0.2)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
