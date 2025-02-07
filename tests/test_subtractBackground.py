@@ -93,7 +93,7 @@ class SubtractBackgroundTaskTestCase(lsst.utils.tests.TestCase):
         task = SubtractBackgroundTask(config=config)
 
         ratioImage = exp.image.clone()
-        ratioImage.array[:, :] = 0.5
+        ratioImage.array[:, :] = 2.0
 
         results = task.run(exp, backgroundToPhotometricRatio=ratioImage)
 
@@ -104,7 +104,7 @@ class SubtractBackgroundTaskTestCase(lsst.utils.tests.TestCase):
         # This will be twice as large (in "background units") because of the
         # ratio scaling.
         backgroundImage = results.background.getImage()
-        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), self.sky / 0.5, atol=0.2)
+        self.assertFloatsAlmostEqual(np.mean(backgroundImage.array), self.sky * 2.0, atol=0.2)
 
         # Check that we get Raises with improper inputs.
         with self.assertRaises(RuntimeError):
@@ -124,11 +124,11 @@ class SubtractBackgroundTaskTestCase(lsst.utils.tests.TestCase):
 
         # Check that doApply=True does the conversions correctly.
         ratioImage = exp.image.clone()
-        ratioImage.array[:, :] = 0.5
+        ratioImage.array[:, :] = 2.0
         maskedImage = exp.maskedImage.clone()
         with backgroundFlatContext(maskedImage, True, backgroundToPhotometricRatio=ratioImage):
             comparisonImage = exp.maskedImage.clone()
-            comparisonImage /= ratioImage
+            comparisonImage *= ratioImage
             self.assertMaskedImagesAlmostEqual(maskedImage, comparisonImage)
         self.assertMaskedImagesAlmostEqual(maskedImage, exp.maskedImage)
 

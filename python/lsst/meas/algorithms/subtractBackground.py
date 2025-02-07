@@ -52,8 +52,8 @@ def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=Non
         Apply the conversion? If False, this context manager will not
         do anything.
     backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
-        Image to convert photometrically-flattened image to
-        background-flattened image (and back).
+        Image to convert background-flattened image to
+        photometric-flattened image (and back).
 
     Yields
     ------
@@ -73,13 +73,13 @@ def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=Non
         if not isinstance(backgroundToPhotometricRatio, afwImage.Image):
             raise ValueError("The backgroundToPhotometricRatio must be an lsst.afw.image.Image")
 
-        maskedImage /= backgroundToPhotometricRatio
+        maskedImage *= backgroundToPhotometricRatio
 
     try:
         yield maskedImage
     finally:
         if doApply:
-            maskedImage *= backgroundToPhotometricRatio
+            maskedImage /= backgroundToPhotometricRatio
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
