@@ -1,10 +1,13 @@
 
-__all__ = ["DynamicDetectionConfig", "DynamicDetectionTask", "InsufficientSourcesError"]
+__all__ = [
+    "DynamicDetectionConfig",
+    "DynamicDetectionTask",
+    "InsufficientSourcesError",
+]
 
 import numpy as np
 
 from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Struct
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -13,6 +16,7 @@ from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
+from lsst.pipe.base import Struct
 
 import lsst.afw.image
 import lsst.afw.math
@@ -422,7 +426,7 @@ class DynamicDetectionTask(SourceDetectionTask):
             seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
             threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
             factor = threshResults.multiplicative
-            self.log.info("Modifying configured detection threshold by factor %f to %f",
+            self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
                           factor, factor*self.config.thresholdValue)
 
             # Blow away preliminary (low threshold) detection mask
@@ -564,7 +568,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                           format(nPixDetNeg, 100*nPixDetNeg/nPix))
             if nPixDetNeg/nPix > brightMaskFractionMax or nPixDet/nPix > brightMaskFractionMax:
                 self.log.warn("Too high a fraction (%.1f > %.1f) of pixels were masked with current "
-                              "\"bright\" detection round thresholds.  Increasing by a factor of %f "
+                              "\"bright\" detection round thresholds.  Increasing by a factor of %.2f "
                               "and trying again.", max(nPixDetNeg, nPixDet)/nPix,
                               brightMaskFractionMax, self.config.bisectFactor)
 
