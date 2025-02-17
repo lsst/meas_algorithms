@@ -1,10 +1,15 @@
 
-__all__ = ["DynamicDetectionConfig", "DynamicDetectionTask"]
+__all__ = [
+    "DynamicDetectionConfig",
+    "DynamicDetectionTask",
+    "DynamicThresholdDetectionConfig",
+    "DynamicThresholdDetectionTask",
+]
 
 import numpy as np
 
-from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Struct, NoWorkFound
+from lsst.pex.config import Field, ConfigurableField, Config, DictField, FieldValidationError
+import lsst.pipe.base as pipeBase
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -260,7 +265,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                         f"Note that {nDetectedPix} of {nGoodPix} \"good\" pixels were marked "
                         "as DETECTED or DETECTED_NEGATIVE.")
                 raise RuntimeError(msg)
-            raise NoWorkFound(msg)
+            raise pipeBase.NoWorkFound(msg)
 
         if not isBgTweak:
             self.log.info("Number of good sky sources used for dynamic detection: %d (of %d requested).",
@@ -275,7 +280,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         medianError = np.median(catalog["base_PsfFlux_instFluxErr"][good])
         if wcsIsNone:
             exposure.setWcs(None)
-        return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
+        return pipeBase.Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
                          background=None, backgroundToPhotometricRatio=None):
@@ -388,7 +393,7 @@ class DynamicDetectionTask(SourceDetectionTask):
             seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
             threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
             factor = threshResults.multiplicative
-            self.log.info("Modifying configured detection threshold by factor %f to %f",
+            self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
                           factor, factor*self.config.thresholdValue)
 
             # Blow away preliminary (low threshold) detection mask
@@ -530,7 +535,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                           format(nPixDetNeg, 100*nPixDetNeg/nPix))
             if nPixDetNeg/nPix > brightMaskFractionMax or nPixDet/nPix > brightMaskFractionMax:
                 self.log.warn("Too high a fraction (%.1f > %.1f) of pixels were masked with current "
-                              "\"bright\" detection round thresholds.  Increasing by a factor of %f "
+                              "\"bright\" detection round thresholds.  Increasing by a factor of %.2f "
                               "and trying again.", max(nPixDetNeg, nPixDet)/nPix,
                               brightMaskFractionMax, self.config.bisectFactor)
 
@@ -540,6 +545,264 @@ class DynamicDetectionTask(SourceDetectionTask):
                               & maskedImage.mask.getPlaneBitMask(["DETECTED", "DETECTED_NEGATIVE"]))
         self.clearMask(maskedImage.mask)
         return brightDetectedMask
+
+
+class DynamicThresholdDetectionConfig(Config):
+    """Configuration for DynamicThresholdDetectionTask
+    """
+    maxDynDetIter = Field(dtype=int, default=5,
+                          doc="Maximum number of dynamic threshold detection iterations.")
+    maxNumPeakPerBand = DictField(
+        keytype=str,
+        itemtype=int,
+        default={
+            "u": 3000,
+            "g": 2000,
+            "r": 3000,
+            "i": 3000,
+            "z": 3000,
+            "y": 3000,
+            "fallback": 5000,
+        },
+        doc="Maximum number of peaks per band. If the current band for the exposure "
+        "is not included as a key in this dict, the value associated with the "
+        "\"fallback\" key will be used.",
+    )
+    minFootprint = Field(dtype=int, default=15,
+                         doc="Minimum number of footprints...")
+    maxPeakToFootRatio = Field(dtype=float, default=800.0,
+                               doc="Maximum ratio of peak per footprint...")
+    minIsolated = Field(dtype=int, default=6,
+                        doc="Minimum number of single-peaked footprints...")
+    sufficientIsolated = Field(dtype=int, default=100,
+                               doc="Minimum number of single-peaked footprints...")
+    sufficientFractionIsolated = Field(dtype=float, default=0.45,
+                                       doc="Minimum number of single-peaked footprints...")
+
+    def validate(self):
+        super().validate()
+        if "fallback" not in self.maxNumPeakPerBand:
+            msg = ("Must include a \"fallback\" key in the config.maxNumPeakPerBand config dict. "
+                   f"It is currenly: {self.maxNumPeakPerBand}.")
+            raise FieldValidationError(self.__class__.maxNumPeakPerBand, self, msg)
+
+
+class DynamicThresholdDetectionTask(pipeBase.Task):
+    """Detection of sources on an image with a dynamic threshold
+
+    We first detect sources using the default threshold and multiplier) ...
+    """
+    ConfigClass = DynamicThresholdDetectionConfig
+    _DefaultName = "dynamicThresholdDetection"
+
+    def __init__(self, *args, **kwargs):
+        pipeBase.Task.__init__(self, *args, **kwargs)
+
+    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0,
+            doReEstimageBackgroud=True, backgroundToPhotometricRatio=None):
+        """Perform detection with a dynamic threshold conditioned to maximize
+        likelihood of a succuessful PSF model fit for any given "scene".
+
+        In particular, we'd like to be able to handle different scenes, from
+        sparsely populated ones through very crowded ones, and possibily high
+        fill-factor nebulosity along the way, with a single pipeline.  This
+        requires some flexibility in setting the detection thresholds in order
+        to detect enough sources suitable for PSF modelling (e.g crowded
+        fields require higher thresholds to ensure the detections don't end
+        up overlapping into a single blended footprint).
+
+        Parameters
+        ----------
+        table : `lsst.afw.table.SourceTable`
+            Table object that will be used to create the SourceCatalog.
+        exposure : `lsst.afw.image.Exposure`
+            Exposure to process; DETECTED mask plane will be set in-place.
+        initialThreshold : `float`, optional
+            Initial threshold for detection of PSF sources.
+        initialThresholdMultiplier : `float`, optional
+            Initial threshold for detection of PSF sources.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Image to convert photometric-flattened image to
+            background-flattened image if ``reEstimateBackground`` is `True`
+            and exposure has been photometric-flattened, and
+            ``config.doApplyFlatBackgroundRatio`` is `True`.
+        """
+        if exposure.filter.hasBandLabel():
+            band = exposure.filter.bandLabel
+        else:
+            band = "fallback"
+        if band in self.config.maxNumPeakPerBand:
+            maxNumPeak = self.config.maxNumPeakPerBand[band]
+        else:
+            maxNumPeak = self.config.maxNumPeakPerBand["fallback"]
+
+        inDynamicDetection = True
+        nDynDetIter = 0
+        thresholdFactor = 1.0
+        # Set up and configure the dynamic detection task on first iteration.
+        if nDynDetIter == 0:  # and psfIteration == 0:
+            if initialThreshold is None:
+                maxSn = float(np.nanmax(exposure.image.array/np.sqrt(exposure.variance.array)))
+                dynDetThreshold = min(maxSn, 5.0)
+            else:
+                dynDetThreshold = initialThreshold
+            dynamicDetectionConfig = SourceDetectionConfig()
+            dynamicDetectionConfig.thresholdValue = dynDetThreshold
+            dynamicDetectionConfig.includeThresholdMultiplier = initialThresholdMultiplier
+            dynamicDetectionConfig.reEstimateBackground = False
+            dynamicDetectionConfig.doTempWideBackground = True
+            dynamicDetectionConfig.tempWideBackground.binSize = 512
+            dynamicDetectionConfig.thresholdPolarity = "both"
+            self.log.info("Using dynamic detection with thresholdValue = %.2f and multiplier = %.1f",
+                          dynamicDetectionConfig.thresholdValue,
+                          dynamicDetectionConfig.includeThresholdMultiplier)
+            dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+
+        while inDynamicDetection:
+            inDynamicDetection = False
+            nDynDetIter += 1
+            detRes = dynamicDetectionTask.run(table=table, exposure=exposure, doSmooth=True)
+            sourceCat = detRes.sources
+            nFootprint = len(sourceCat)
+            nPeak = 0
+            nPosPeak = detRes.numPosPeaks
+            nNegPeak = detRes.numNegPeaks  # Often detected in high nebulosity scenes.
+            maxNumNegPeak = int(0.01*nPosPeak)
+            self.log.info("******* nPosPeak = %d  nNegPeak = %d  maxNumNegPeak = %d",
+                          nPosPeak, nNegPeak, maxNumNegPeak)
+            nIsolated = 0
+            nPeakPerSrcMax = 0
+            maxNumPeakPerSrcMax = 0.2*maxNumPeak
+            for src in sourceCat:
+                nPeakSrc = len(src.getFootprint().getPeaks())
+                if nPeakSrc == 1:
+                    nIsolated += 1
+                nPeak += nPeakSrc
+                nPeakPerSrcMax = max(nPeakPerSrcMax, nPeakSrc)
+            if nFootprint > 0.0:
+                fractionIsolated = nIsolated/nFootprint
+                avgPeakPerFoot = nPeak/nFootprint
+            else:
+                fractionIsolated = float("nan")
+                avgPeakPerFoot = float("nan")
+            self.log.info("In dynamic detection iter %d: nFootprints = %d, nPeak = %d, nPeak/nFoot = %.1f, "
+                          "nPeaPerkSrcMax = %d, nIsolated = %d, frationIsolated = %.2f",
+                          nDynDetIter, nFootprint, nPeak, avgPeakPerFoot, nPeakPerSrcMax, nIsolated,
+                          fractionIsolated)
+            if (nIsolated > self.config.sufficientIsolated
+                    and fractionIsolated > self.config.sufficientFractionIsolated
+                    and nDynDetIter > 1
+                    and nNegPeak < maxNumNegPeak
+                    and nPeak < 1.2*maxNumPeak):
+                self.log.info("Sufficient isolated footprints (%d > %d) and fraction of isolated "
+                              "footprints (%.2f > %.2f) for PSF modeling.  Exiting dynamic detection "
+                              "at iter: %d",
+                              nIsolated, self.config.sufficientIsolated, fractionIsolated,
+                              self.config.sufficientFractionIsolated, nDynDetIter)
+                inDynamicDetection = False
+                continue
+
+            if 0:  # nPeak < 0.5*self.config.sufficientIsolated:
+                thresholdFactor = 0.9
+                dynamicDetectionConfig.thresholdValue = (
+                    thresholdFactor*dynamicDetectionConfig.thresholdValue)
+                newThresholdMultiplier = max(1.0, 0.8*dynamicDetectionConfig.includeThresholdMultiplier)
+                dynamicDetectionConfig.includeThresholdMultiplier = newThresholdMultiplier
+                self.log.warning("Very few sources detected (nPeak = %d). Decreasing threshold to %.2f",
+                                 nPeak, dynamicDetectionConfig.thresholdValue)
+                dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+                inDynamicDetection = False if nDynDetIter >= self.config.maxDynDetIter else True
+                continue
+
+            if nFootprint == 0:
+                thresholdFactor = 0.25
+                self.log.warning("Dynamic threshold increase went too far (nFootprint = 0). "
+                                 "Decreasing threshold to %.2f",
+                                 thresholdFactor*dynamicDetectionConfig.thresholdValue)
+                dynamicDetectionConfig.thresholdValue = (
+                    thresholdFactor*dynamicDetectionConfig.thresholdValue)
+                dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+                inDynamicDetection = False if nDynDetIter >= self.config.maxDynDetIter else True
+                continue
+
+            if ((nPeak/nFootprint > self.config.maxPeakToFootRatio and nIsolated < self.config.minIsolated)
+                    or nNegPeak > maxNumNegPeak):
+                if nNegPeak > 2*maxNumNegPeak:
+                    thresholdFactor = 1.5
+                else:
+                    thresholdFactor = 1.25
+                thresholdFactor *= dynamicDetectionConfig.includeThresholdMultiplier
+                dynamicDetectionConfig.includeThresholdMultiplier = 1.0
+                self.log.warning("Dynamic detection iter %d: catalog had nPeak/nFootprint = "
+                                 "%.1f (max is %.1f) and %d negative peaks (max is %d). "
+                                 "Increasing threshold to %.2f and setting "
+                                 "multiplier to %.1f and rerunning",
+                                 nDynDetIter, nPeak/nFootprint, self.config.maxPeakToFootRatio,
+                                 nNegPeak, maxNumNegPeak,
+                                 thresholdFactor*dynamicDetectionConfig.thresholdValue,
+                                 dynamicDetectionConfig.includeThresholdMultiplier)
+                dynamicDetectionConfig.thresholdValue = (
+                    thresholdFactor*dynamicDetectionConfig.thresholdValue)
+                dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+                inDynamicDetection = False if nDynDetIter >= self.config.maxDynDetIter else True
+                continue
+
+            if (nPeak > maxNumPeak or nPeakPerSrcMax > maxNumPeakPerSrcMax
+                    or nFootprint <= self.config.minFootprint):
+                if nPeak > maxNumPeak or nPeakPerSrcMax > 0.25*maxNumPeak:
+                    if nPeak > 3*maxNumPeak or nPeakPerSrcMax > maxNumPeak:
+                        thresholdFactor = 1.7
+                    elif nPeak > 2*maxNumPeak or nPeakPerSrcMax > 0.5*maxNumPeak:
+                        thresholdFactor = 1.4
+                    else:
+                        thresholdFactor = 1.2
+                    thresholdFactor *= dynamicDetectionConfig.includeThresholdMultiplier
+                    newThresholdMultiplier = max(1.0, 0.5*dynamicDetectionConfig.includeThresholdMultiplier)
+                    dynamicDetectionConfig.includeThresholdMultiplier = newThresholdMultiplier
+                    dynamicDetectionConfig.thresholdValue = (
+                        thresholdFactor*dynamicDetectionConfig.thresholdValue)
+                    self.log.warning("Dynamic detection iter %d catalog had nPeak = %d (max = %d) and "
+                                     "nPeakPerSrcMax = %d (max = %d). Increasing threshold to %.2f "
+                                     "and setting multiplier to %.1f and rerunning",
+                                     nDynDetIter, nPeak, maxNumPeak,
+                                     nPeakPerSrcMax, maxNumPeakPerSrcMax,
+                                     dynamicDetectionConfig.thresholdValue,
+                                     dynamicDetectionConfig.includeThresholdMultiplier)
+                    dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+                    inDynamicDetection = False if nDynDetIter >= self.config.maxDynDetIter else True
+                    continue
+
+                if nFootprint <= self.config.minFootprint:
+                    thresholdFactor = min(0.85, 0.4*np.log10(10*(nFootprint + 1)))
+                    self.log.warning("Dynamic detection iter %d catalog had only %d footprints. "
+                                     "Lowering threshold to %.2f and rerunning",
+                                     nDynDetIter, nFootprint,
+                                     thresholdFactor*dynamicDetectionConfig.thresholdValue)
+                    dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+                dynamicDetectionConfig.thresholdValue = (
+                    thresholdFactor*dynamicDetectionConfig.thresholdValue
+                )
+                dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+                inDynamicDetection = True
+            else:
+                inDynamicDetection = False
+            if nDynDetIter >= self.config.maxDynDetIter:
+                inDynamicDetection = False
+        # Final round of detection with positive polarity
+        dynamicDetectionConfig.thresholdPolarity = "positive"
+        if doReEstimageBackgroud:
+            dynamicDetectionConfig.reEstimateBackground = True
+        dynamicDetectionTask = SourceDetectionTask(config=dynamicDetectionConfig)
+        self.log.info("Perfomring final round of detection with threshold %.2f and multiplier %.1f",
+                      dynamicDetectionConfig.thresholdValue,
+                      dynamicDetectionConfig.includeThresholdMultiplier)
+        detRes = dynamicDetectionTask.run(table=table, exposure=exposure, doSmooth=True,
+                                          backgroundToPhotometricRatio=backgroundToPhotometricRatio)
+        return pipeBase.Struct(
+            detections=detRes,
+            thresholdValue=dynamicDetectionConfig.thresholdValue,
+            includeThresholdMultiplier=dynamicDetectionConfig.includeThresholdMultiplier,
+        )
 
 
 def countMaskedPixels(maskedIm, maskPlane):
