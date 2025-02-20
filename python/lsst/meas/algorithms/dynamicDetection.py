@@ -73,6 +73,12 @@ class DynamicDetectionConfig(SourceDetectionConfig):
             if maskStr not in self.skyObjects.avoidMask:
                 self.skyObjects.avoidMask.append(maskStr)
 
+    def validate(self):
+        super().validate()
+
+        if self.doApplyFlatBackgroundRatio:
+            raise ValueError("DynamicDetectionTask does not support doApplyFlatBackgroundRatio.")
+
 
 class DynamicDetectionTask(SourceDetectionTask):
     """Detection of sources on an image with a dynamic threshold
