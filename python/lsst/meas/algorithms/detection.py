@@ -680,8 +680,9 @@ class SourceDetectionTask(pipeBase.Task):
         backgrounds : `lsst.afw.math.BackgroundList`
             List of backgrounds; modified.
         backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
-            Image to convert photometric-flattened image to
+            Image to multiply a photometrically-flattened image by to obtain a
             background-flattened image.
+            Only used if config.doApplyFlatBackgroundRatio = True.
 
         Returns
         -------

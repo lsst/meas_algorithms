@@ -52,8 +52,9 @@ def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=Non
         Apply the conversion? If False, this context manager will not
         do anything.
     backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
-        Image to convert background-flattened image to
-        photometric-flattened image (and back).
+        Image to multiply a photometrically-flattened image by to obtain a
+        background-flattened image.
+        Only used if doApply = True.
 
     Yields
     ------
@@ -192,8 +193,8 @@ class SubtractBackgroundTask(pipeBase.Task):
             exposure's metadata (another tuple); if None then use ("BGMEAN", "BGVAR");
             ignored if stats is false.
         backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
-            Image to convert photometrically-flattened image to
-            background-flattened image (and back).
+            Image to multiply a photometrically-flattened image by to obtain a
+            background-flattened image.
             Only used if config.doApplyFlatBackgroundRatio = True.
 
         Returns
