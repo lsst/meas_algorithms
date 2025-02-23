@@ -10,7 +10,7 @@ from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
 
 from lsst.afw.detection import FootprintSet
-from lsst.afw.geom import makeCdMatrix, makeSkyWcs
+from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
 
@@ -60,6 +60,11 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                                   "pixels drops below this threshold.")
     bisectFactor = Field(dtype=float, default=1.2,
                          doc="Factor by which to increase thresholds in brightMaskFractionMax loop.")
+    allowMaskErode = Field(dtype=bool, default=True,
+                           doc="Crowded/large fill-factor fields make it difficult to find "
+                           "suitable locations to lay down sky objects. To allow for best effort "
+                           "sky source placement, if True, this allows for a slight erosion of "
+                           "the detection masks.")
 
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)
@@ -103,7 +108,8 @@ class DynamicDetectionTask(SourceDetectionTask):
         self.skyMeasurement = ForcedMeasurementTask(config=config, name="skyMeasurement", parentTask=self,
                                                     refSchema=self.skySchema)
 
-    def calculateThreshold(self, exposure, seed, sigma=None, minFractionSourcesFactor=1.0, isBgTweak=False):
+    def calculateThreshold(self, exposure, seed, sigma=None, minFractionSourcesFactor=1.0,
+                           isBgTweak=False, nPixMaskErode=None, maxMaskErodeIter=10):
         """Calculate new threshold
 
         This is the main functional addition to the vanilla
@@ -133,6 +139,11 @@ class DynamicDetectionTask(SourceDetectionTask):
         isBgTweak : `bool`
            Set to ``True`` for the background tweak pass (for more helpful
            log messages).
+        nPixMaskErode : `int`, optional
+            Number of pixels by which to erode the detection masks on each
+            iteration of best-effort sky object placement.
+        maxMaskErodeIter : `int`, optional
+            Maximum number of iterations for the detection mask erosion.
 
         Returns
         -------
@@ -160,7 +171,45 @@ class DynamicDetectionTask(SourceDetectionTask):
             exposure.setWcs(makeSkyWcs(crpix=geom.Point2D(0, 0),
                                        crval=geom.SpherePoint(0, 0, geom.degrees),
                                        cdMatrix=makeCdMatrix(scale=1e-5*geom.degrees)))
+        minNumSources = int(self.config.minFractionSources*self.skyObjects.config.nSources)
+        # Reduce the number of sky sources required if requested, but ensure
+        # a minumum of 3.
+        if minFractionSourcesFactor != 1.0:
+            minNumSources = max(3, int(minNumSources*minFractionSourcesFactor))
         fp = self.skyObjects.run(exposure.maskedImage.mask, seed)
+
+        if self.config.allowMaskErode:
+            detectedMaskPlanes = ["DETECTED", "DETECTED_NEGATIVE"]
+            mask = exposure.maskedImage.mask
+            for nIter in range(maxMaskErodeIter):
+                if nIter > 0:
+                    fp = self.skyObjects.run(mask, seed)
+                if len(fp) < int(2*minNumSources):  # Allow for measurement failures
+                    self.log.info("Current number of sky sources is below 2*minimum required "
+                                  "(%d < %d, allowing for some subsequent measurement failures). "
+                                  "Allowing erosion of detected mask planes for sky placement "
+                                  "nIter: %d [of %d max]",
+                                  len(fp), 2*minNumSources, nIter, maxMaskErodeIter)
+                    if nPixMaskErode is None:
+                        if len(fp) == 0:
+                            nPixMaskErode = 4
+                        elif len(fp) < int(0.75*minNumSources):
+                            nPixMaskErode = 2
+                        else:
+                            nPixMaskErode = 1
+                    for maskName in detectedMaskPlanes:
+                        # Compute the eroded detection mask plane using SpanSet
+                        detectedMaskBit = mask.getPlaneBitMask(maskName)
+                        detectedMaskSpanSet = SpanSet.fromMask(mask, detectedMaskBit)
+                        detectedMaskSpanSet = detectedMaskSpanSet.eroded(nPixMaskErode)
+                        # Clear the detected mask plane
+                        detectedMask = mask.getMaskPlane(maskName)
+                        mask.clearMaskPlane(detectedMask)
+                        # Set the mask plane to the eroded one
+                        detectedMaskSpanSet.setMask(mask, detectedMaskBit)
+                else:
+                    break
+
         skyFootprints = FootprintSet(exposure.getBBox())
         skyFootprints.setFootprints(fp)
         table = SourceTable.make(self.skyMeasurement.schema)
@@ -186,11 +235,6 @@ class DynamicDetectionTask(SourceDetectionTask):
         good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"]
                 & np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
 
-        minNumSources = int(self.config.minFractionSources*self.skyObjects.config.nSources)
-        # Reduce the number of sky sources required if requested, but ensure
-        # a minumum of 3.
-        if minFractionSourcesFactor != 1.0:
-            minNumSources = max(3, int(minNumSources*minFractionSourcesFactor))
         if good.sum() < minNumSources:
             if not isBgTweak:
                 msg = (f"Insufficient good sky source flux measurements ({good.sum()} < "
