@@ -54,7 +54,7 @@ def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=Non
     backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
         Image to multiply a photometrically-flattened image by to obtain a
         background-flattened image.
-        Only used if doApply = True.
+        Only used if ``doApply`` is ``True``.
 
     Yields
     ------
