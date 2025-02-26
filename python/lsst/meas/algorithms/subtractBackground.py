@@ -20,10 +20,11 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask")
+__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask", "backgroundFlatContext")
 
 import itertools
 
+from contextlib import contextmanager
 import numpy
 
 from lsstDebug import getDebugFrame
@@ -34,6 +35,52 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+
+
+@contextmanager
+def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=None):
+    """Context manager to convert from photometric-flattened to background-
+    flattened image.
+
+    Parameters
+    ----------
+    maskedImage : `lsst.afw.image.MaskedImage`
+        Masked image (image + mask + variance) to convert from a
+        photometrically flat image to an image suitable for background
+        subtraction.
+    doApply : `bool`
+        Apply the conversion? If False, this context manager will not
+        do anything.
+    backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+        Image to multiply a photometrically-flattened image by to obtain a
+        background-flattened image.
+        Only used if ``doApply`` is ``True``.
+
+    Yields
+    ------
+    maskedImage : `lsst.afw.image.MaskedImage`
+        Masked image converted into an image suitable for background
+        subtraction.
+
+    Raises
+    ------
+    RuntimeError if doApply is True and no ratio is supplied.
+    ValueError if the ratio is not an `lsst.afw.image.Image`.
+    """
+    if doApply:
+        if backgroundToPhotometricRatio is None:
+            raise RuntimeError("backgroundFlatContext called with doApply=True, "
+                               "but without a backgroundToPhotometricRatio")
+        if not isinstance(backgroundToPhotometricRatio, afwImage.Image):
+            raise ValueError("The backgroundToPhotometricRatio must be an lsst.afw.image.Image")
+
+        maskedImage *= backgroundToPhotometricRatio
+
+    try:
+        yield maskedImage
+    finally:
+        if doApply:
+            maskedImage /= backgroundToPhotometricRatio
 
 
 class SubtractBackgroundConfig(pexConfig.Config):
@@ -114,6 +161,12 @@ class SubtractBackgroundConfig(pexConfig.Config):
         doc="Use inverse variance weighting in calculation (valid only with useApprox=True)",
         dtype=bool, default=True,
     )
+    doApplyFlatBackgroundRatio = pexConfig.Field(
+        doc="Convert from a photometrically flat image to one suitable to background subtraction? "
+            "If True, then a backgroundToPhotometricRatio must be supplied to the task run method.",
+        dtype=bool,
+        default=False,
+    )
 
 
 class SubtractBackgroundTask(pipeBase.Task):
@@ -122,7 +175,7 @@ class SubtractBackgroundTask(pipeBase.Task):
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
 
-    def run(self, exposure, background=None, stats=True, statsKeys=None):
+    def run(self, exposure, background=None, stats=True, statsKeys=None, backgroundToPhotometricRatio=None):
         """Fit and subtract the background of an exposure.
 
         Parameters
@@ -139,38 +192,48 @@ class SubtractBackgroundTask(pipeBase.Task):
             Key names used to store the mean and variance of the background in the
             exposure's metadata (another tuple); if None then use ("BGMEAN", "BGVAR");
             ignored if stats is false.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Image to multiply a photometrically-flattened image by to obtain a
+            background-flattened image.
+            Only used if config.doApplyFlatBackgroundRatio = True.
 
         Returns
         -------
-        background : `lsst.afw.math.BackgroundLst`
+        background : `lsst.afw.math.BackgroundList`
             Full background model (initial model with changes), contained in an
             `lsst.pipe.base.Struct`.
         """
         if background is None:
             background = afwMath.BackgroundList()
 
-        maskedImage = exposure.getMaskedImage()
-        fitBg = self.fitBackground(maskedImage)
-        maskedImage -= fitBg.getImageF(self.config.algorithm, self.config.undersampleStyle)
+        maskedImage = exposure.maskedImage
 
-        actrl = fitBg.getBackgroundControl().getApproximateControl()
-        background.append((fitBg, getattr(afwMath.Interpolate, self.config.algorithm),
-                           fitBg.getAsUsedUndersampleStyle(), actrl.getStyle(),
-                           actrl.getOrderX(), actrl.getOrderY(), actrl.getWeighting()))
+        with backgroundFlatContext(
+            maskedImage,
+            self.config.doApplyFlatBackgroundRatio,
+            backgroundToPhotometricRatio=backgroundToPhotometricRatio,
+        ):
+            fitBg = self.fitBackground(maskedImage)
+            maskedImage -= fitBg.getImageF(self.config.algorithm, self.config.undersampleStyle)
 
-        if stats:
-            self._addStats(exposure, background, statsKeys=statsKeys)
+            actrl = fitBg.getBackgroundControl().getApproximateControl()
+            background.append((fitBg, getattr(afwMath.Interpolate, self.config.algorithm),
+                               fitBg.getAsUsedUndersampleStyle(), actrl.getStyle(),
+                               actrl.getOrderX(), actrl.getOrderY(), actrl.getWeighting()))
 
-        subFrame = getDebugFrame(self._display, "subtracted")
-        if subFrame:
-            subDisp = afwDisplay.getDisplay(frame=subFrame)
-            subDisp.mtv(exposure, title="subtracted")
+            if stats:
+                self._addStats(exposure, background, statsKeys=statsKeys)
 
-        bgFrame = getDebugFrame(self._display, "background")
-        if bgFrame:
-            bgDisp = afwDisplay.getDisplay(frame=bgFrame)
-            bgImage = background.getImage()
-            bgDisp.mtv(bgImage, title="background")
+            subFrame = getDebugFrame(self._display, "subtracted")
+            if subFrame:
+                subDisp = afwDisplay.getDisplay(frame=subFrame)
+                subDisp.mtv(exposure, title="subtracted")
+
+            bgFrame = getDebugFrame(self._display, "background")
+            if bgFrame:
+                bgDisp = afwDisplay.getDisplay(frame=bgFrame)
+                bgImage = background.getImage()
+                bgDisp.mtv(bgImage, title="background")
 
         return pipeBase.Struct(
             background=background,

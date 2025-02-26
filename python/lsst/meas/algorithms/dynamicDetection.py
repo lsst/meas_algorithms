@@ -73,6 +73,12 @@ class DynamicDetectionConfig(SourceDetectionConfig):
             if maskStr not in self.skyObjects.avoidMask:
                 self.skyObjects.avoidMask.append(maskStr)
 
+    def validate(self):
+        super().validate()
+
+        if self.doApplyFlatBackgroundRatio:
+            raise ValueError("DynamicDetectionTask does not support doApplyFlatBackgroundRatio.")
+
 
 class DynamicDetectionTask(SourceDetectionTask):
     """Detection of sources on an image with a dynamic threshold
@@ -272,7 +278,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
-                         background=None):
+                         background=None, backgroundToPhotometricRatio=None):
         """Detect footprints with a dynamic threshold
 
         This varies from the vanilla ``detectFootprints`` method because we
@@ -306,10 +312,12 @@ class DynamicDetectionTask(SourceDetectionTask):
         background : `lsst.afw.math.BackgroundList`, optional
             Background that was already subtracted from the exposure; will be
             modified in-place if ``reEstimateBackground=True``.
+        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
+            Unused; if set will Raise.
 
         Returns
         -------
-        resutls : `lsst.pipe.base.Struct`
+        results : `lsst.pipe.base.Struct`
             The results `~lsst.pipe.base.Struct` contains:
 
             ``positive``
@@ -335,6 +343,8 @@ class DynamicDetectionTask(SourceDetectionTask):
                 Results from preliminary detection pass.
                 (`lsst.pipe.base.Struct`)
         """
+        if backgroundToPhotometricRatio is not None:
+            raise RuntimeError("DynamicDetectionTask does not support backgroundToPhotometricRatio.")
         maskedImage = exposure.maskedImage
 
         if clearMask:
