@@ -209,7 +209,7 @@ class SourceDetectionTask(pipeBase.Task):
         if schema is not None and self.config.thresholdPolarity == "both":
             self.negativeFlagKey = schema.addField(
                 "is_negative", type="Flag",
-                doc="set if source was detected as significantly negative"
+                doc="Set if source peak was detected as negative."
             )
         else:
             if self.config.thresholdPolarity == "both":
