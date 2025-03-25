@@ -34,6 +34,7 @@ import lsst.utils.tests
 # signifying good or bad data. Such flags should then be a part of the
 # isGood test.
 badFlags = ["base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_nodata",
             "base_PixelFlags_flag_interpolatedCenter",
             "base_PixelFlags_flag_saturated",
             "base_PixelFlags_flag_saturatedCenter",
