@@ -263,6 +263,16 @@ class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):
         for badId in self.badIds:
             self.assertFalse(self.catalog.find(badId).get(self.psfCandidateField))
 
+    def testStarIdPsfCandidates(self):
+        result = self.makePsfCandidates.run(self.catalog,
+                                            self.exposure,
+                                            psfCandidateField=self.psfCandidateField)
+        psfCandidates = result.psfCandidates
+        for candidate in psfCandidates:
+            candidate.setStarId(42)
+        for candidate in psfCandidates:
+            self.assertEqual(candidate.getStarId(), 42)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass

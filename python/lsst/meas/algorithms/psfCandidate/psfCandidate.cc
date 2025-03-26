@@ -56,6 +56,8 @@ void declarePsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers, st
         cls.def("setAmplitude", &Class::setAmplitude);
         cls.def("getVar", &Class::getVar);
         cls.def("setVar", &Class::setVar);
+        cls.def("getStarId", &Class::getStarId);
+        cls.def("setStarId", &Class::setStarId);
         cls.def("getMaskedImage", (std::shared_ptr<afw::image::MaskedImage<PixelT> const>(Class::*)() const) &
                 Class::getMaskedImage);
         cls.def("getMaskedImage",

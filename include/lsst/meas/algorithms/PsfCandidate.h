@@ -75,7 +75,8 @@ public:
               _source(source),
               _image(nullptr),
               _amplitude(0.0),
-              _var(1.0) {}
+              _var(1.0),
+              _starId(-999) {}
 
     /**
      * Construct a PsfCandidate from a specified source, image and xyCenter.
@@ -92,7 +93,8 @@ public:
               _source(source),
               _image(nullptr),
               _amplitude(0.0),
-              _var(1.0) {}
+              _var(1.0),
+              _starId(-999) {}
 
     /// Destructor
     virtual ~PsfCandidate(){};
@@ -118,6 +120,12 @@ public:
 
     /// Set the variance to use when fitting this object
     void setVar(double var) { _var = var; }
+
+    /// Set the star ID for this candidate
+    void setStarId(int starId) { _starId = starId; }
+
+    /// Get the star ID for this candidate
+    int getStarId() const { return _starId; }
 
     std::shared_ptr<afw::image::MaskedImage<PixelT> const> getMaskedImage() const;
     std::shared_ptr<afw::image::MaskedImage<PixelT> const> getMaskedImage(int width, int height) const;
@@ -165,6 +173,7 @@ private:
     static int _defaultWidth;
     static float _pixelThreshold;  ///< Threshold for masking pixels unconnected with central footprint
     static bool _doMaskBlends;     ///< Mask blends when extracting?
+    int _starId;
 };
 
 /**
