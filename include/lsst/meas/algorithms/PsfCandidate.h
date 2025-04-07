@@ -33,6 +33,8 @@
  */
 #include <memory>
 #include <vector>
+#include <string>
+#include <limits>
 
 #include "lsst/geom/Point.h"
 #include "lsst/afw/image/Exposure.h"
@@ -75,7 +77,9 @@ public:
               _source(source),
               _image(nullptr),
               _amplitude(0.0),
-              _var(1.0) {}
+              _var(1.0),
+              _psfColorValue(std::numeric_limits<double>::quiet_NaN()),
+              _psfColorType() {}
 
     /**
      * Construct a PsfCandidate from a specified source, image and xyCenter.
@@ -92,7 +96,9 @@ public:
               _source(source),
               _image(nullptr),
               _amplitude(0.0),
-              _var(1.0) {}
+              _var(1.0),
+              _psfColorValue(std::numeric_limits<double>::quiet_NaN()),
+              _psfColorType() {}
 
     /// Destructor
     virtual ~PsfCandidate(){};
@@ -112,6 +118,18 @@ public:
 
     /// Set the best-fit amplitude
     void setAmplitude(double amplitude) { _amplitude = amplitude; }
+
+    /// Set psf color value to use for PSF fit
+    void setPsfColorValue(double psfColorValue) { _psfColorValue = psfColorValue; }
+
+    /// Return psf color value to use for PSF fit
+    double getPsfColorValue() const { return _psfColorValue; }
+
+    /// Set psf color type to use for PSF fit
+    void setPsfColorType(std::string psfColorType) { _psfColorType = psfColorType; }
+
+    /// Return psf color type to use for PSF fit
+    std::string getPsfColorType() const { return _psfColorType; }
 
     /// Return the variance in use when fitting this object
     double getVar() const { return _var; }
@@ -160,6 +178,8 @@ private:
     mutable std::shared_ptr<afw::image::MaskedImage<PixelT>> _image;  // cutout image to return (cached)
     double _amplitude;   // best-fit amplitude of current PSF model
     double _var;         // variance to use when fitting this candidate
+    double _psfColorValue;    // psf color value use when fitting this candidate
+    std::string _psfColorType; // psf color type use when fitting this candidate
     static int _border;  // width of border of ignored pixels around _image
     geom::Point2D _xyCenter;
     static int _defaultWidth;
