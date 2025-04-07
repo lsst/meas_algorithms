@@ -263,6 +263,20 @@ class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):
         for badId in self.badIds:
             self.assertFalse(self.catalog.find(badId).get(self.psfCandidateField))
 
+    def testColorPsfCandidates(self):
+        """Test set/get color of PsfCandidates.
+        """
+        result = self.makePsfCandidates.run(self.catalog,
+                                            self.exposure,
+                                            psfCandidateField=self.psfCandidateField)
+        psfCandidates = result.psfCandidates
+        for candidate in psfCandidates:
+            candidate.setPsfColorValue(0.42)
+            candidate.setPsfColorType("g-r")
+        for candidate in psfCandidates:
+            self.assertEqual(candidate.getPsfColorValue(), 0.42)
+            self.assertEqual(candidate.getPsfColorType(), "g-r")
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
