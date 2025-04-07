@@ -33,6 +33,7 @@
  */
 #include <memory>
 #include <vector>
+#include <limits>
 
 #include "lsst/geom/Point.h"
 #include "lsst/afw/image/Exposure.h"
@@ -75,7 +76,8 @@ public:
               _source(source),
               _image(nullptr),
               _amplitude(0.0),
-              _var(1.0) {}
+              _var(1.0),
+              _psfColor(std::numeric_limits<double>::quiet_NaN()) {}
 
     /**
      * Construct a PsfCandidate from a specified source, image and xyCenter.
@@ -92,7 +94,8 @@ public:
               _source(source),
               _image(nullptr),
               _amplitude(0.0),
-              _var(1.0) {}
+              _var(1.0),
+              _psfColor(std::numeric_limits<double>::quiet_NaN()) {}
 
     /// Destructor
     virtual ~PsfCandidate(){};
@@ -112,6 +115,12 @@ public:
 
     /// Set the best-fit amplitude
     void setAmplitude(double amplitude) { _amplitude = amplitude; }
+
+    /// Set psf color to use for PSF fit
+    void setPsfColor(double psfColor) { _psfColor = psfColor; }
+
+    /// Return psf color to use for PSF fit
+    double getPsfColor() const { return _psfColor; }
 
     /// Return the variance in use when fitting this object
     double getVar() const { return _var; }
@@ -160,6 +169,7 @@ private:
     mutable std::shared_ptr<afw::image::MaskedImage<PixelT>> _image;  // cutout image to return (cached)
     double _amplitude;   // best-fit amplitude of current PSF model
     double _var;         // variance to use when fitting this candidate
+    double _psfColor;    // psf color use when fitting this candidate
     static int _border;  // width of border of ignored pixels around _image
     geom::Point2D _xyCenter;
     static int _defaultWidth;

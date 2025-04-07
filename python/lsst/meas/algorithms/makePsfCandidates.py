@@ -109,8 +109,14 @@ class MakePsfCandidatesTask(pipeBase.Task):
 
         psfCandidateList = []
         didSetSize = False
+        if 'psfColor' in starCat.asAstropy().keys():
+            usePsfColor = True
+        else:
+            usePsfColor = False
         for star in starCat:
             psfCandidate = makePsfCandidate(star, exposure)
+            if usePsfColor:
+                psfCandidate.setPsfColor(star['psfColor'])
             try:
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know exposures's pixel type
