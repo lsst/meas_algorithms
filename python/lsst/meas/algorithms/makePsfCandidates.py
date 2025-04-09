@@ -113,7 +113,7 @@ class MakePsfCandidatesTask(pipeBase.Task):
             psfCandidate = makePsfCandidate(star, exposure)
             try:
                 psfCandidate.setPsfColor(star['psfColor'])
-            except:
+            except Exception:
                 psfCandidate.setPsfColor(np.nan)
             try:
                 # The setXXX methods are class static, but it's convenient to call them on
