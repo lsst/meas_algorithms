@@ -45,8 +45,6 @@ from .subtractBackground import *
 from .measureApCorr import *
 from .flaggedSourceSelector import *
 from .sourceSelector import *
-from .astrometrySourceSelector import *
-from .matcherSourceSelector import *
 from .convertReferenceCatalog import *
 from .convertRefcatManager import *
 from .readFitsCatalogTask import *
