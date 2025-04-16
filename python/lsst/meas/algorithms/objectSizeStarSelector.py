@@ -19,7 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask"]
+__all__ = ["ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask",
+           "ObjectSizeNoSourcesError", "ObjectSizeNoGoodSourcesError"]
 
 import sys
 
@@ -28,7 +29,7 @@ import warnings
 from functools import reduce
 
 from lsst.utils.logging import getLogger
-from lsst.pipe.base import Struct
+from lsst.pipe.base import Struct, AlgorithmError
 import lsst.geom
 from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 import lsst.afw.geom as afwGeom
@@ -39,6 +40,29 @@ from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 afwDisplay.setDefaultMaskTransparency(75)
 
 _LOG = getLogger(__name__)
+
+
+class ObjectSizeNoSourcesError(AlgorithmError):
+    """Raised if no sources were supplied in the input catalog."""
+
+    def __init__(self) -> None:
+        super().__init__("Input catalog for source selection is empty.")
+
+
+class ObjectSizeNoGoodSourcesError(AlgorithmError):
+    """Raised if no good sources were available after applying configured
+    selection criteria.
+    """
+
+    def __init__(self, n_input_sources) -> None:
+        self._n_available = n_input_sources
+        super().__init__(f"No good star candidates out of {n_input_sources} input sources.")
+
+    @property
+    def metadata(self) -> dict:
+        return {
+            "n_input_sources": self._n_available,
+        }
 
 
 class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
@@ -354,7 +378,7 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
                 sourceCat. (`numpy.ndarray` of `bool`)
         """
         if len(sourceCat) == 0:
-            raise RuntimeError("Input catalog for source selection is empty.")
+            raise ObjectSizeNoSourcesError
 
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -406,7 +430,7 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         good = numpy.logical_not(bad)
 
         if not numpy.any(good):
-            raise RuntimeError("No objects passed our cuts for consideration as psf stars")
+            raise ObjectSizeNoGoodSourcesError(n_input_sources=len(sourceCat))
 
         mag = -2.5*numpy.log10(flux[good])
         width = width[good]
