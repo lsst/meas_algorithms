@@ -23,7 +23,8 @@ import unittest
 import numpy as np
 
 import lsst.afw.table as afwTable
-from lsst.meas.algorithms import sourceSelector
+from lsst.meas.algorithms import sourceSelector, ObjectSizeNoSourcesError, \
+    ObjectSizeNoGoodSourcesError
 import lsst.meas.base.tests
 import lsst.utils.tests
 
@@ -69,11 +70,6 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
             schema.addField(flag, type="Flag")
         self.sourceCat = afwTable.SourceCatalog(schema)
 
-    def tearDown(self):
-        del self.sourceCat
-        del self.badFlags
-        del self.sourceSelector
-
     def testSelectSourcesGood(self):
         for i in range(5):
             self.addGoodSource(self.sourceCat, i)
@@ -95,7 +91,14 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         for i, flag in enumerate(self.badFlags):
             self.addGoodSource(self.sourceCat, i)
             self.sourceCat[i].set(flag, True)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaisesRegex(ObjectSizeNoGoodSourcesError,
+                                    f"out of {len(self.badFlags)} input sources."):
+            self.sourceSelector.selectSources(self.sourceCat)
+
+    def testEmptyInputCatalog(self):
+        """Test that an appropriate error is raised for an empty input catalog.
+        """
+        with self.assertRaises(ObjectSizeNoSourcesError):
             self.sourceSelector.selectSources(self.sourceCat)
 
     def testSelectSourcesSignalToNoiseCuts(self):
