@@ -70,11 +70,6 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
             schema.addField(flag, type="Flag")
         self.sourceCat = afwTable.SourceCatalog(schema)
 
-    def tearDown(self):
-        del self.sourceCat
-        del self.badFlags
-        del self.sourceSelector
-
     def testSelectSourcesGood(self):
         for i in range(5):
             self.addGoodSource(self.sourceCat, i)
