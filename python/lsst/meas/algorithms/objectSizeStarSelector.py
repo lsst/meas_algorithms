@@ -347,8 +347,10 @@ def plot(mag, width, centers, clusterId, marker="o", markersize=2, markeredgewid
 
 @pexConfig.registerConfigurable("objectSize", sourceSelectorRegistry)
 class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
-    r"""A star selector that looks for a cluster of small objects in a size-magnitude plot.
+    """A star selector that looks for a cluster of small objects in a
+    size-magnitude plot, typically to select stars for PSF estimation.
     """
+
     ConfigClass = ObjectSizeStarSelectorConfig
     usesMatches = False  # selectStars does not use its matches argument
 
