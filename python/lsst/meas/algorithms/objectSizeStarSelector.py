@@ -48,6 +48,10 @@ class ObjectSizeNoSourcesError(AlgorithmError):
     def __init__(self) -> None:
         super().__init__("Input catalog for source selection is empty.")
 
+    @property
+    def metadata(self) -> dict:
+        return {}
+
 
 class ObjectSizeNoGoodSourcesError(AlgorithmError):
     """Raised if no good sources were available after applying configured
