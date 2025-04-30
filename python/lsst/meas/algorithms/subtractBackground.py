@@ -317,7 +317,7 @@ class SubtractBackgroundTask(pipeBase.Task):
 
         self.log.debug("Ignoring mask planes: %s", ", ".join(self.config.ignoredPixelMask))
         if (maskedImage.mask.getArray() & badMask).all():
-            raise pipeBase.TaskError("All pixels masked. Cannot estimate background")
+            raise pipeBase.NoWorkFound("All pixels masked. Cannot estimate background")
 
         if algorithm is None:
             algorithm = self.config.algorithm
