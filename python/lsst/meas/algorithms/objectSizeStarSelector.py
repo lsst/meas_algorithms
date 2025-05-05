@@ -149,6 +149,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
             "base_PixelFlags_flag_crCenter",
             "base_PixelFlags_flag_bad",
             "base_PixelFlags_flag_interpolated",
+            "slot_Centroid_flag",
         ],
     )
 
