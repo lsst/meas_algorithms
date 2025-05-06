@@ -83,6 +83,16 @@ def backgroundFlatContext(maskedImage, doApply, backgroundToPhotometricRatio=Non
             maskedImage /= backgroundToPhotometricRatio
 
 
+class TooManyMaskedPixelsError(pipeBase.AlgorithmError):
+    """Raised when all pixels in the image are masked and no background
+    can be estimated.
+    """
+    def metadata(self) -> dict:
+        """There is no metadata associated with this error.
+        """
+        return {}
+
+
 class SubtractBackgroundConfig(pexConfig.Config):
     """Config for SubtractBackgroundTask
 
@@ -317,7 +327,7 @@ class SubtractBackgroundTask(pipeBase.Task):
 
         self.log.debug("Ignoring mask planes: %s", ", ".join(self.config.ignoredPixelMask))
         if (maskedImage.mask.getArray() & badMask).all():
-            raise pipeBase.NoWorkFound("All pixels masked. Cannot estimate background")
+            raise TooManyMaskedPixelsError("All pixels masked. Cannot estimate background.")
 
         if algorithm is None:
             algorithm = self.config.algorithm
