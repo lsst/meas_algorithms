@@ -26,6 +26,7 @@ import itertools
 
 from contextlib import contextmanager
 import numpy
+from scipy.ndimage import median_filter
 
 from lsstDebug import getDebugFrame
 from lsst.utils import suppress_deprecations
@@ -177,6 +178,16 @@ class SubtractBackgroundConfig(pexConfig.Config):
         dtype=bool,
         default=False,
     )
+    doFilterSuperPixels = pexConfig.Field(
+        doc="Remove outliers from the binned image.",
+        dtype=bool,
+        default=False,
+    )
+    superPixelFilterSize = pexConfig.Field(
+        doc="Size of the median filter to use to remove outliers from the binned image.",
+        dtype=int,
+        default=3,
+    )
 
 
 class SubtractBackgroundTask(pipeBase.Task):
@@ -224,6 +235,10 @@ class SubtractBackgroundTask(pipeBase.Task):
             backgroundToPhotometricRatio=backgroundToPhotometricRatio,
         ):
             fitBg = self.fitBackground(maskedImage)
+            if self.config.doFilterSuperPixels:
+                filterSuperPixels(maskedImage.getBBox(), fitBg,
+                                  superPixelFilterSize=self.config.superPixelFilterSize)
+
             maskedImage -= fitBg.getImageF(self.config.algorithm, self.config.undersampleStyle)
 
             actrl = fitBg.getBackgroundControl().getApproximateControl()
@@ -392,3 +407,20 @@ class SubtractBackgroundTask(pipeBase.Task):
         if bg is None:
             raise RuntimeError("lsst.afw.math.makeBackground failed to fit a background model")
         return bg
+
+
+def filterSuperPixels(bbox, background, superPixelFilterSize=3):
+    """Remove outliers from the binned background model.
+
+    Parameters
+    ----------
+    bbox : `lsst.geom.Box2I`
+        Bounding box of the original image.
+    background : `lsst.afw.math.BackgroundMI`
+        Fit and binned background image, which will be modified in place.
+    superPixelFilterSize : `int`, optional
+        Size of the median filter to use, in pixels.
+    """
+    statsImg = background.getStatsImage()
+    statsImg.image.array = median_filter(statsImg.image.array, mode='reflect', size=superPixelFilterSize)
+    background = afwMath.BackgroundMI(bbox, statsImg)
