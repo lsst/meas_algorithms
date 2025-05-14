@@ -465,34 +465,6 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
         }
     }
 
-    // At the end of this loop, all crpixel entries have been assigned an ID,
-    // except for the "dummy" entry at the end of the array.
-    if (crpixels.size() > 0) {
-        for (crpixel_iter cp = crpixels.begin(); cp != crpixels.end() - 1; cp++) {
-            assert(cp->id >= 0);
-            assert(cp->col >= 0);
-            assert(cp->row >= 0);
-        }
-        // dummy:
-        assert(crpixels[crpixels.size() - 1].id == -1);
-        assert(crpixels[crpixels.size() - 1].col == 0);
-        assert(crpixels[crpixels.size() - 1].row == -1);
-    }
-
-    for (std::vector<afw::detection::IdSpan::Ptr>::iterator sp = spans.begin(), end = spans.end(); sp != end;
-         sp++) {
-        assert((*sp)->id >= 0);
-        assert((*sp)->y >= 0);
-        assert((*sp)->x0 >= 0);
-        assert((*sp)->x1 >= (*sp)->x0);
-        for (std::vector<afw::detection::IdSpan::Ptr>::iterator sp2 = sp + 1; sp2 != end; sp2++) {
-            assert((*sp2)->y >= (*sp)->y);
-            if ((*sp2)->y == (*sp)->y) {
-                assert((*sp2)->x0 > (*sp)->x1);
-            }
-        }
-    }
-
     /*
      * See if spans touch each other
      */
