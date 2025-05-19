@@ -23,6 +23,7 @@
 __all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask", "backgroundFlatContext")
 
 import itertools
+import math
 
 from contextlib import contextmanager
 import numpy
@@ -319,9 +320,9 @@ class SubtractBackgroundTask(pipeBase.Task):
         binSizeY = self.config.binSize if self.config.binSizeY == 0 else self.config.binSizeY
 
         if not nx:
-            nx = maskedImage.getWidth()//binSizeX + 1
+            nx = math.ceil(maskedImage.getWidth() / binSizeX)
         if not ny:
-            ny = maskedImage.getHeight()//binSizeY + 1
+            ny = math.ceil(maskedImage.getHeight() / binSizeY)
 
         unsubFrame = getDebugFrame(self._display, "unsubtracted")
         if unsubFrame:
