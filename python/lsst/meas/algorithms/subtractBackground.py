@@ -147,7 +147,6 @@ class SubtractBackgroundConfig(pexConfig.Config):
     ignoredPixelMask = pexConfig.ListField(
         doc="Names of mask planes to ignore while estimating the background",
         dtype=str, default=["BAD", "EDGE", "DETECTED", "DETECTED_NEGATIVE", "NO_DATA", ],
-        itemCheck=lambda x: x in afwImage.Mask().getMaskPlaneDict().keys(),
     )
     isNanSafe = pexConfig.Field(
         doc="Ignore NaNs when estimating the background",
