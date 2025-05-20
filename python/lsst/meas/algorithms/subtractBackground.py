@@ -196,6 +196,11 @@ class SubtractBackgroundTask(pipeBase.Task):
     ConfigClass = SubtractBackgroundConfig
     _DefaultName = "subtractBackground"
 
+    def __init__(self, config=None, *, name=None, parentTask=None, log=None):
+        super().__init__(config, name=name, parentTask=parentTask, log=log)
+        self.binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX
+        self.binSizeY = self.config.binSize if self.config.binSizeY == 0 else self.config.binSizeY
+
     def run(self, exposure, background=None, stats=True, statsKeys=None, backgroundToPhotometricRatio=None):
         """Fit and subtract the background of an exposure.
 
@@ -315,13 +320,10 @@ class SubtractBackgroundTask(pipeBase.Task):
             of failure.
         """
 
-        binSizeX = self.config.binSize if self.config.binSizeX == 0 else self.config.binSizeX
-        binSizeY = self.config.binSize if self.config.binSizeY == 0 else self.config.binSizeY
-
         if not nx:
-            nx = math.ceil(maskedImage.getWidth() / binSizeX)
+            nx = math.ceil(maskedImage.getWidth() / self.binSizeX)
         if not ny:
-            ny = math.ceil(maskedImage.getHeight() / binSizeY)
+            ny = math.ceil(maskedImage.getHeight() / self.binSizeY)
 
         unsubFrame = getDebugFrame(self._display, "unsubtracted")
         if unsubFrame:
@@ -380,7 +382,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                                  "[min(%d, %d) < %d]", nx, ny, order)
                 if self.config.undersampleStyle == "THROW_EXCEPTION":
                     raise ValueError("Too few points in grid (%d, %d) for order (%d) and binSize (%d, %d)" %
-                                     (nx, ny, order, binSizeX, binSizeY))
+                                     (nx, ny, order, self.binSizeX, self.binSizeY))
                 elif self.config.undersampleStyle == "REDUCE_INTERP_ORDER":
                     if order < 1:
                         raise ValueError("Cannot reduce approxOrder below 0.  "
@@ -397,7 +399,7 @@ class SubtractBackgroundTask(pipeBase.Task):
                     bctrl.setNxSample(newNx)
                     bctrl.setNySample(newNy)
                     self.log.warning("Decreasing binSize from (%d, %d) to %d for a grid of (%d, %d)",
-                                     binSizeX, binSizeY, newBinSize, newNx, newNy)
+                                     self.binSizeX, self.binSizeY, newBinSize, newNx, newNy)
 
             actrl = afwMath.ApproximateControl(afwMath.ApproximateControl.CHEBYSHEV, order, order,
                                                self.config.weighting)
