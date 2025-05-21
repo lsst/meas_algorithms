@@ -89,6 +89,8 @@ class TooManyMaskedPixelsError(pipeBase.AlgorithmError):
     """Raised when all pixels in the image are masked and no background
     can be estimated.
     """
+
+    @property
     def metadata(self) -> dict:
         """There is no metadata associated with this error.
         """
