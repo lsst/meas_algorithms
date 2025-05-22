@@ -599,14 +599,10 @@ class ReferenceObjectLoader:
             # region defined by the inner sky region.
             if innerSkyRegion.contains(region):
                 return refCat
-            # Create a new reference catalog, and populate it only with records
-            # that fall inside the padded bbox.
-            filteredRefCat = type(refCat)(refCat.table)
-            centroidKey = afwTable.Point2DKey(refCat.schema['centroid'])
-            for record in refCat:
-                pixCoords = record[centroidKey]
-                if paddedBbox.contains(geom.Point2D(pixCoords)):
-                    filteredRefCat.append(record)
+
+            inside = paddedBbox.contains(x=refCat["slot_Centroid_x"], y=refCat["slot_Centroid_y"])
+            filteredRefCat = refCat[inside]
+
             return filteredRefCat
         return self.loadRegion(outerSkyRegion, filterName, filtFunc=_filterFunction, epoch=epoch)
 
