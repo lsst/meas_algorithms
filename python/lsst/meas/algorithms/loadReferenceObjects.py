@@ -109,10 +109,10 @@ class _FilterCatalog:
             # no filtering needed, region completely contains refcat
             return refCat
 
-        filteredRefCat = type(refCat)(refCat.table)
-        for record in refCat:
-            if self.region.contains(record.getCoord().getVector()):
-                filteredRefCat.append(record)
+        coordKey = refCat.getCoordKey()
+        inside = self.region.contains(lon=refCat[coordKey.getRa()], lat=refCat[coordKey.getDec()])
+        filteredRefCat = refCat[inside]
+
         return filteredRefCat
 
 
