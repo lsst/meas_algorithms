@@ -112,6 +112,12 @@ class MakePsfCandidatesTask(pipeBase.Task):
         for star in starCat:
             psfCandidate = makePsfCandidate(star, exposure)
             try:
+                psfCandidate.setPsfColorValue(star['psf_color_value'])
+                psfCandidate.setPsfColorType(star['psf_color_type'])
+            except Exception:
+                psfCandidate.setPsfColorValue(np.nan)
+                psfCandidate.setPsfColorType("")
+            try:
                 # The setXXX methods are class static, but it's convenient to call them on
                 # an instance as we don't know exposures's pixel type
                 # (and hence psfCandidate's exact type)
