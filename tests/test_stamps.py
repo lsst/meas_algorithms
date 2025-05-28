@@ -51,14 +51,17 @@ def make_stamps(n_stamps=3, use_archive=False):
     decs = _RNG.random(n_stamps)*180 - 90
     archive_elements = [tF.makeTransform(geom.AffineTransform(_RNG.random(2))) if use_archive else None
                         for _ in range(n_stamps)]
-    stamp_list = [stamps.Stamp(stamp_im=stampIm,
-                               position=geom.SpherePoint(geom.Angle(ra, geom.degrees),
-                                                         geom.Angle(dec, geom.degrees)),
-                               archive_element=ae)
-                  for stampIm, ra, dec, ae in zip(stampImages, ras, decs, archive_elements)]
+
     metadata = PropertyList()
     metadata['RA_DEG'] = ras
     metadata['DEC_DEG'] = decs
+
+    stamp_list = [stamps.Stamp(stamp_im=stampIm,
+                               position=geom.SpherePoint(geom.Angle(ra, geom.degrees),
+                                                         geom.Angle(dec, geom.degrees)),
+                               archive_element=ae,
+                               metadata=metadata)
+                  for stampIm, ra, dec, ae in zip(stampImages, ras, decs, archive_elements)]
 
     return stamps.Stamps(stamp_list, metadata=metadata, use_archive=True)
 
@@ -176,6 +179,15 @@ class StampsTestCase(lsst.utils.tests.TestCase):
         """
         self.roundtripWithArchive(make_stamps(use_archive=True))
 
+    def testMetadata(self):
+        """Test that metadata is correctly written and read.
+        """
+        stamps = make_stamps()
+        for stamp in stamps:
+            self.assertTrue(stamp.metadata is not None)
+            self.assertIn('RA_DEG', stamp.metadata)
+            self.assertIn('DEC_DEG', stamp.metadata)
+
     def roundtrip(self, ss):
         """Round trip a Stamps object to disk and check values
         """
@@ -190,6 +202,10 @@ class StampsTestCase(lsst.utils.tests.TestCase):
                                        s2.position.getRa().asDegrees())
                 self.assertAlmostEqual(s1.position.getDec().asDegrees(),
                                        s2.position.getDec().asDegrees())
+
+                for k, v in s1.metadata.items():
+                    self.assertIn(k, s2.metadata)
+                    self.assertAlmostEqual(v, s2.metadata[k])
 
     def roundtripWithArchive(self, ss):
         """Round trip a Stamps object, including Archive elements, and check values

@@ -25,6 +25,7 @@ __all__ = ["Stamp", "Stamps", "StampsBase", "writeFits", "readFitsWithOptions"]
 
 import abc
 from collections.abc import Sequence
+import copy
 from dataclasses import dataclass, field, fields
 
 import numpy as np
@@ -165,9 +166,13 @@ def readFitsWithOptions(filename, stamp_factory, options):
         variance_dtype = np.dtype(np.float32)  # Variance is always the same type.
 
         # We need to be careful because nExtensions includes the primary HDU.
+        stamp_metadata = []
         for idx in range(nExtensions - 1):
             dtype = None
+            _metadata = copy.copy(metadata)
             md = readMetadata(filename, hdu=idx + 1)
+            _metadata.update(md)
+            stamp_metadata.append(_metadata)
             # Skip binary tables that aren't images or archives.
             if md["XTENSION"] == "BINTABLE" and not ("ZIMAGE" in md and md["ZIMAGE"]):
                 if md["EXTNAME"] != "ARCHIVE_INDEX":
@@ -201,7 +206,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
         # Need to increment by one since EXTVER starts at 1
         maskedImage = masked_image_cls(**stamp_parts[k + 1])
         archive_element = archive.get(archive_ids[k]) if has_archive else None
-        stamps.append(stamp_factory(maskedImage, metadata, k, archive_element))
+        stamps.append(stamp_factory(maskedImage, stamp_metadata[k], k, archive_element))
 
     return stamps, metadata
 
@@ -267,6 +272,7 @@ class Stamp(AbstractStamp):
     stamp_im: MaskedImageF
     archive_element: Persistable | None = None
     position: SpherePoint | None = field(default_factory=_default_position)
+    metadata: PropertyList | None = None
 
     @classmethod
     def factory(cls, stamp_im, metadata, index, archive_element=None):
@@ -282,9 +288,9 @@ class Stamp(AbstractStamp):
         ----------
         stamp : `~lsst.afw.image.MaskedImage`
             Pixel data to pass to the constructor
-        metadata : `dict`
-            Dictionary containing the information
-            needed by the constructor.
+        metadata : `PropertyList`
+            A collection of key, value metadata pairs containing the
+            information needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
         archive_element : `~lsst.afw.table.io.Persistable`, optional
@@ -303,12 +309,14 @@ class Stamp(AbstractStamp):
                     Angle(metadata.getArray("RA_DEG")[index], degrees),
                     Angle(metadata.getArray("DEC_DEG")[index], degrees),
                 ),
+                metadata=metadata,
             )
         else:
             return cls(
                 stamp_im=stamp_im,
                 archive_element=archive_element,
                 position=SpherePoint(Angle(np.nan), Angle(np.nan)),
+                metadata=metadata,
             )
 
 
