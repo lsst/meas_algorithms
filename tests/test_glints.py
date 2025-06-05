@@ -25,25 +25,35 @@ import numpy as np
 
 from lsst.meas.algorithms import findGlints
 import lsst.geom
-from lsst.meas.base.tests import TestDataset
+import lsst.meas.base.tests
 import lsst.utils.tests
 
 
 class TestFindGlints(lsst.utils.tests.TestCase):
     def setUp(self):
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(5, 4), lsst.geom.Point2I(1005, 1084))
-        dataset = TestDataset(bbox)
+        dataset = lsst.meas.base.tests.TestDataset(bbox)
+
         x0 = 200
         y0 = 300
         scale = 50
         rng = np.random.default_rng()
-        # the glint trail
+        # two glint trails
         for x in range(8):
             dataset.addSource(instFlux=10000,
                               centroid=lsst.geom.Point2D(x*scale + x0 + rng.random(),
                                                          x*scale + y0 + rng.random()))
-        # a source that shouldn't appear in the found trail
+
+        # a source that shouldn't appear in the found trails
         dataset.addSource(instFlux=10000, centroid=lsst.geom.Point2D(500, 200))
+
+        x0 = 380
+        y0 = 760
+        scale = 70
+        for x in range(5):
+            dataset.addSource(instFlux=10000,
+                              centroid=lsst.geom.Point2D(x*scale + x0 + rng.random(),
+                                                         -x*scale + y0 + rng.random()))
 
         schema = dataset.makeMinimalSchema()
         self.exposure, self.catalog = dataset.realize(10.0, schema=schema)
@@ -55,13 +65,19 @@ class TestFindGlints(lsst.utils.tests.TestCase):
         display = lsst.afw.display.Display()
         display.frame = 1
         display.image(self.exposure, title="something")
-        display.centroids(self.catalog, size=20, ctype="red", symbol="x")
+        # display.centroids(self.catalog, size=20, ctype="red", symbol="x")
         # import ipdb; ipdb.set_trace();
 
         config = findGlints.FindGlintsTask.ConfigClass()
         config.radius = 300
         task = findGlints.FindGlintsTask(config=config)
-        task.run(self.catalog)
+        result = task.run(self.catalog)
+        self.assertEqual(len(result), 2)
+
+        colors = ("red", "green", "cyan")
+        symbols = ("x", "o", "s")
+        for trail, color, symbol in zip(result, colors, symbols):
+            display.centroids(trail, size=20, ctype=color, symbol=symbol)
 
 
 def setup_module(module):

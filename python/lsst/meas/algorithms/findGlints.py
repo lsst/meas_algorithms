@@ -61,19 +61,22 @@ class FindGlintsTask(lsst.pipe.base.Task):
         counts = {id: len(value) for id, value in per_id.items()}
 
         trails = []
+        trailed_ids = set()
         for id in counts:
-            self.log.info("id=%d has %d matches", id, counts[id])
-            if counts[id] < self.config.min_points:
+            # Don't search this point if it was already included in a trail.
+            if counts[id] < self.config.min_points or id in trailed_ids:
                 continue
 
-            if (trail := self.search_one(per_id[id])) is not None:
+            self.log.info("id=%d has %d matches", id, counts[id])
+            if (trail := self._search_one(per_id[id], catalog)) is not None:
                 self.log.info("Found glint trail with %d points.", len(trail))
                 trails.append(trail)
+                trailed_ids.update(trail["id"])
 
-        self.deduplicate(trails)
+        # self.deduplicate(trails)
         return trails
 
-    def search_one(self, matches):
+    def _search_one(self, matches, catalog):
         """Search one set of matches for a possible trail."""
         components = collections.defaultdict(list)
         # Use normalized distances from the first record to all the others.
@@ -82,25 +85,21 @@ class FindGlintsTask(lsst.pipe.base.Task):
 
         for i, (id1, pair1) in enumerate(xy_deltas.items()):
             distance = math.sqrt(pair1[0]**2 + pair1[1]**2)
-            print("distance", distance)
             for j, (id2, pair2) in enumerate(xy_deltas.items()):
                 if i == j:
                     continue
                 delta = abs(pair1[0] * pair2[1] - pair1[1] * pair2[0])
-                print("delta", delta, "delta / distance", delta / distance)
                 if delta / distance < 2 * self.config.maxgcr:
                     components[i].append(j)
-                    # components[pair1.second["id"]].append(pair2.second["id"])
 
         longest = -1
         length = 0
-        # I think there's a itertools thing to do this?
+        # TODO: I think there's a itertools thing to do this?
         for id, matched in components.items():
             if len(matched) > length:
                 length = len(matched)
                 longest = id
         length += 2  # to account for the base source and the first pair
-        print("length", length)
         if length < self.config.min_points:
             return None
 
@@ -110,15 +109,23 @@ class FindGlintsTask(lsst.pipe.base.Task):
         y.append(matches[0].first.getY())
         result = scipy.stats.linregress(x, y)
         print(result)
+
+        points = self._other_points(result.slope, result.intercept, catalog)
+        trail = catalog[points]
+
         # TODO: outlier rejection here!
-        trail = [matches[0].first]
-        trail.extend([matches[i].second for i in components[longest]])
         if result.stderr <= self.config.maxgcr and length >= self.config.min_points:
-            # TODO: find other points that lie along this line
-            # TODO: recenter on the middle
+            # TODO: recenter on the middle?
             return trail
         else:
             return None
+
+    def _other_points(self, m, b, catalog):
+        """Find all catalog records that could lie on this line."""
+        dist = abs(b + m * catalog.getX() - catalog.getY()) / math.sqrt(1 + m**2)
+        # 2x max error to search more broadly: outlier rejection may change
+        # the line parameters some.
+        return dist < 2 * self.config.maxgcr
 
     def deduplicate(self, glints):
         """Remove duplicate glint trails."""
