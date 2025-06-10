@@ -141,6 +141,11 @@ class MakePsfCandidatesTask(pipeBase.Task):
             vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
             if not np.isfinite(vmax):
                 continue
+            else:
+                try:
+                    star['psf_max_value'] = vmax
+                except Exception:
+                    self.log.warning("Could not set max value")
             psfCandidateList.append(psfCandidate)
             goodStarCat.append(star)
 
