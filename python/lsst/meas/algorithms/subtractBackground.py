@@ -426,5 +426,9 @@ def filterSuperPixels(bbox, background, superPixelFilterSize=3):
         Size of the median filter to use, in pixels.
     """
     statsImg = background.getStatsImage()
-    statsImg.image.array = median_filter(statsImg.image.array, mode='reflect', size=superPixelFilterSize)
+    # scipy's median_filter can't handle NaN values
+    bad = numpy.isnan(statsImg.image.array)
+    if numpy.count_nonzero(bad) > 0:
+        statsImg.image.array[bad] = numpy.nanmedian(statsImg.image.array)
+    statsImg.image.array = median_filter(statsImg.image.array, mode="reflect", size=superPixelFilterSize)
     background = afwMath.BackgroundMI(bbox, statsImg)
