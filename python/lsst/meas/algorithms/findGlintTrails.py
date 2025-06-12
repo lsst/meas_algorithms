@@ -19,13 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["FindGlintTrailsConfig", "FindGlintTrailsTask", "GlintTrailResult"]
+__all__ = ["FindGlintTrailsConfig", "FindGlintTrailsTask", "GlintTrailParameters"]
 
 import collections
 import dataclasses
 import math
 
 import numpy as np
+import scipy.spatial
 import sklearn.linear_model
 
 import lsst.afw.table
@@ -64,11 +65,13 @@ class FindGlintTrailsConfig(lsst.pex.config.Config):
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class GlintTrailResult:
+class GlintTrailParameters:
     """Holds values from the line fit to a single glint trail."""
     slope: float
     intercept: float
     stderr: float
+    length: float  # pixels
+    angle: float  # radians
 
 
 class FindGlintTrailsTask(lsst.pipe.base.Task):
@@ -113,9 +116,9 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
             ``trailed_ids``
                 Ids of all the sources that were included in any fit trail.
                 (`set` [`int`])
-            ``trail_results``
+            ``parameters``
             Parameters of all the trails that were found.
-                (`list` [`GlintTrailResult`])
+                (`list` [`GlintTrailParameters`])
         """
         good_catalog = self._select_good_sources(catalog)
 
@@ -126,7 +129,7 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         counts = {id: len(value) for id, value in per_id.items()}
 
         trails = []
-        trail_results = []
+        parameters = []
         trailed_ids = set()
         # Search starting with the source with the largest number of matches.
         for id in dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)):
@@ -145,18 +148,18 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
                 # Check that we didn't already find this trail.
                 n_new = len(set(trail["id"]).difference(trailed_ids))
                 if n_new > 0:
-                    self.log.info("Found trail with %d points, %d not in any other trail "
-                                  "(slope=%.4f, intercept=%.2f)",
-                                  len(trail), n_new, result.slope, result.intercept)
+                    self.log.info("Found %.1f pixel length trail with %d points, "
+                                  "%d not in any other trail (slope=%.4f, intercept=%.2f)",
+                                  result.length, len(trail), n_new, result.slope, result.intercept)
                     trails.append(trail)
                     trailed_ids.update(trail["id"])
-                    trail_results.append(result)
+                    parameters.append(result)
 
         self.log.info("Found %d glint trails containing %d total sources.",
                       len(trails), len(trailed_ids))
         return lsst.pipe.base.Struct(trails=trails,
                                      trailed_ids=trailed_ids,
-                                     trail_results=trail_results)
+                                     parameters=parameters)
 
     def _select_good_sources(self, catalog):
         """Return sources that could possibly be in a glint trail, i.e. ones
@@ -199,6 +202,7 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         xy_deltas = {pair.second["id"]: (pair.second.getX() - pair.first.getX(),
                                          pair.second.getY() - pair.first.getY()) for pair in matches}
 
+        # Find all sets of pairs from this anchor that could lie on a line.
         for i, (id1, pair1) in enumerate(xy_deltas.items()):
             distance = math.sqrt(pair1[0]**2 + pair1[1]**2)
             for j, (id2, pair2) in enumerate(xy_deltas.items()):
@@ -210,13 +214,13 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
                     components[i].append(j)
 
         longest, value = max(components.items(), key=lambda x: len(x[1]))
-        length = len(value)
-        length += 2  # to account for the base source and the first pair
-        if length < self.config.min_points:
+        n_points = len(value)
+        n_points += 2  # to account for the base source and the first pair
+        if n_points < self.config.min_points:
             return None
 
         candidate = [longest] + components[longest]
-        trail, result = self._other_points(length, candidate, matches, catalog)
+        trail, result = self._other_points(n_points, candidate, matches, catalog)
 
         if trail is None or len(trail) < self.config.min_points:
             # No need to log these, they're uninteresting.
@@ -228,12 +232,12 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         else:
             return trail, result
 
-    def _other_points(self, length, indexes, matches, catalog):
+    def _other_points(self, n_points, indexes, matches, catalog):
         """Find all catalog records that could lie on this line.
 
         Parameters
         ----------
-        length : `int`
+        n_points : `int`
             Number of sources in this candidate trail.
         indexes : `list` [`int`]
             Indexes into matches on this candidate trail.
@@ -246,18 +250,24 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         -------
         trail : `lsst.afw.table.SourceCatalog`
             Sources that are in the fitted trail.
-        result : `GlintTrailResult`
+        result : `GlintTrailParameters`
             Parameters of the fitted trail.
         """
 
         def extract(fitter, x, y, prefix=""):
             """Extract values from the fit and log and return them."""
-            predicted = fitter.predict(x[fitter.inlier_mask_]).flatten()
-            stderr = math.sqrt(((predicted - y[fitter.inlier_mask_].flatten())**2).sum())
+            x = x[fitter.inlier_mask_]
+            y = y[fitter.inlier_mask_]
+            predicted = fitter.predict(x).flatten()
+            stderr = math.sqrt(((predicted - y.flatten())**2).sum())
             m, b = fitter.estimator_.coef_[0][0], fitter.estimator_.intercept_[0]
             self.log.debug("%s fit: score=%.6f, stderr=%.6f, inliers/total=%d/%d",
                            prefix, fitter.score(x, y), stderr, sum(fitter.inlier_mask_), len(x))
-            return GlintTrailResult(slope=m, intercept=b, stderr=stderr)
+            # Simple O(N^2) search for longest distance; there will never be
+            # enough points in a trail a for "faster" approach to be worth it.
+            length = max(scipy.spatial.distance.pdist(np.hstack((x, y))))
+            angle = math.atan(m)
+            return GlintTrailParameters(slope=m, intercept=b, stderr=stderr, length=length, angle=angle)
 
         # min_samples=2 is necessary here for some sets of only 5 matches,
         # otherwise we sometimes get "UndefinedMetricWarning: R^2 score is not
@@ -268,10 +278,10 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
                                                       min_samples=2)
 
         # The (-1,1) shape is to keep sklearn happy.
-        x = np.empty(length).reshape(-1, 1)
+        x = np.empty(n_points).reshape(-1, 1)
         x[0] = matches[0].first.getX()
         x[1:, 0] = [matches[i].second.getX() for i in indexes]
-        y = np.empty(length).reshape(-1, 1)
+        y = np.empty(n_points).reshape(-1, 1)
         y[0] = matches[0].first.getY()
         y[1:, 0] = [matches[i].second.getY() for i in indexes]
 

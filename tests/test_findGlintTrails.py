@@ -28,6 +28,12 @@ import lsst.geom
 import lsst.meas.base.tests
 import lsst.utils.tests
 
+# Set this and have display_ds9 setup to see the fit on the image.
+display = False
+if display:
+    import lsst.afw.display
+    display = lsst.afw.display.Display()
+
 
 class TestFindGlintTrails(lsst.utils.tests.TestCase):
     """Generate two glint trails and test that they are both found, while
@@ -56,23 +62,25 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
         # included in any of the fits.
         x0 = 170
         y0 = 690
-        scale = 70
+        step = 70
         for i in range(6):
             dataset.addSource(instFlux=-flux,
-                              centroid=lsst.geom.Point2D(i*scale + x0 + rng.random(),
-                                                         -i*scale + y0 + rng.random()),
+                              centroid=lsst.geom.Point2D(i*step + x0 + rng.random(),
+                                                         -i*step + y0 + rng.random()),
                               negative=True)
 
         # a source that shouldn't appear in the found trails
         dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(500, 200))
 
+        # Perpendicular trail that has a point lying on the same line as the
+        # first trail.
         x0 = 380
         y0 = 760
-        scale = 70
+        step = 70
         for i in range(5):
             dataset.addSource(instFlux=flux,
-                              centroid=lsst.geom.Point2D(i*scale + x0 + rng.random(),
-                                                         -i*scale + y0 + rng.random()))
+                              centroid=lsst.geom.Point2D(i*step + x0 + rng.random(),
+                                                         -i*step + y0 + rng.random()))
 
         schema = dataset.makeMinimalSchema()
         schema.addField("ip_diffim_DipoleFit_classification", type="Flag")
@@ -94,13 +102,11 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
         task = findGlintTrails.FindGlintTrailsTask(config=config)
         result = task.run(self.catalog)
 
-        # Uncomment this block and have display_ds9 setup to see the fit.
-        # import lsst.afw.display
-        # display = lsst.afw.display.Display()
-        # display.frame = 1
-        # display.image(self.exposure, title="something")
-        # for i, trail in enumerate(result.trails):
-        #     display.centroids(trail, size=5, ctype="cyan", symbol=i)
+        if display:
+            display.frame = 1
+            display.image(self.exposure, title="something")
+            for i, trail in enumerate(result.trails):
+                display.centroids(trail, size=5, ctype="cyan", symbol=i)
 
         self.assertEqual(len(result.trails), 2)
         # Note that if you add sources to the simulated catalog, the ids in
@@ -111,8 +117,15 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
                             {117, 118, 119, 120, 121})
         self.assertSetEqual(result.trailed_ids, {102, 103, 104, 105, 106, 107, 108,
                             109, 117, 118, 119, 120, 121})
+        # Expected lengths from the step size of the simulated trails.
+        self.assertFloatsAlmostEqual(result.parameters[0].length,
+                                     np.sqrt((7*50)**2 + (7*50)**2),
+                                     rtol=1e-3)
+        self.assertFloatsAlmostEqual(result.parameters[1].length,
+                                     np.sqrt((4*70)**2 + (4*70)**2),
+                                     rtol=1e-3)
 
-    def test_no_glints(self):
+    def test_empty_image(self):
         """Test that no trails are found on an empty image."""
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(-5, -4), lsst.geom.Point2I(1005, 1084))
         dataset = lsst.meas.base.tests.TestDataset(bbox)
