@@ -40,9 +40,10 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
     outlier points are not included.
     """
 
-    def setUp(self):
+    def _make_image_3_trails(self):
+        """Make an image with 3 trails on it, one of them negative.
+        """
         rng = np.random.default_rng(10)
-
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(-5, -4), lsst.geom.Point2I(1005, 1084))
         dataset = lsst.meas.base.tests.TestDataset(bbox)
         flux = 10000
@@ -84,14 +85,17 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
 
         schema = dataset.makeMinimalSchema()
         schema.addField("ip_diffim_DipoleFit_classification", type="Flag")
-        self.exposure, self.catalog = dataset.realize(10.0, schema=schema)
+        exposure, catalog = dataset.realize(10.0, schema=schema)
         # So that the catalog ids don't look like simple indices when debugging.
-        self.catalog["id"] += 100
+        catalog["id"] += 100
+        return exposure, catalog
 
     def test_simple(self):
         """Test the basic operation of the glint finder on an image with two
         glint trails.
         """
+        exposure, catalog = self._make_image_3_trails()
+
         config = findGlintTrails.FindGlintTrailsTask.ConfigClass()
         # Limit the search radius so that we can test the line-extension
         # part of the fitter.
@@ -100,11 +104,11 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
         # controlled centroids than real data.
         config.threshold = 1.5
         task = findGlintTrails.FindGlintTrailsTask(config=config)
-        result = task.run(self.catalog)
+        result = task.run(catalog)
 
         if display:
             display.frame = 1
-            display.image(self.exposure, title="something")
+            display.image(exposure, title="something")
             for i, trail in enumerate(result.trails):
                 display.centroids(trail, size=5, ctype="cyan", symbol=i)
 
@@ -131,10 +135,34 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
         dataset = lsst.meas.base.tests.TestDataset(bbox)
         schema = dataset.makeMinimalSchema()
         schema.addField("ip_diffim_DipoleFit_classification", type="Flag")
-        self.exposure, self.catalog = dataset.realize(10.0, schema=schema)
+        exposure, catalog = dataset.realize(10.0, schema=schema)
 
         task = findGlintTrails.FindGlintTrailsTask()
-        result = task.run(self.catalog)
+        result = task.run(catalog)
+
+        self.assertEqual(len(result.trails), 0)
+        self.assertEqual(result.trailed_ids, set())
+
+    def test_rejected_trail_min_points(self):
+        """Test that no trails are found on an image with an initially
+        reasonable trail that is rejected during fitting for having too many
+        outliers.
+        """
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(-5, -4), lsst.geom.Point2I(1005, 1084))
+        dataset = lsst.meas.base.tests.TestDataset(bbox)
+        flux = 10000
+        dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(100, 100))
+        dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(210, 200))
+        dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(300, 310))
+        dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(400, 400))
+        dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(500, 500))
+        dataset.addSource(instFlux=flux, centroid=lsst.geom.Point2D(600, 600))
+        schema = dataset.makeMinimalSchema()
+        schema.addField("ip_diffim_DipoleFit_classification", type="Flag")
+        exposure, catalog = dataset.realize(10.0, schema=schema)
+
+        task = findGlintTrails.FindGlintTrailsTask()
+        result = task.run(catalog)
 
         self.assertEqual(len(result.trails), 0)
         self.assertEqual(result.trailed_ids, set())

@@ -223,10 +223,9 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         trail, result = self._other_points(n_points, candidate, matches, catalog)
 
         if trail is None or len(trail) < self.config.min_points:
-            # No need to log these, they're uninteresting.
             return None
         if result.stderr > self.config.threshold:
-            self.log.info("Trail with %d sources rejected with stderr %.6f > %.3f",
+            self.log.info("Candidate trail with %d sources rejected with stderr %.6f > %.3f",
                           len(trail), result.stderr, self.config.threshold)
             return None
         else:
@@ -288,7 +287,8 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         fitter.fit(x, y)
         result = extract(fitter, x, y, prefix="preliminary")
         # Reject trails that have too many outliers after the first fit.
-        if sum(fitter.inlier_mask_) < self.config.min_points:
+        if (n_inliers := sum(fitter.inlier_mask_)) < self.config.min_points:
+            self.log.debug("Candidate trail rejected with %d < %d points.", n_inliers, self.config.min_points)
             return None, None
 
         # Find all points that are close to this line and refit with them.
