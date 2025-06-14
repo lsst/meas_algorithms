@@ -213,9 +213,12 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
                 if delta / distance < 2 * self.config.threshold:
                     components[i].append(j)
 
-        longest, value = max(components.items(), key=lambda x: len(x[1]))
-        n_points = len(value)
-        n_points += 2  # to account for the base source and the first pair
+        if len(components) > 0:
+            longest, value = max(components.items(), key=lambda x: len(x[1]))
+            n_points = len(value)
+            n_points += 2  # to account for the base source and the first pair
+        else:
+            return None
         if n_points < self.config.min_points:
             return None
 
