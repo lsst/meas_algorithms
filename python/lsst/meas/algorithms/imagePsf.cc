@@ -35,7 +35,7 @@ namespace algorithms {
 namespace {
 
 void declareImagePsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyImagePsf = py::class_<ImagePsf, afw::detection::Psf, ImagePsfTrampoline<>>;
+    using PyImagePsf = py::classh<ImagePsf, afw::detection::Psf, ImagePsfTrampoline<>>;
     auto clsImagePsf = wrappers.wrapType(PyImagePsf(wrappers.module, "ImagePsf"), [](auto &mod, auto &cls) {
         cls.def(py::init<bool>(), "init", "isFixed"_a = false);  // Ctor for pure python subclasses
     });

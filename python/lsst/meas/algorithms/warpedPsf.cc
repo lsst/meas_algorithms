@@ -33,7 +33,7 @@ namespace algorithms {
 namespace {
 
 void declareWarpedPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyWarpedPsf = py::class_<WarpedPsf, ImagePsf>;
+    using PyWarpedPsf = py::classh<WarpedPsf, ImagePsf>;
     wrappers.wrapType(PyWarpedPsf(wrappers.module, "WarpedPsf", py::is_final()), [](auto &mod, auto &cls) {
         /* Constructors */
         cls.def(py::init<std::shared_ptr<afw::detection::Psf const>,

@@ -36,7 +36,7 @@ namespace algorithms {
 namespace {
 
 void declareCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyElement = py::class_<CoaddBoundedFieldElement>;
+    using PyElement = py::classh<CoaddBoundedFieldElement>;
     static auto clsElement = wrappers.wrapType(PyElement(wrappers.module, "CoaddBoundedFieldElement"), [](auto &mod, auto &cls) {
         cls.def(py::init([](std::shared_ptr<afw::math::BoundedField> field,
                             std::shared_ptr<afw::geom::SkyWcs const> wcs, py::object polygon, double weight) {
@@ -56,7 +56,7 @@ void declareCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrapper
         cls.def("__eq__", &CoaddBoundedFieldElement::operator==, py::is_operator());
         cls.def("__ne__", &CoaddBoundedFieldElement::operator!=, py::is_operator());
     });
-    using PyClass = py::class_<CoaddBoundedField, afw::math::BoundedField>;
+    using PyClass = py::classh<CoaddBoundedField, afw::math::BoundedField>;
     auto clsField = wrappers.wrapType(PyClass(wrappers.module, "CoaddBoundedField"), [](auto &mod, auto &cls) {
 
         cls.attr("Element") = clsElement;
