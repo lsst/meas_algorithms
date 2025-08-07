@@ -40,7 +40,7 @@ namespace {
 
 void declareCloughTocher2DInterpolatorUtils(lsst::cpputils::python::WrapperCollection &wrappers) {
     using PyCloughTocher2DInterpolatorUtils =
-            py::class_<CloughTocher2DInterpolatorUtils, std::shared_ptr<CloughTocher2DInterpolatorUtils>>;
+            py::classh<CloughTocher2DInterpolatorUtils>;
     auto clsCloughTocher2DInterpolatorUtils = wrappers.wrapType(
             PyCloughTocher2DInterpolatorUtils(wrappers.module, "CloughTocher2DInterpolatorUtils"),
             [](auto &mod, auto &cls) {
