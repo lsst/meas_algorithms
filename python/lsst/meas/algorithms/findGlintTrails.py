@@ -268,7 +268,7 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
                            prefix, fitter.score(x, y), stderr, sum(fitter.inlier_mask_), len(x))
             # Simple O(N^2) search for longest distance; there will never be
             # enough points in a trail a for "faster" approach to be worth it.
-            length = max(scipy.spatial.distance.pdist(np.hstack((x, y))))
+            length = max(scipy.spatial.distance.pdist(np.hstack((x, y))), default=0)
             angle = math.atan(m)
             return GlintTrailParameters(slope=m, intercept=b, stderr=stderr, length=length, angle=angle)
 
