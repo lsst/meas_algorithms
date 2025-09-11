@@ -48,17 +48,17 @@ class FindCosmicRaysConfig(pexConfig.Config):
     cond3_fac = pexConfig.Field(
         dtype=float,
         doc="used in condition 3 for CR; see CR.cc code",
-        default=2.5,
+        default=2.0,
     )
     cond3_fac2 = pexConfig.Field(
         dtype=float,
         doc="used in condition 3 for CR; see CR.cc code",
-        default=0.4,
+        default=0.35,
     )
     niteration = pexConfig.Field(
         dtype=int,
         doc="number of times to look for contaminated pixels near known CR pixels",
-        default=3,
+        default=6,
     )
     keepCRs = pexConfig.Field(
         dtype=bool,
