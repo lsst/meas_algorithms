@@ -111,7 +111,6 @@ class ConvertRefcatManager:
         output : `dict` [`int`, `str`]
             The htm ids and the filenames that were written to.
         """
-        global COUNTER, FILE_PROGRESS
         self.nInputFiles = len(inputFiles)
 
         with multiprocessing.Manager() as manager:
@@ -149,7 +148,6 @@ class ConvertRefcatManager:
         pixels, files : `list` [`int`]
             The pixel ids that were written to.
         """
-        global FILE_PROGRESS
         self.log.debug("Processing: %s", filename)
         inputData = self.file_reader.run(filename)
         try:
@@ -206,7 +204,6 @@ class ConvertRefcatManager:
         for outputRow, inputRow in zip(catalog[-len(idx):], inputData[idx]):
             self._fillRecord(outputRow, inputRow)
 
-        global COUNTER
         with COUNTER.get_lock():
             self._setIds(inputData[idx], catalog)
 
@@ -234,7 +231,6 @@ class ConvertRefcatManager:
         catalog : `lsst.afw.table.SimpleCatalog`
             The output catalog to fill the ids.
         """
-        global COUNTER
         size = len(inputData)
         if self.config.id_name:
             catalog['id'][-size:] = inputData[self.config.id_name]
