@@ -128,6 +128,8 @@ class CosmicRayTestCase(lsst.utils.tests.TestCase):
         crConfig = algorithms.FindCosmicRaysConfig()
         # These tests were written with the original 0.6 default.
         crConfig.cond3_fac2 = 0.6
+        crConfig.cond3_fac = 2.5
+        crConfig.niteration = 3
         crs = algorithms.findCosmicRays(self.mi, self.psf, background, pexConfig.makePropertySet(crConfig))
 
         if display:
