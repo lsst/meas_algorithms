@@ -105,7 +105,10 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Set up forced measurement.
         config = ForcedMeasurementTask.ConfigClass()
-        config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux', 'base_LocalBackground']
+        config.plugins.names = ['base_TransformedCentroid',
+                                'base_PsfFlux',
+                                'base_LocalBackground',
+                                'base_PixelFlags']
         # We'll need the "centroid" and "psfFlux" slots
         for slot in ("shape", "psfShape", "apFlux", "modelFlux", "gaussianFlux", "calibFlux"):
             setattr(config.slots, slot, None)
