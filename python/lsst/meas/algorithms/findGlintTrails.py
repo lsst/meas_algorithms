@@ -288,12 +288,18 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         y[0] = matches[0].first.getY()
         y[1:, 0] = [matches[i].second.getY() for i in indexes]
 
-        fitter.fit(x, y)
-        result = extract(fitter, x, y, prefix="preliminary")
-        # Reject trails that have too many outliers after the first fit.
-        if (n_inliers := sum(fitter.inlier_mask_)) < self.config.min_points:
-            self.log.debug("Candidate trail rejected with %d < %d points.", n_inliers, self.config.min_points)
+        try:
+            fitter.fit(x, y)
+        except ValueError:
+            self.log.info("Glint trail interpolation could not find a valid fit.")
             return None, None
+        else:
+            result = extract(fitter, x, y, prefix="preliminary")
+            # Reject trails that have too many outliers after the first fit.
+            if (n_inliers := sum(fitter.inlier_mask_)) < self.config.min_points:
+                self.log.debug("Candidate trail rejected with %d < %d points.",
+                               n_inliers, self.config.min_points)
+                return None, None
 
         # Find all points that are close to this line and refit with them.
         x = catalog["slot_Centroid_x"]
