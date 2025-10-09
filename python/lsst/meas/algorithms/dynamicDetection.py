@@ -145,7 +145,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Set up forced measurement.
         config = ForcedMeasurementTask.ConfigClass()
-        config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux', 'base_LocalBackground']
+        config.plugins.names = ["base_TransformedCentroid", "base_PsfFlux"]
         # We'll need the "centroid" and "psfFlux" slots
         for slot in ("shape", "psfShape", "apFlux", "modelFlux", "gaussianFlux", "calibFlux"):
             setattr(config.slots, slot, None)
@@ -276,10 +276,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         # Calculate new threshold
         fluxes = catalog["base_PsfFlux_instFlux"]
         area = catalog["base_PsfFlux_area"]
-        bg = catalog["base_LocalBackground_instFlux"]
-
-        good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"]
-                & np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
+        good = (~catalog["base_PsfFlux_flag"] & np.isfinite(fluxes))
 
         if good.sum() < minNumSources:
             if not isBgTweak:
@@ -308,9 +305,9 @@ class DynamicDetectionTask(SourceDetectionTask):
         else:
             self.log.info("Number of good sky sources used for dynamic detection background tweak:"
                           " %d (of %d requested).", good.sum(), self.skyObjects.config.nSources)
-        bgMedian = np.median((fluxes/area)[good])
 
-        lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
+        bgMedian = np.median((fluxes/area)[good])
+        lq, uq = np.percentile(fluxes[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
         medianError = np.median(catalog["base_PsfFlux_instFluxErr"][good])
         if wcsIsNone:
