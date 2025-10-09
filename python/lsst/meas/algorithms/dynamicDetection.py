@@ -105,6 +105,15 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                            "suitable locations to lay down sky objects. To allow for best effort "
                            "sky source placement, if True, this allows for a slight erosion of "
                            "the detection masks.")
+    maxPeakToFootRatio = Field(dtype=float, default=150.0,
+                               doc="Maximum ratio of peak per footprint in the detection mask. "
+                               "This is to help prevent single contiguous footprints that nothing "
+                               "can be done with (i.e. deblending will be skipped). If the current "
+                               "detection plane does not satisfy this constraint, the detection "
+                               "threshold is increased iteratively until it is. This behaviour is "
+                               "intended to be an effective no-op for most \"typical\" scenes/standard "
+                               "quality observations, but can avoid total meltdown in, e.g. very "
+                               "crowded regions.")
 
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)
@@ -424,22 +433,59 @@ class DynamicDetectionTask(SourceDetectionTask):
             # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
             seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
             threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
-            factor = threshResults.multiplicative
+            minMultiplicative = 0.5
+            if threshResults.multiplicative < minMultiplicative:
+                self.log.warning("threshResults.multiplicative = %.2f is less than minimum value (%.2f). "
+                                 "Setting to %.2f.", threshResults.multiplicative, minMultiplicative,
+                                 minMultiplicative)
+            factor = max(minMultiplicative, threshResults.multiplicative)
             self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
                           factor, factor*self.config.thresholdValue)
 
-            # Blow away preliminary (low threshold) detection mask
-            self.clearMask(maskedImage.mask)
-            if not clearMask:
-                maskedImage.mask.array |= oldDetected
+            growOverride = None
+            inFinalize = True
+            while inFinalize:
+                inFinalize = False
+                # Blow away preliminary (low threshold) detection mask
+                self.clearMask(maskedImage.mask)
+                if not clearMask:
+                    maskedImage.mask.array |= oldDetected
 
-            # Rinse and repeat thresholding with new calculated threshold
-            results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
-            results.prelim = prelim
-            results.background = background if background is not None else lsst.afw.math.BackgroundList()
-            if self.config.doTempLocalBackground:
-                self.applyTempLocalBackground(exposure, middle, results)
-            self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor)
+                # Rinse and repeat thresholding with new calculated threshold
+                results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
+                results.prelim = prelim
+                results.background = background if background is not None else lsst.afw.math.BackgroundList()
+                if self.config.doTempLocalBackground:
+                    self.applyTempLocalBackground(exposure, middle, results)
+                self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor,
+                                        growOverride=growOverride)
+                self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
+                                 results.numPosPeaks/results.numPos,
+                                 self.config.maxPeakToFootRatio)
+                if results.numPosPeaks/results.numPos > self.config.maxPeakToFootRatio:
+                    if results.numPosPeaks/results.numPos > 3*self.config.maxPeakToFootRatio:
+                        factor *= 1.4
+                    else:
+                        factor *= 1.2
+                    if factor > 2.0:
+                        if growOverride is None:
+                            growOverride = 0.75*self.config.nSigmaToGrow
+                        else:
+                            growOverride *= 0.75
+                        self.log.warning("Decreasing nSigmaToGrow to %.2f", growOverride)
+                    if factor >= 5:
+                        self.log.warning("New theshold value would be > 5 times the initially requested "
+                                         "one (%.2f > %.2f). Leaving inFinalize iteration without "
+                                         "getting the number of peaks per footprint below %.1f",
+                                         factor*self.config.thresholdValue, self.config.thresholdValue,
+                                         self.config.maxPeakToFootRatio)
+                        inFinalize = False
+                    else:
+                        inFinalize = True
+                        self.log.warning("numPosPeaks/numPos (%d) > maxPeakPerFootprint (%.1f). "
+                                         "Increasing threshold factor to %.2f and re-running,",
+                                         results.numPosPeaks/results.numPos, self.config.maxPeakToFootRatio,
+                                         factor)
 
             self.clearUnwantedResults(maskedImage.mask, results)
 
