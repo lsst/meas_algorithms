@@ -248,7 +248,8 @@ class ReferenceObjectLoader:
                 self.log.debug("No epoch provided: not applying proper motion corrections to refcat.")
                 return
 
-        # Warn/raise for a catalog in an incorrect format, if epoch was specified.
+        # Warn/raise for a catalog in an incorrect format, if epoch was
+        # specified.
         if "pm_ra" in catalog.schema:
             pm_ra_radians = False
             field = catalog.schema["pm_ra"].asField()
@@ -306,10 +307,10 @@ class ReferenceObjectLoader:
         mapper.editOutputSchema().disconnectAliases()
 
         if centroids:
-            # Add and initialize centroid and hasCentroid fields (these are
-            # added after loading to avoid wasting space in the saved catalogs).
-            # The new fields are automatically initialized to (nan, nan) and
-            # False so no need to set them explicitly.
+            # Add and initialize centroid and hasCentroid fields (these
+            # are added after loading to avoid wasting space in the saved
+            # catalogs). The new fields are automatically initialized to
+            # (nan, nan) and False so no need to set them explicitly.
             mapper.editOutputSchema().addField("centroid_x", type=float, doReplace=True)
             mapper.editOutputSchema().addField("centroid_y", type=float, doReplace=True)
             mapper.editOutputSchema().addField("hasCentroid", type="Flag", doReplace=True)
@@ -681,11 +682,12 @@ class ReferenceObjectLoader:
                       regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
             filtFunc = _FilterCatalog(region)
-        # filter out all the regions supplied by the constructor that do not overlap
+        # Filter out all the regions supplied by the constructor that do not
+        # overlap.
         overlapList = []
         for dataId, refCat in zip(self.dataIds, self.refCats):
-            # SphGeom supports some objects intersecting others, but is not symmetric,
-            # try the intersect operation in both directions
+            # SphGeom supports some objects intersecting others, but is not
+            # symmetric, try the intersect operation in both directions.
             try:
                 intersects = dataId.region.intersects(region)
             except TypeError:
