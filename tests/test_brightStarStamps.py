@@ -20,167 +20,84 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
-import numpy as np
-import tempfile
+from tempfile import NamedTemporaryFile
 
-from lsst.meas.algorithms import brightStarStamps
-from lsst.afw import image as afwImage
-from lsst.geom import Point2I
-from lsst.daf.base import PropertyList
 import lsst.utils.tests
+import numpy as np
+from lsst.afw.image import MaskedImageF
+from lsst.daf.base import PropertyList
+from lsst.meas.algorithms import BrightStarStamp, BrightStarStamps
 
 
 class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
-    """Test BrightStarStamps.
-    """
+    """Test BrightStarStamps."""
+
     def setUp(self):
-        rng = np.random.Generator(np.random.MT19937(5))
-        stampSize = (25, 25)
-        # create dummy star stamps
-        starImages = [afwImage.MaskedImageF(*stampSize)
-                      for _ in range(3)]
-        for starIm in starImages:
-            starImArray = starIm.image.array
-            starImArray += rng.random(stampSize)
-        ids = ["111", "aaa", "bbb"]
-        positions = [Point2I(x0, y0)
-                     for x0, y0 in zip(rng.integers(11, size=3), rng.integers(11, size=3))]
-        mags = rng.random(3)
-        # faint object to test magnitude cuts
-        self.faintObjIdx = 1
-        mags[self.faintObjIdx] = 18.
-        ids[self.faintObjIdx] = "faint"
-        fluxes = rng.random(3)
-        self.starStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
-                                                            gaiaGMag=mag,
-                                                            position=pos,
-                                                            gaiaId=gaiaId,
-                                                            annularFlux=flux)
-                           for starIm, mag, gaiaId, pos, flux in
-                           zip(starImages, mags, ids, positions, fluxes)]
-        self.unnormalizedStarStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
-                                                                        gaiaGMag=mag,
-                                                                        position=pos,
-                                                                        gaiaId=gaiaId)
-                                       for starIm, mag, gaiaId, pos, flux in
-                                       zip(starImages, mags, ids, positions, fluxes)]
-        self.toBeNormalizedStarStamps = [brightStarStamps.BrightStarStamp(stamp_im=starIm,
-                                                                          gaiaGMag=mag,
-                                                                          position=pos,
-                                                                          gaiaId=gaiaId)
-                                         for starIm, mag, gaiaId, pos, flux in
-                                         zip(starImages, mags, ids, positions, fluxes)]
-        self.innerRadius = 5
-        self.outerRadius = 10
-        self.nb90Rots = 2
-        self.bss = brightStarStamps.BrightStarStamps(self.starStamps,
-                                                     innerRadius=self.innerRadius,
-                                                     outerRadius=self.outerRadius,
-                                                     nb90Rots=self.nb90Rots)
+        rng = np.random.Generator(np.random.MT19937(seed=5))
+        stamp_size = (25, 25)
+
+        # Generate simulated bright star stamps
+        brightStarStamps = []
+        self.metadatas = []
+        for i in range(3):
+            stamp = MaskedImageF(*stamp_size)
+            stamp_array = stamp.image.array
+            stamp_array += rng.random(stamp_size)
+            psf = None
+            wcs = None
+            metadata = PropertyList()
+            metadata.set("VISIT", i)
+            metadata.set("DETECTOR", i + 1)
+            metadata.set("REF_ID", f"ref{i}")
+            metadata.set("REF_MAG", float(i * 5))
+            metadata.set("POSITION_X", rng.random())
+            metadata.set("POSITION_Y", rng.random())
+            metadata.set("SCALE", rng.random())
+            metadata.set("SCALE_ERR", rng.random())
+            metadata.set("PEDESTAL", rng.random())
+            metadata.set("PEDESTAL_ERR", rng.random())
+            metadata.set("PEDESTAL_SCALE_COV", rng.random())
+            metadata.set("GRADIENT_X", rng.random())
+            metadata.set("GRADIENT_Y", rng.random())
+            metadata.set("GLOBAL_REDUCED_CHI_SQUARED", rng.random())
+            metadata.set("GLOBAL_DEGREES_OF_FREEDOM", rng.integers(1, 100))
+            metadata.set("PSF_REDUCED_CHI_SQUARED", rng.random())
+            metadata.set("PSF_DEGREES_OF_FREEDOM", rng.integers(1, 100))
+            metadata.set("PSF_MASKED_FLUX_FRACTION", rng.random())
+            self.metadatas.append(metadata)
+            brightStarStamp = BrightStarStamp.factory(stamp, psf, wcs, metadata)
+            brightStarStamps.append(brightStarStamp)
+        self.primary_metadata = PropertyList()
+        self.primary_metadata.set("TEST_KEY", "TEST VALUE")
+        self.brightStarStamps = BrightStarStamps(brightStarStamps, self.primary_metadata)
 
     def tearDown(self):
-        del self.bss
-        del self.starStamps
-        del self.unnormalizedStarStamps
-        del self.toBeNormalizedStarStamps
-        del self.innerRadius
-        del self.outerRadius
-        del self.faintObjIdx
+        del self.brightStarStamps
+        del self.metadatas
+        del self.primary_metadata
 
-    def testIO(self):
-        """Test the class' write and readFits methods.
+    def testBrightStarStamps(self):
+        """Test that BrightStarStamps can be serialized and deserialized."""
 
-        The ``options`` argument to the read method is only used to read
-        sub-BBoxes, which is handled by the Butler. Tests of this are done in
-        afw.
-        """
-        with tempfile.NamedTemporaryFile() as f:
-            self.bss.writeFits(f.name)
-            options = PropertyList()
-            bss2 = brightStarStamps.BrightStarStamps.readFitsWithOptions(f.name, options)
-            self.assertEqual(len(self.bss), len(bss2))
-            for mi1, mi2 in zip(self.bss.getMaskedImages(), bss2.getMaskedImages()):
-                self.assertMaskedImagesAlmostEqual(mi1, mi2)
-            np.testing.assert_almost_equal(self.bss.getMagnitudes(), bss2.getMagnitudes())
-            np.testing.assert_almost_equal(self.bss.getAnnularFluxes(), bss2.getAnnularFluxes())
-            for id1, id2 in zip(self.bss.getGaiaIds(), bss2.getGaiaIds()):
-                self.assertEqual(id1, id2)
-            for pos1, pos2 in zip(self.bss.getPositions(), bss2.getPositions()):
-                self.assertEqual(pos1[0], pos2[0])
-                self.assertEqual(pos1[1], pos2[1])
-            self.assertEqual(bss2.nb90Rots, self.nb90Rots)
+        with NamedTemporaryFile() as file:
+            self.brightStarStamps.writeFits(file.name)
+            brightStarStamps = BrightStarStamps.readFits(file.name)
 
-    def testMagnitudeSelection(self):
-        brightOnly = self.bss.selectByMag(magMax=7)
-        self.assertEqual(len(brightOnly), 2)
-        self.assertFalse("faint" in brightOnly.getGaiaIds())
-
-        faintOnly = self.bss.selectByMag(magMin=7)
-        self.assertEqual(len(faintOnly), 1)
-        self.assertEqual(faintOnly.getGaiaIds()[0], "faint")
-        faintObj = self.bss[self.faintObjIdx]
-        self.assertMaskedImagesAlmostEqual(faintObj.stamp_im, faintOnly.getMaskedImages()[0])
-
-    def testTypeMismatchHandling(self):
-        fullStar = self.bss[0]
-        # try passing on a dictionary and a maskedImage instead of a
-        # BrightStarStamp
-        falseStar = {"starStamp": fullStar.stamp_im, "gaiaGMag": fullStar.gaiaGMag,
-                     "gaiaId": fullStar.gaiaId, "annularFlux": fullStar.annularFlux}
-        starIm = fullStar.stamp_im
-        for wrongType in [falseStar, starIm]:
-            # test at initialization
-            with self.assertRaises(ValueError):
-                _ = brightStarStamps.BrightStarStamps([fullStar, wrongType], innerRadius=self.innerRadius,
-                                                      outerRadius=self.outerRadius)
-            # test at appending time
-            with self.assertRaises(ValueError):
-                self.bss.append(wrongType, innerRadius=self.innerRadius, outerRadius=self.outerRadius)
-
-    def testAnnulusMismatch(self):
-        """Test an exception is raised if mismatching annulus radii are
-        given (as the annularFlux values would then be meaningless)."""
-        # starStamps are already normalized; an Exception should be raised when
-        # trying to pass them onto the initAndNormalize classmethod
-        with self.assertRaises(AttributeError):
-            _ = brightStarStamps.BrightStarStamps.initAndNormalize(self.starStamps,
-                                                                   innerRadius=self.innerRadius,
-                                                                   outerRadius=self.outerRadius)
-        # unnormalizedStarStamps can be kept unnormalized provided no radii are
-        # passed on as arguments
-        bss2 = brightStarStamps.BrightStarStamps(self.unnormalizedStarStamps)
-        with self.assertRaises(AttributeError):
-            _ = brightStarStamps.BrightStarStamps(self.unnormalizedStarStamps,
-                                                  innerRadius=self.innerRadius,
-                                                  outerRadius=self.outerRadius)
-        # or normalized at initialization, in which case radii must be passed
-        # on
-        bss3 = brightStarStamps.BrightStarStamps.initAndNormalize(self.toBeNormalizedStarStamps,
-                                                                  innerRadius=self.innerRadius,
-                                                                  outerRadius=self.outerRadius)
-        # BrightStarStamps instances can be concatenated if the radii used are
-        # the same
-        self.bss.extend(bss3)
-        # but an Exception should be raised when trying to concatenate a mix of
-        # normalized and unnormalized stamps
-        with self.assertRaises(AttributeError):
-            self.bss.extend(bss2)
-        # or stamps normalized with different annular radii
-        bss4 = brightStarStamps.BrightStarStamps.initAndNormalize(self.unnormalizedStarStamps,
-                                                                  innerRadius=int(self.innerRadius/2),
-                                                                  outerRadius=self.outerRadius)
-        with self.assertRaises(AttributeError):
-            self.bss.extend(bss4)
-        # or when appending an extra stamp with different annulus radii
-        fullStar = self.bss[0]
-        with self.assertRaises(AttributeError):
-            self.bss.append(fullStar, innerRadius=int(self.innerRadius/2), outerRadius=self.outerRadius + 1)
-        # or a normalized stamp to unnormalized BrightStarStamps, or vice-versa
-        with self.assertRaises(AttributeError):
-            bss2.append(fullStar, innerRadius=self.innerRadius, outerRadius=self.outerRadius)
-        unNormFullStar = bss2[0]
-        with self.assertRaises(AttributeError):
-            self.bss.append(unNormFullStar)
+        primary_metadata = brightStarStamps.metadata
+        self.assertEqual(self.primary_metadata["TEST_KEY"], primary_metadata["TEST_KEY"])
+        self.assertEqual(len(self.metadatas), primary_metadata["N_STAMPS"])
+        for input_metadata, input_stamp, output_stamp in zip(
+            self.metadatas, self.brightStarStamps, brightStarStamps
+        ):
+            output_metadata = output_stamp.metadata
+            for key in output_metadata.names():
+                input_value = input_metadata[key]
+                output_value = output_metadata[key]
+                if isinstance(input_value, float):
+                    self.assertAlmostEqual(input_value, output_value, places=10)
+                else:
+                    self.assertEqual(input_value, output_value)
+            self.assertMaskedImagesAlmostEqual(input_stamp.stamp_im, output_stamp.stamp_im)
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
