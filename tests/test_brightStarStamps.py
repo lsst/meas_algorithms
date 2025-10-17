@@ -27,6 +27,7 @@ import numpy as np
 from lsst.afw.image import MaskedImageF
 from lsst.daf.base import PropertyList
 from lsst.meas.algorithms import BrightStarStamp, BrightStarStamps
+from lsst.meas.algorithms.stamps import StampsBase
 
 
 class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
@@ -83,7 +84,8 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
 
         with NamedTemporaryFile() as file:
             self.brightStarStamps.writeFits(file.name)
-            brightStarStamps = BrightStarStamps.readFits(file.name)
+            # Test StampsBase correctly bounces to BrightStarStamps readFits
+            brightStarStamps = StampsBase.readFits(file.name)
 
         primary_metadata = brightStarStamps.metadata
         self.assertEqual(self.primary_metadata["TEST_KEY"], primary_metadata["TEST_KEY"])
