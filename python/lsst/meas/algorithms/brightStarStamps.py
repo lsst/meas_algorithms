@@ -36,7 +36,7 @@ from lsst.afw.geom import SkyWcs
 from lsst.afw.image import ImageFitsReader, MaskedImageF, MaskFitsReader
 from lsst.afw.table.io import InputArchive, OutputArchive
 from lsst.daf.base import PropertyList
-from lsst.geom import Point2D
+from lsst.geom import Angle, Point2D, degrees
 
 
 @dataclass
@@ -60,7 +60,11 @@ class BrightStarStamp:
     ref_mag : `float`
         Reference catalog magnitude of the star.
     position : `~lsst.geom.Point2D`
-        Center position of the star in pixel coordinates.
+        Center position of the star on the detector in pixel coordinates.
+    focal_plane_radius : `float`
+        Radial distance from the focal plane center in tangent-plane pixels.
+    focal_plane_angle : `~lsst.geom.Angle`
+        Azimuthal angle on the focal plane (counterclockwise from +X).
     scale : `float`, optional
         Flux scaling factor applied to the PSF model.
     scale_err : `float`, optional
@@ -103,6 +107,8 @@ class BrightStarStamp:
     ref_id: int
     ref_mag: float
     position: Point2D
+    focal_plane_radius: float | None
+    focal_plane_angle: Angle | None
     scale: float | None
     scale_err: float | None
     pedestal: float | None
@@ -124,6 +130,8 @@ class BrightStarStamp:
         "REF_MAG": "ref_mag",
         "POSITION_X": "position.x",
         "POSITION_Y": "position.y",
+        "FOCAL_PLANE_RADIUS": "focal_plane_radius",
+        "FOCAL_PLANE_ANGLE_DEGREES": "focal_plane_angle",
         "SCALE": "scale",
         "SCALE_ERR": "scale_err",
         "PEDESTAL": "pedestal",
@@ -156,6 +164,8 @@ class BrightStarStamp:
             if "." in attribute_name:
                 top_attr, sub_attr = attribute_name.split(".")
                 value = getattr(getattr(self, top_attr), sub_attr)
+            elif metadata_key == "FOCAL_PLANE_ANGLE_DEGREES":
+                value = getattr(self, attribute_name).asDegrees()
             else:
                 value = getattr(self, attribute_name)
             metadata[metadata_key] = value
@@ -207,6 +217,8 @@ class BrightStarStamp:
                     if top_attr == "position":  # make an initial Point2D
                         kwargs[top_attr] = Point2D(0, 0)
                 setattr(kwargs[top_attr], sub_attr, metadata[metadata_key])
+            elif attribute_name == "focal_plane_angle":
+                kwargs[attribute_name] = Angle(metadata[metadata_key], degrees)
             else:
                 kwargs[attribute_name] = metadata[metadata_key]
 

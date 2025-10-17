@@ -52,6 +52,8 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
             metadata.set("REF_MAG", float(i * 5))
             metadata.set("POSITION_X", rng.random())
             metadata.set("POSITION_Y", rng.random())
+            metadata.set("FOCAL_PLANE_RADIUS", rng.random())
+            metadata.set("FOCAL_PLANE_ANGLE_DEGREES", rng.random())
             metadata.set("SCALE", rng.random())
             metadata.set("SCALE_ERR", rng.random())
             metadata.set("PEDESTAL", rng.random())
