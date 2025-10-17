@@ -53,19 +53,19 @@ class BrightStarStamp(AbstractStamp):
         The point-spread function for this star.
     wcs : `~lsst.afw.geom.SkyWcs`, optional
         World coordinate system associated with the stamp.
-    visit : `int`
+    visit : `int`, optional
         Visit number of the observation.
-    detector : `int`
+    detector : `int`, optional
         Detector ID within the visit.
-    ref_id : `int`
+    ref_id : `int`, optional
         Reference catalog ID of the star.
-    ref_mag : `float`
+    ref_mag : `float`, optional
         Reference catalog magnitude of the star.
-    position : `~lsst.geom.Point2D`
+    position : `~lsst.geom.Point2D`, optional
         Center position of the star on the detector in pixel coordinates.
-    focal_plane_radius : `float`
+    focal_plane_radius : `float`, optional
         Radial distance from the focal plane center in tangent-plane pixels.
-    focal_plane_angle : `~lsst.geom.Angle`
+    focal_plane_angle : `~lsst.geom.Angle`, optional
         Azimuthal angle on the focal plane (counterclockwise from +X).
     scale : `float`, optional
         Flux scaling factor applied to the PSF model.
@@ -104,11 +104,11 @@ class BrightStarStamp(AbstractStamp):
     stamp_im: MaskedImageF
     psf: Psf | None
     wcs: SkyWcs | None
-    visit: int
-    detector: int
-    ref_id: int
-    ref_mag: float
-    position: Point2D
+    visit: int | None
+    detector: int | None
+    ref_id: int | None
+    ref_mag: float | None
+    position: Point2D | None
     focal_plane_radius: float | None
     focal_plane_angle: Angle | None
     scale: float | None
