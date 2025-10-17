@@ -37,10 +37,12 @@ from lsst.afw.image import ImageFitsReader, MaskedImageF, MaskFitsReader
 from lsst.afw.table.io import InputArchive, OutputArchive
 from lsst.daf.base import PropertyList
 from lsst.geom import Angle, Point2D, degrees
+from lsst.meas.algorithms.stamps import AbstractStamp
+from lsst.utils.introspection import get_full_type_name
 
 
 @dataclass
-class BrightStarStamp:
+class BrightStarStamp(AbstractStamp):
     """A single postage stamp centered on a bright star.
 
     Attributes
@@ -370,6 +372,7 @@ class BrightStarStamps(Sequence[BrightStarStamp]):
         # Store metadata in the primary HDU
         metadata["N_STAMPS"] = len(self._stamps)
         metadata["VERSION"] = 2  # Record version number in case of future code changes
+        metadata["STAMPCLS"] = get_full_type_name(self)
 
         # Create and write to the FITS file within a context manager
         with Fits(filename, "w") as fits_file:
