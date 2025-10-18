@@ -19,667 +19,395 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Collection of small images (stamps), each centered on a bright star."""
+"""Collection of small images (postage stamps) centered on bright stars."""
+
+from __future__ import annotations
 
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
-import logging
-from collections.abc import Collection
+from collections.abc import Sequence
 from dataclasses import dataclass
-from functools import reduce
-from operator import ior
 
 import numpy as np
-from lsst.afw.geom import SpanSet, Stencil
-from lsst.afw.image import MaskedImageF
-from lsst.afw.math import Property, StatisticsControl, makeStatistics, stringToStatisticsProperty
-from lsst.afw.table.io import Persistable
-from lsst.geom import Point2I
 
-from .stamps import AbstractStamp, Stamps, readFitsWithOptions
-
-logger = logging.getLogger(__name__)
+from lsst.afw.detection import Psf
+from lsst.afw.fits import Fits, readMetadata
+from lsst.afw.geom import SkyWcs
+from lsst.afw.image import ImageFitsReader, MaskedImageF, MaskFitsReader
+from lsst.afw.table.io import InputArchive, OutputArchive
+from lsst.daf.base import PropertyList
+from lsst.geom import Angle, Point2D, degrees
+from lsst.meas.algorithms.stamps import AbstractStamp
+from lsst.utils.introspection import get_full_type_name
 
 
 @dataclass
 class BrightStarStamp(AbstractStamp):
-    """Single stamp centered on a bright star, normalized by its annularFlux.
+    """A single postage stamp centered on a bright star.
 
-    Parameters
+    Attributes
     ----------
-    stamp_im : `~lsst.afw.image.MaskedImage`
-        Pixel data for this postage stamp
-    gaiaGMag : `float`
-        Gaia G magnitude for the object in this stamp
-    gaiaId : `int`
-        Gaia object identifier
-    position : `~lsst.geom.Point2I`
-        Origin of the stamps in its origin exposure (pixels)
-    archive_element : `~lsst.afw.table.io.Persistable` or None, optional
-        Archive element (e.g. Transform or WCS) associated with this stamp.
-    annularFlux : `float` or None, optional
-        Flux in an annulus around the object
-    """
-
-    stamp_im: MaskedImageF
-    gaiaGMag: float
-    gaiaId: int
-    position: Point2I
-    archive_element: Persistable | None = None
-    annularFlux: float | None = None
-    minValidAnnulusFraction: float = 0.0
-    validAnnulusFraction: float | None = None
-    optimalInnerRadius: int | None = None
-    optimalOuterRadius: int | None = None
-
-    @classmethod
-    def factory(cls, stamp_im, metadata, idx, archive_element=None, minValidAnnulusFraction=0.0):
-        """This method is needed to service the FITS reader. We need a standard
-        interface to construct objects like this. Parameters needed to
-        construct this object are passed in via a metadata dictionary and then
-        passed to the constructor of this class.  This particular factory
-        method requires keys: G_MAGS, GAIA_IDS, and ANNULAR_FLUXES. They should
-        each point to lists of values.
-
-        Parameters
-        ----------
-        stamp_im : `~lsst.afw.image.MaskedImage`
-            Pixel data to pass to the constructor
-        metadata : `dict`
-            Dictionary containing the information
-            needed by the constructor.
-        idx : `int`
-            Index into the lists in ``metadata``
-        archive_element : `~lsst.afw.table.io.Persistable` or None, optional
-            Archive element (e.g. Transform or WCS) associated with this stamp.
-        minValidAnnulusFraction : `float`, optional
-            The fraction of valid pixels within the normalization annulus of a
-            star.
-
-        Returns
-        -------
-        brightstarstamp : `BrightStarStamp`
-            An instance of this class
-        """
-        if "X0S" in metadata and "Y0S" in metadata:
-            x0 = metadata.getArray("X0S")[idx]
-            y0 = metadata.getArray("Y0S")[idx]
-            position = Point2I(x0, y0)
-        else:
-            position = None
-        return cls(
-            stamp_im=stamp_im,
-            gaiaGMag=metadata.getArray("G_MAGS")[idx],
-            gaiaId=metadata.getArray("GAIA_IDS")[idx],
-            position=position,
-            archive_element=archive_element,
-            annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
-            minValidAnnulusFraction=minValidAnnulusFraction,
-            validAnnulusFraction=metadata.getArray("VALID_PIXELS_FRACTION")[idx],
-        )
-
-    def measureAndNormalize(
-        self,
-        annulus: SpanSet,
-        statsControl: StatisticsControl = StatisticsControl(),
-        statsFlag: Property = stringToStatisticsProperty("MEAN"),
-        badMaskPlanes: Collection[str] = ("BAD", "SAT", "NO_DATA"),
-    ):
-        """Compute "annularFlux", the integrated flux within an annulus
-        around an object's center, and normalize it.
-
-        Since the center of bright stars are saturated and/or heavily affected
-        by ghosts, we measure their flux in an annulus with a large enough
-        inner radius to avoid the most severe ghosts and contain enough
-        non-saturated pixels.
-
-        Parameters
-        ----------
-        annulus : `~lsst.afw.geom.spanSet.SpanSet`
-            SpanSet containing the annulus to use for normalization.
-        statsControl : `~lsst.afw.math.statistics.StatisticsControl`, optional
-            StatisticsControl to be used when computing flux over all pixels
-            within the annulus.
-        statsFlag : `~lsst.afw.math.statistics.Property`, optional
-            statsFlag to be passed on to ``afwMath.makeStatistics`` to compute
-            annularFlux. Defaults to a simple MEAN.
-        badMaskPlanes : `collections.abc.Collection` [`str`]
-            Collection of mask planes to ignore when computing annularFlux.
-        """
-        stampSize = self.stamp_im.getDimensions()
-        # Create image: science pixel values within annulus, NO_DATA elsewhere
-        maskPlaneDict = self.stamp_im.mask.getMaskPlaneDict()
-        annulusImage = MaskedImageF(stampSize, planeDict=maskPlaneDict)
-        annulusMask = annulusImage.mask
-        annulusMask.array[:] = 2 ** maskPlaneDict["NO_DATA"]
-        annulus.copyMaskedImage(self.stamp_im, annulusImage)
-        # Set mask planes to be ignored.
-        andMask = reduce(ior, (annulusMask.getPlaneBitMask(bm) for bm in badMaskPlanes))
-        statsControl.setAndMask(andMask)
-
-        annulusStat = makeStatistics(annulusImage, statsFlag, statsControl)
-        # Determine the number of valid (unmasked) pixels within the annulus.
-        unMasked = annulusMask.array.size - np.count_nonzero(annulusMask.array)
-        self.validAnnulusFraction = unMasked / annulus.getArea()
-        logger.info(
-            "The Star's annulus contains %s valid pixels and the annulus itself contains %s pixels.",
-            unMasked,
-            annulus.getArea(),
-        )
-        if unMasked > (annulus.getArea() * self.minValidAnnulusFraction):
-            # Compute annularFlux.
-            self.annularFlux = annulusStat.getValue()
-            logger.info("Annular flux is: %s", self.annularFlux)
-        else:
-            raise RuntimeError(
-                f"Less than {self.minValidAnnulusFraction * 100}% of pixels within the annulus are valid."
-            )
-        if np.isnan(self.annularFlux):
-            raise RuntimeError("Annular flux computation failed, likely because there are no valid pixels.")
-        if self.annularFlux < 0:
-            raise RuntimeError("The annular flux is negative. The stamp can not be normalized!")
-        # Normalize stamps.
-        self.stamp_im.image.array /= self.annularFlux
-        return None
-
-
-class BrightStarStamps(Stamps):
-    """Collection of bright star stamps and associated metadata.
-
-    Parameters
-    ----------
-    starStamps : `collections.abc.Sequence` [`BrightStarStamp`]
-        Sequence of star stamps. Cannot contain both normalized and
-        unnormalized stamps.
-    innerRadius : `int`, optional
-        Inner radius value, in pixels. This and ``outerRadius`` define the
-        annulus used to compute the ``"annularFlux"`` values within each
-        ``starStamp``. Must be provided if ``normalize`` is True.
-    outerRadius : `int`, optional
-        Outer radius value, in pixels. This and ``innerRadius`` define the
-        annulus used to compute the ``"annularFlux"`` values within each
-        ``starStamp``. Must be provided if ``normalize`` is True.
-    nb90Rots : `int`, optional
-        Number of 90 degree rotations required to compensate for detector
-        orientation.
-    metadata : `~lsst.daf.base.PropertyList`, optional
-        Metadata associated with the bright stars.
-    use_mask : `bool`
-        If `True` read and write mask data. Default `True`.
-    use_variance : `bool`
-        If ``True`` read and write variance data. Default ``False``.
-    use_archive : `bool`
-        If ``True`` read and write an Archive that contains a Persistable
-        associated with each stamp. In the case of bright stars, this is
-        usually a ``TransformPoint2ToPoint2``, used to warp each stamp
-        to the same pixel grid before stacking.
-
-    Raises
-    ------
-    ValueError
-        Raised if one of the star stamps provided does not contain the
-        required keys.
-    AttributeError
-        Raised if there is a mix-and-match of normalized and unnormalized
-        stamps, stamps normalized with different annulus definitions, or if
-        stamps are to be normalized but annular radii were not provided.
+    stamp_im : `~lsst.afw.image.MaskedImageF`
+        The pixel data for this stamp.
+    psf : `~lsst.afw.detection.Psf`, optional
+        The point-spread function for this star.
+    wcs : `~lsst.afw.geom.SkyWcs`, optional
+        World coordinate system associated with the stamp.
+    visit : `int`, optional
+        Visit number of the observation.
+    detector : `int`, optional
+        Detector ID within the visit.
+    ref_id : `int`, optional
+        Reference catalog ID of the star.
+    ref_mag : `float`, optional
+        Reference catalog magnitude of the star.
+    position : `~lsst.geom.Point2D`, optional
+        Center position of the star on the detector in pixel coordinates.
+    focal_plane_radius : `float`, optional
+        Radial distance from the focal plane center in tangent-plane pixels.
+    focal_plane_angle : `~lsst.geom.Angle`, optional
+        Azimuthal angle on the focal plane (counterclockwise from +X).
+    scale : `float`, optional
+        Flux scaling factor applied to the PSF model.
+    scale_err : `float`, optional
+        Error in the flux scale.
+    pedestal : `float`, optional
+        Background pedestal level.
+    pedestal_err : `float`, optional
+        Error on the pedestal.
+    pedestal_scale_cov : `float`, optional
+        Covariance between pedestal and scale.
+    gradient_x : `float`, optional
+        Background gradient in the X direction.
+    gradient_y : `float`, optional
+        Background gradient in the Y direction.
+    global_reduced_chi_squared : `float`, optional
+        Reduced chi-squared for the global model fit.
+    global_degrees_of_freedom : `int`, optional
+        Degrees of freedom for the global model fit.
+    psf_reduced_chi_squared : `float`, optional
+        Reduced chi-squared for the PSF fit.
+    psf_degrees_of_freedom : `int`, optional
+        Degrees of freedom for the PSF fit.
+    psf_masked_flux_fraction : `float`, optional
+        Fraction of flux masked in the PSF.
 
     Notes
     -----
-    A butler can be used to read only a part of the stamps, specified by a
-    bbox:
+    This class is designed to be used with `BrightStarStamps`, which manages
+    collections of these stamps and handles reading/writing them to FITS files.
+    The `factory` class method provides a standard interface to construct
+    instances from image data and metadata, while the `_getMetadata` method
+    extracts metadata for storage in FITS headers.
+    """
 
-    >>> starSubregions = butler.get(
-            "brightStarStamps",
-            dataId,
-            parameters={"bbox": bbox}
-        )
+    stamp_im: MaskedImageF
+    psf: Psf | None
+    wcs: SkyWcs | None
+    visit: int | None
+    detector: int | None
+    ref_id: int | None
+    ref_mag: float | None
+    position: Point2D | None
+    focal_plane_radius: float | None
+    focal_plane_angle: Angle | None
+    scale: float | None
+    scale_err: float | None
+    pedestal: float | None
+    pedestal_err: float | None
+    pedestal_scale_cov: float | None
+    gradient_x: float | None
+    gradient_y: float | None
+    global_reduced_chi_squared: float | None
+    global_degrees_of_freedom: int | None
+    psf_reduced_chi_squared: float | None
+    psf_degrees_of_freedom: int | None
+    psf_masked_flux_fraction: float | None
+
+    # Mapping of metadata keys to attribute names
+    _metadata_attribute_map = {
+        "VISIT": "visit",
+        "DETECTOR": "detector",
+        "REF_ID": "ref_id",
+        "REF_MAG": "ref_mag",
+        "POSITION_X": "position.x",
+        "POSITION_Y": "position.y",
+        "FOCAL_PLANE_RADIUS": "focal_plane_radius",
+        "FOCAL_PLANE_ANGLE_DEGREES": "focal_plane_angle",
+        "SCALE": "scale",
+        "SCALE_ERR": "scale_err",
+        "PEDESTAL": "pedestal",
+        "PEDESTAL_ERR": "pedestal_err",
+        "PEDESTAL_SCALE_COV": "pedestal_scale_cov",
+        "GRADIENT_X": "gradient_x",
+        "GRADIENT_Y": "gradient_y",
+        "GLOBAL_REDUCED_CHI_SQUARED": "global_reduced_chi_squared",
+        "GLOBAL_DEGREES_OF_FREEDOM": "global_degrees_of_freedom",
+        "PSF_REDUCED_CHI_SQUARED": "psf_reduced_chi_squared",
+        "PSF_DEGREES_OF_FREEDOM": "psf_degrees_of_freedom",
+        "PSF_MASKED_FLUX_FRACTION": "psf_masked_flux_fraction",
+    }
+
+    def _getMetadata(self) -> PropertyList:
+        """Extract metadata from the stamp's attributes.
+
+        This method constructs a `PropertyList` containing metadata
+        extracted from the stamp's attributes. It is used when writing the
+        stamp to a FITS file to store relevant metadata in the FITS headers.
+
+        Returns
+        -------
+        metadata : `PropertyList`
+            A `PropertyList` containing the metadata, or `None` if no
+            metadata attributes are defined.
+        """
+        metadata = PropertyList()
+        for metadata_key, attribute_name in self._metadata_attribute_map.items():
+            if "." in attribute_name:
+                top_attr, sub_attr = attribute_name.split(".")
+                value = getattr(getattr(self, top_attr), sub_attr)
+            elif metadata_key == "FOCAL_PLANE_ANGLE_DEGREES":
+                value = getattr(self, attribute_name).asDegrees()
+            else:
+                value = getattr(self, attribute_name)
+            metadata[metadata_key] = value
+        return metadata
+
+    @property
+    def metadata(self) -> PropertyList:
+        """Return the stamp's metadata as a PropertyList."""
+        return self._getMetadata()
+
+    @classmethod
+    def factory(
+        cls,
+        stamp_im: MaskedImageF,
+        psf: Psf | None,
+        wcs: SkyWcs | None,
+        metadata: PropertyList,
+    ) -> BrightStarStamp:
+        """Construct a `BrightStarStamp` from image data and metadata.
+
+        This method provides a standard interface to create a `BrightStarStamp`
+        from its image data, PSF, WCS, and associated metadata.
+        It is used by the `BrightStarStamps.readFits` method to construct
+        individual bright star stamps from FITS files.
+
+        Parameters
+        ----------
+        stamp_im : `~lsst.afw.image.MaskedImageF`
+            Masked image for the stamp.
+        psf : `~lsst.afw.detection.Psf`, optional
+            Point-spread function for the stamp.
+        wcs : `~lsst.afw.geom.SkyWcs`, optional
+            World coordinate system for the stamp.
+        metadata : `PropertyList`
+            Metadata associated with the stamp, containing keys for all
+            required attributes.
+
+        Returns
+        -------
+        brightStarStamp : `BrightStarStamp`
+            The constructed `BrightStarStamp` instance.
+        """
+        kwargs = {}
+
+        for metadata_key, attribute_name in cls._metadata_attribute_map.items():
+            if "." in attribute_name:  # for nested attributes like position.x
+                top_attr, sub_attr = attribute_name.split(".")
+                if top_attr not in kwargs:  # avoid overwriting position
+                    if top_attr == "position":  # make an initial Point2D
+                        kwargs[top_attr] = Point2D(0, 0)
+                setattr(kwargs[top_attr], sub_attr, metadata[metadata_key])
+            elif attribute_name == "focal_plane_angle":
+                kwargs[attribute_name] = Angle(metadata[metadata_key], degrees)
+            else:
+                kwargs[attribute_name] = metadata[metadata_key]
+
+        return cls(stamp_im=stamp_im, psf=psf, wcs=wcs, **kwargs)
+
+
+class BrightStarStamps(Sequence[BrightStarStamp]):
+    """A collection of bright star stamps.
+
+    Parameters
+    ----------
+    brightStarStamps : `Iterable` [`BrightStarStamp`]
+        Collection of `BrightStarStamp` instances.
+    metadata : `~lsst.daf.base.PropertyList`, optional
+        Global metadata associated with the collection.
     """
 
     def __init__(
         self,
-        starStamps,
-        innerRadius=None,
-        outerRadius=None,
-        nb90Rots=None,
-        metadata=None,
-        use_mask=True,
-        use_variance=False,
-        use_archive=False,
+        brightStarStamps: Sequence[BrightStarStamp],
+        metadata: PropertyList | None = None,
     ):
-        super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
-        # Ensure stamps contain a flux measure if expected to be normalized.
-        self._checkNormalization(False, innerRadius, outerRadius)
-        self._innerRadius, self._outerRadius = innerRadius, outerRadius
-        if innerRadius is not None and outerRadius is not None:
-            self.normalized = True
-        else:
-            self.normalized = False
-        self.nb90Rots = nb90Rots
+        self._stamps = list(brightStarStamps)
+        self._metadata = PropertyList() if metadata is None else metadata.deepCopy()
+        self.by_ref_id = {stamp.ref_id: stamp for stamp in self}
+
+    def __len__(self):
+        return len(self._stamps)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return BrightStarStamps(self._stamps[index], metadata=self._metadata)
+        return self._stamps[index]
+
+    def __iter__(self):
+        return iter(self._stamps)
+
+    @property
+    def metadata(self):
+        """Return the collection's global metadata as a PropertyList."""
+        return self._metadata
 
     @classmethod
-    def initAndNormalize(
-        cls,
-        starStamps,
-        innerRadius,
-        outerRadius,
-        nb90Rots=None,
-        metadata=None,
-        use_mask=True,
-        use_variance=False,
-        use_archive=False,
-        imCenter=None,
-        discardNanFluxObjects=True,
-        forceFindFlux=False,
-        statsControl=StatisticsControl(),
-        statsFlag=stringToStatisticsProperty("MEAN"),
-        badMaskPlanes=("BAD", "SAT", "NO_DATA"),
-    ):
-        """Normalize a set of bright star stamps and initialize a
-        BrightStarStamps instance.
-
-        Since the center of bright stars are saturated and/or heavily affected
-        by ghosts, we measure their flux in an annulus with a large enough
-        inner radius to avoid the most severe ghosts and contain enough
-        non-saturated pixels.
-
-        Parameters
-        ----------
-        starStamps : `collections.abc.Sequence` [`BrightStarStamp`]
-            Sequence of star stamps. Cannot contain both normalized and
-            unnormalized stamps.
-        innerRadius : `int`
-            Inner radius value, in pixels. This and ``outerRadius`` define the
-            annulus used to compute the ``"annularFlux"`` values within each
-            ``starStamp``.
-        outerRadius : `int`
-            Outer radius value, in pixels. This and ``innerRadius`` define the
-            annulus used to compute the ``"annularFlux"`` values within each
-            ``starStamp``.
-        nb90Rots : `int`, optional
-            Number of 90 degree rotations required to compensate for detector
-            orientation.
-        metadata : `~lsst.daf.base.PropertyList`, optional
-            Metadata associated with the bright stars.
-        use_mask : `bool`
-            If `True` read and write mask data. Default `True`.
-        use_variance : `bool`
-            If ``True`` read and write variance data. Default ``False``.
-        use_archive : `bool`
-            If ``True`` read and write an Archive that contains a Persistable
-            associated with each stamp. In the case of bright stars, this is
-            usually a ``TransformPoint2ToPoint2``, used to warp each stamp
-            to the same pixel grid before stacking.
-        imCenter : `collections.abc.Sequence`, optional
-            Center of the object, in pixels. If not provided, the center of the
-            first stamp's pixel grid will be used.
-        discardNanFluxObjects : `bool`
-            Whether objects with NaN annular flux should be discarded.
-            If False, these objects will not be normalized.
-        forceFindFlux : `bool`
-            Whether to try to find the flux of objects with NaN annular flux
-            at a different annulus.
-        statsControl : `~lsst.afw.math.statistics.StatisticsControl`, optional
-            StatisticsControl to be used when computing flux over all pixels
-            within the annulus.
-        statsFlag : `~lsst.afw.math.statistics.Property`, optional
-            statsFlag to be passed on to ``~lsst.afw.math.makeStatistics`` to
-            compute annularFlux. Defaults to a simple MEAN.
-        badMaskPlanes : `collections.abc.Collection` [`str`]
-            Collection of mask planes to ignore when computing annularFlux.
-
-        Raises
-        ------
-        ValueError
-            Raised if one of the star stamps provided does not contain the
-            required keys.
-        AttributeError
-            Raised if there is a mix-and-match of normalized and unnormalized
-            stamps, stamps normalized with different annulus definitions, or if
-            stamps are to be normalized but annular radii were not provided.
-        """
-        stampSize = starStamps[0].stamp_im.getDimensions()
-        if imCenter is None:
-            imCenter = stampSize[0] // 2, stampSize[1] // 2
-
-        # Create SpanSet of annulus.
-        outerCircle = SpanSet.fromShape(outerRadius, Stencil.CIRCLE, offset=imCenter)
-        innerCircle = SpanSet.fromShape(innerRadius, Stencil.CIRCLE, offset=imCenter)
-        annulusWidth = outerRadius - innerRadius
-        if annulusWidth < 1:
-            raise ValueError("The annulus width must be greater than 1 pixel.")
-        annulus = outerCircle.intersectNot(innerCircle)
-
-        # Initialize (unnormalized) brightStarStamps instance.
-        bss = cls(
-            starStamps,
-            innerRadius=None,
-            outerRadius=None,
-            nb90Rots=nb90Rots,
-            metadata=metadata,
-            use_mask=use_mask,
-            use_variance=use_variance,
-            use_archive=use_archive,
-        )
-
-        # Ensure that no stamps have already been normalized.
-        bss._checkNormalization(True, innerRadius, outerRadius)
-        bss._innerRadius, bss._outerRadius = innerRadius, outerRadius
-
-        # Apply normalization.
-        rejects = []
-        badStamps = []
-        for stamp in bss._stamps:
-            try:
-                stamp.measureAndNormalize(
-                    annulus, statsControl=statsControl, statsFlag=statsFlag, badMaskPlanes=badMaskPlanes
-                )
-                # Stars that are missing from input bright star stamps may
-                # still have a flux within the normalization annulus. The
-                # following two lines make sure that these stars are included
-                # in the subtraction process. Failing to assign the optimal
-                # radii values may result in an error in the `createAnnulus`
-                # method of the `SubtractBrightStarsTask` class. An alternative
-                # to handle this is to create two types of stamps that are
-                # missing from the input brightStarStamps object. One for those
-                # that have flux within the normalization annulus and another
-                # for those that do not have a flux within the normalization
-                # annulus.
-                stamp.optimalOuterRadius = outerRadius
-                stamp.optimalInnerRadius = innerRadius
-            except RuntimeError as err:
-                logger.error(err)
-                # Optionally keep NaN flux objects, for bookkeeping purposes,
-                # and to avoid having to re-find and redo the preprocessing
-                # steps needed before bright stars can be subtracted.
-                if discardNanFluxObjects:
-                    rejects.append(stamp)
-                elif forceFindFlux:
-                    newInnerRadius = innerRadius
-                    newOuterRadius = outerRadius
-                    while True:
-                        newOuterRadius += annulusWidth
-                        newInnerRadius += annulusWidth
-                        if newOuterRadius > min(imCenter):
-                            logger.info("No flux found for the star with Gaia ID of %s", stamp.gaiaId)
-                            stamp.annularFlux = None
-                            badStamps.append(stamp)
-                            break
-                        newOuterCircle = SpanSet.fromShape(newOuterRadius, Stencil.CIRCLE, offset=imCenter)
-                        newInnerCircle = SpanSet.fromShape(newInnerRadius, Stencil.CIRCLE, offset=imCenter)
-                        newAnnulus = newOuterCircle.intersectNot(newInnerCircle)
-                        try:
-                            stamp.measureAndNormalize(
-                                newAnnulus,
-                                statsControl=statsControl,
-                                statsFlag=statsFlag,
-                                badMaskPlanes=badMaskPlanes,
-                            )
-
-                        except RuntimeError:
-                            stamp.annularFlux = np.nan
-                            logger.error(
-                                "The annular flux was not found for radii %d and %d",
-                                newInnerRadius,
-                                newOuterRadius,
-                            )
-                        if stamp.annularFlux and stamp.annularFlux > 0:
-                            logger.info("The flux is found within an optimized annulus.")
-                            logger.info(
-                                "The optimized annulus radii are %d and %d and the flux is %f",
-                                newInnerRadius,
-                                newOuterRadius,
-                                stamp.annularFlux,
-                            )
-                            stamp.optimalOuterRadius = newOuterRadius
-                            stamp.optimalInnerRadius = newInnerRadius
-                            break
-                else:
-                    stamp.annularFlux = np.nan
-
-        # Remove rejected stamps.
-        bss.normalized = True
-        if discardNanFluxObjects:
-            for reject in rejects:
-                bss._stamps.remove(reject)
-        elif forceFindFlux:
-            for badStamp in badStamps:
-                bss._stamps.remove(badStamp)
-            bss._innerRadius, bss._outerRadius = None, None
-            return bss, badStamps
-        return bss
-
-    def _refresh_metadata(self):
-        """Refresh metadata. Should be called before writing the object out.
-
-        This method adds full lists of positions, Gaia magnitudes, IDs and
-        annular fluxes to the shared metadata.
-        """
-        self._metadata["G_MAGS"] = self.getMagnitudes()
-        self._metadata["GAIA_IDS"] = self.getGaiaIds()
-        positions = self.getPositions()
-        self._metadata["X0S"] = [xy0[0] for xy0 in positions]
-        self._metadata["Y0S"] = [xy0[1] for xy0 in positions]
-        self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
-        self._metadata["VALID_PIXELS_FRACTION"] = self.getValidPixelsFraction()
-        self._metadata["NORMALIZED"] = self.normalized
-        self._metadata["INNER_RADIUS"] = self._innerRadius
-        self._metadata["OUTER_RADIUS"] = self._outerRadius
-        if self.nb90Rots is not None:
-            self._metadata["NB_90_ROTS"] = self.nb90Rots
-        return None
-
-    @classmethod
-    def readFits(cls, filename):
-        """Build an instance of this class from a file.
+    def readFits(cls, filename: str) -> BrightStarStamps:
+        """Make a `BrightStarStamps` object from a FITS file.
 
         Parameters
         ----------
         filename : `str`
-            Name of the file to read.
+            Name of the FITS file to read.
+
+        Returns
+        -------
+        brightStarStamps : `BrightStarStamps`
+            The constructed `BrightStarStamps` instance.
         """
         return cls.readFitsWithOptions(filename, None)
 
     @classmethod
-    def readFitsWithOptions(cls, filename, options):
-        """Build an instance of this class with options.
+    def readFitsWithOptions(cls, filename: str, options: PropertyList | None) -> BrightStarStamps:
+        """Make a `BrightStarStamps` object from a FITS file, with options.
 
         Parameters
         ----------
         filename : `str`
-            Name of the file to read.
-        options : `PropertyList`
-            Collection of metadata parameters.
-        """
-        stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
-        nb90Rots = metadata["NB_90_ROTS"] if "NB_90_ROTS" in metadata else None
-        if metadata["NORMALIZED"]:
-            return cls(
-                stamps,
-                innerRadius=metadata["INNER_RADIUS"],
-                outerRadius=metadata["OUTER_RADIUS"],
-                nb90Rots=nb90Rots,
-                metadata=metadata,
-                use_mask=metadata["HAS_MASK"],
-                use_variance=metadata["HAS_VARIANCE"],
-                use_archive=metadata["HAS_ARCHIVE"],
-            )
-        else:
-            return cls(
-                stamps,
-                nb90Rots=nb90Rots,
-                metadata=metadata,
-                use_mask=metadata["HAS_MASK"],
-                use_variance=metadata["HAS_VARIANCE"],
-                use_archive=metadata["HAS_ARCHIVE"],
-            )
+            Name of the FITS file to read.
+        options : `~lsst.daf.base.PropertyList`, optional
+            Options for reading the FITS file. Not currently used.
 
-    def append(self, item, innerRadius=None, outerRadius=None):
-        """Add an additional bright star stamp.
+        Returns
+        -------
+        brightStarStamps : `BrightStarStamps`
+            The constructed `BrightStarStamps` instance.
+        """
+        with Fits(filename, "r") as fits_file:
+            stamp_planes = {}
+            stamp_psf_ids = {}
+            stamp_wcs_ids = {}
+            stamp_metadata = {}
+            archive = None
+
+            for hdu_num in range(1, fits_file.countHdus()):  # Skip primary HDU
+                metadata = readMetadata(filename, hdu=hdu_num)
+                extname = metadata["EXTNAME"]
+                stamp_id: int | None = metadata.get("EXTVER", None)
+
+                # Skip non-image BINTABLEs (except ARCHIVE_INDEX)
+                if metadata["XTENSION"] == "BINTABLE" and not metadata.get("ZIMAGE", False):
+                    if extname != "ARCHIVE_INDEX":
+                        continue
+
+                # Handle the archive index separately
+                if extname == "ARCHIVE_INDEX":
+                    fits_file.setHdu(hdu_num)
+                    archive = InputArchive.readFits(fits_file)
+                    continue
+                elif metadata.get("EXTTYPE") == "ARCHIVE_DATA":
+                    continue
+
+                # Select reader and dtype
+                if extname == "IMAGE":
+                    reader = ImageFitsReader(filename, hdu=hdu_num)
+                    dtype = np.dtype(MaskedImageF.dtype)
+                    stamp_psf_ids[stamp_id] = metadata.pop("PSF", None)
+                    stamp_wcs_ids[stamp_id] = metadata.pop("WCS", None)
+                    stamp_metadata[stamp_id] = metadata
+                elif extname == "MASK":
+                    reader = MaskFitsReader(filename, hdu=hdu_num)
+                    dtype = None
+                elif extname == "VARIANCE":
+                    reader = ImageFitsReader(filename, hdu=hdu_num)
+                    dtype = np.dtype("float32")
+                else:
+                    raise ValueError(f"Unknown extension type: {extname}")
+
+                if stamp_id is not None:
+                    stamp_planes.setdefault(stamp_id, {})[extname.lower()] = reader.read(dtype=dtype)
+
+        primary_metadata = readMetadata(filename, hdu=0)
+        num_stamps = primary_metadata["N_STAMPS"]
+
+        if len(stamp_planes) != num_stamps:
+            raise ValueError(
+                f"Number of stamps read ({len(stamp_planes)}) does not agree with the "
+                f"number of stamps recorded in the primary HDU metadata ({num_stamps})."
+            )
+        if archive is None:
+            raise ValueError("No archive index was found in the FITS file; cannot read PSF or WCS.")
+
+        brightStarStamps = []
+        for stamp_id in range(1, num_stamps + 1):  # Need to increment by one as EXTVER starts at 1
+            stamp = MaskedImageF(**stamp_planes[stamp_id])
+            psf = archive.get(stamp_psf_ids[stamp_id])
+            wcs = archive.get(stamp_wcs_ids[stamp_id])
+            brightStarStamps.append(BrightStarStamp.factory(stamp, psf, wcs, stamp_metadata[stamp_id]))
+
+        return cls(brightStarStamps, primary_metadata)
+
+    def writeFits(self, filename: str):
+        """Write this `BrightStarStamps` object to a FITS file.
 
         Parameters
         ----------
-        item : `BrightStarStamp`
-            Bright star stamp to append.
-        innerRadius : `int`, optional
-            Inner radius value, in pixels. This and ``outerRadius`` define the
-            annulus used to compute the ``"annularFlux"`` values within each
-            ``BrightStarStamp``.
-        outerRadius : `int`, optional
-            Outer radius value, in pixels. This and ``innerRadius`` define the
-            annulus used to compute the ``"annularFlux"`` values within each
-            ``BrightStarStamp``.
+        filename : `str`
+            Name of the FITS file to write.
         """
-        if not isinstance(item, BrightStarStamp):
-            raise ValueError(f"Can only add instances of BrightStarStamp, got {type(item)}.")
-        if (item.annularFlux is None) == self.normalized:
-            raise AttributeError(
-                "Trying to append an unnormalized stamp to a normalized BrightStarStamps "
-                "instance, or vice-versa."
-            )
-        else:
-            self._checkRadius(innerRadius, outerRadius)
-        self._stamps.append(item)
-        return None
+        metadata = self._metadata.deepCopy()
 
-    def extend(self, bss):
-        """Extend BrightStarStamps instance by appending elements from another
-        instance.
+        # Store metadata in the primary HDU
+        metadata["N_STAMPS"] = len(self._stamps)
+        metadata["VERSION"] = 2  # Record version number in case of future code changes
+        metadata["STAMPCLS"] = get_full_type_name(self)
 
-        Parameters
-        ----------
-        bss : `BrightStarStamps`
-            Other instance to concatenate.
-        """
-        if not isinstance(bss, BrightStarStamps):
-            raise ValueError(f"Can only extend with a BrightStarStamps object. Got {type(bss)}.")
-        self._checkRadius(bss._innerRadius, bss._outerRadius)
-        self._stamps += bss._stamps
+        # Create and write to the FITS file within a context manager
+        with Fits(filename, "w") as fits_file:
+            fits_file.createEmpty()
 
-    def getMagnitudes(self):
-        """Retrieve Gaia G-band magnitudes for each star.
+            # Store Persistables in an OutputArchive
+            output_archive = OutputArchive()
+            stamp_psf_ids = []
+            stamp_wcs_ids = []
+            for stamp in self._stamps:
+                stamp_psf_ids.append(output_archive.put(stamp.psf))
+                stamp_wcs_ids.append(output_archive.put(stamp.wcs))
 
-        Returns
-        -------
-        gaiaGMags : `list` [`float`]
-            Gaia G-band magnitudes for each star.
-        """
-        return [stamp.gaiaGMag for stamp in self._stamps]
+            # Write to the FITS file
+            fits_file.writeMetadata(metadata)
+            del metadata
+            output_archive.writeFits(fits_file)
 
-    def getGaiaIds(self):
-        """Retrieve Gaia IDs for each star.
+        # Add all pixel data to extension HDUs; note: EXTVER should be 1-based
+        for stamp_id, (stamp, stamp_psf_id, stamp_wcs_id) in enumerate(
+            zip(self._stamps, stamp_psf_ids, stamp_wcs_ids),
+            start=1,
+        ):
+            metadata = PropertyList()
+            metadata.update({"EXTVER": stamp_id, "EXTNAME": "IMAGE"})
+            if stamp_metadata := stamp._getMetadata():
+                metadata.update(stamp_metadata)
+            metadata["PSF"] = stamp_psf_id
+            metadata["WCS"] = stamp_wcs_id
+            stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode="a")
 
-        Returns
-        -------
-        gaiaIds : `list` [`int`]
-            Gaia IDs for each star.
-        """
-        return [stamp.gaiaId for stamp in self._stamps]
+            metadata = PropertyList()
+            metadata.update({"EXTVER": stamp_id, "EXTNAME": "MASK"})
+            stamp.stamp_im.getMask().writeFits(filename, metadata=metadata, mode="a")
 
-    def getAnnularFluxes(self):
-        """Retrieve normalization factor for each star.
-
-        These are computed by integrating the flux in annulus centered on the
-        bright star, far enough from center to be beyond most severe ghosts and
-        saturation.
-        The inner and outer radii that define the annulus can be recovered from
-        the metadata.
-
-        Returns
-        -------
-        annularFluxes : `list` [`float`]
-            Annular fluxes which give the normalization factor for each star.
-        """
-        return [stamp.annularFlux for stamp in self._stamps]
-
-    def getValidPixelsFraction(self):
-        """Retrieve the fraction of valid pixels within the normalization
-        annulus for each star.
-
-        Returns
-        -------
-        validPixelsFractions : `list` [`float`]
-            Fractions of valid pixels within the normalization annulus for each
-            star.
-        """
-        return [stamp.validAnnulusFraction for stamp in self._stamps]
-
-    def selectByMag(self, magMin=None, magMax=None):
-        """Return the subset of bright star stamps for objects with specified
-        magnitude cuts (in Gaia G).
-
-        Parameters
-        ----------
-        magMin : `float`, optional
-            Keep only stars fainter than this value.
-        magMax : `float`, optional
-            Keep only stars brighter than this value.
-        """
-        subset = [
-            stamp
-            for stamp in self._stamps
-            if (magMin is None or stamp.gaiaGMag > magMin) and (magMax is None or stamp.gaiaGMag < magMax)
-        ]
-        # This saves looping over init when guaranteed to be the correct type.
-        instance = BrightStarStamps(
-            (), innerRadius=self._innerRadius, outerRadius=self._outerRadius, metadata=self._metadata
-        )
-        instance._stamps = subset
-        return instance
-
-    def _checkRadius(self, innerRadius, outerRadius):
-        """Ensure provided annulus radius is consistent with that already
-        present in the instance, or with arguments passed on at initialization.
-        """
-        if innerRadius != self._innerRadius or outerRadius != self._outerRadius:
-            raise AttributeError(
-                f"Trying to mix stamps normalized with annulus radii {innerRadius, outerRadius} with those "
-                "of BrightStarStamp instance\n"
-                f"(computed with annular radii {self._innerRadius, self._outerRadius})."
-            )
-
-    def _checkNormalization(self, normalize, innerRadius, outerRadius):
-        """Ensure there is no mixing of normalized and unnormalized stars, and
-        that, if requested, normalization can be performed.
-        """
-        noneFluxCount = self.getAnnularFluxes().count(None)
-        nStamps = len(self)
-        nFluxVals = nStamps - noneFluxCount
-        if noneFluxCount and noneFluxCount < nStamps:
-            # At least one stamp contains an annularFlux value (i.e. has been
-            # normalized), but not all of them do.
-            raise AttributeError(
-                f"Only {nFluxVals} stamps contain an annularFlux value.\nAll stamps in a BrightStarStamps "
-                "instance must either be normalized with the same annulus definition, or none of them can "
-                "contain an annularFlux value."
-            )
-        elif normalize:
-            # Stamps are to be normalized; ensure annular radii are specified
-            # and they have no annularFlux.
-            if innerRadius is None or outerRadius is None:
-                raise AttributeError(
-                    "For stamps to be normalized (normalize=True), please provide a valid value (in pixels) "
-                    "for both innerRadius and outerRadius."
-                )
-            elif noneFluxCount < nStamps:
-                raise AttributeError(
-                    f"{nFluxVals} stamps already contain an annularFlux value. For stamps to be normalized, "
-                    "all their annularFlux must be None."
-                )
-        elif innerRadius is not None and outerRadius is not None:
-            # Radii provided, but normalize=False; check that stamps already
-            # contain annularFluxes.
-            if noneFluxCount:
-                raise AttributeError(
-                    f"{noneFluxCount} stamps contain no annularFlux, but annular radius values were provided "
-                    "and normalize=False.\nTo normalize stamps, set normalize to True."
-                )
-        else:
-            # At least one radius value is missing; ensure no stamps have
-            # already been normalized.
-            if nFluxVals:
-                raise AttributeError(
-                    f"{nFluxVals} stamps contain an annularFlux value. If stamps have been normalized, the "
-                    "innerRadius and outerRadius values used must be provided."
-                )
-        return None
+            metadata = PropertyList()
+            metadata.update({"EXTVER": stamp_id, "EXTNAME": "VARIANCE"})
+            stamp.stamp_im.getVariance().writeFits(filename, metadata=metadata, mode="a")
