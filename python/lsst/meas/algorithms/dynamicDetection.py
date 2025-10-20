@@ -494,15 +494,22 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         self.display(exposure, results, middle)
 
+        # Re-do the background tweak after any temporary backgrounds have
+        # been restored.
+        #
+        # But we want to keep any large-scale background (e.g., scattered
+        # light from bright stars) from being selected for sky objects in
+        # the calculation, so do another detection pass without either the
+        # local or wide temporary background subtraction; the DETECTED
+        # pixels will mark the area to ignore.
+
+        # The following if/else is to workaround the fact that it is
+        # currently not possible to persist an empty BackgroundList, so
+        # we instead set the value of the backround tweak to 0.0 if
+        # doBackgroundTweak is False and call the tweakBackground function
+        # regardless to get at least one background into the list (do we
+        # need a TODO here?).
         if self.config.doBackgroundTweak:
-            # Re-do the background tweak after any temporary backgrounds have
-            # been restored.
-            #
-            # But we want to keep any large-scale background (e.g., scattered
-            # light from bright stars) from being selected for sky objects in
-            # the calculation, so do another detection pass without either the
-            # local or wide temporary background subtraction; the DETECTED
-            # pixels will mark the area to ignore.
             originalMask = maskedImage.mask.array.copy()
             try:
                 self.clearMask(exposure.mask)
@@ -513,7 +520,9 @@ class DynamicDetectionTask(SourceDetectionTask):
                                                   isBgTweak=True).additive
             finally:
                 maskedImage.mask.array[:] = originalMask
-            self.tweakBackground(exposure, bgLevel, results.background)
+        else:
+            bgLevel = 0.0
+        self.tweakBackground(exposure, bgLevel, results.background)
 
         return results
 
@@ -534,7 +543,8 @@ class DynamicDetectionTask(SourceDetectionTask):
         bg : `lsst.afw.math.BackgroundMI`
             Constant background model.
         """
-        self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
+        if bgLevel != 0.0:
+            self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
         exposure.image -= bgLevel
         bgStats = lsst.afw.image.MaskedImageF(1, 1)
         bgStats.set(bgLevel, 0, bgLevel)
