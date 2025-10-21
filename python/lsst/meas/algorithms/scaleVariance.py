@@ -23,10 +23,40 @@ from contextlib import contextmanager
 import numpy as np
 
 from lsst.pex.config import Config, Field, ListField, ConfigurableField
-from lsst.pipe.base import Task, Struct
+from lsst.pipe.base import Task, Struct, AlgorithmError
 from . import SubtractBackgroundTask
 
-__all__ = ["ScaleVarianceConfig", "ScaleVarianceTask"]
+__all__ = ["ScaleVarianceConfig", "ScaleVarianceTask", "ExceedsMaxVarianceScaleError"]
+
+
+class ExceedsMaxVarianceScaleError(AlgorithmError):
+    """Raised if ScaleVariance exceeds a specified threshold.
+
+    Parameters
+    ----------
+    maxScaling: `float`
+        Maximum variance scaling.
+    """
+    def __init__(self, scaleVarianceValue, scaleVarianceLimit, **kwargs):
+        msg = (f"Variance rescaling factor ({scaleVarianceValue}) exceeds configured limit "
+               f"({scaleVarianceLimit})")
+
+        self.msg = msg
+        self._metadata = kwargs
+        super().__init__(msg, **kwargs)
+        self._metadata["scaleVarianceValue"] = scaleVarianceValue
+        self._metadata["scaleVarianceLimit"] = scaleVarianceLimit
+
+    def __str__(self):
+        # Exception doesn't handle **kwargs, so we need a custom str.
+        return f"{self.msg}: {self.metadata}"
+
+    @property
+    def metadata(self):
+        for key, value in self._metadata.items():
+            if not (isinstance(value, int) or isinstance(value, float) or isinstance(value, str)):
+                raise TypeError(f"{key} is of type {type(value)}, but only (int, float, str) are allowed.")
+        return self._metadata
 
 
 class ScaleVarianceConfig(Config):
@@ -108,7 +138,7 @@ class ScaleVarianceTask(Task):
 
         Raises
         ------
-        RuntimeError
+        ExceedsMaxVarianceScaleError
             If the estimated variance rescaling factor by both methods exceed the
             configured limit.
 
@@ -125,8 +155,7 @@ class ScaleVarianceTask(Task):
                                  "trying image-based method", factor, self.config.limit)
                 factor = self.imageBased(maskedImage)
                 if factor > self.config.limit:
-                    raise RuntimeError("Variance rescaling factor (%f) exceeds configured limit (%f)" %
-                                       (factor, self.config.limit))
+                    raise ExceedsMaxVarianceScaleError(factor, self.config.limit)
             self.log.info("Renormalizing variance by %f", factor)
             maskedImage.variance *= factor
         return factor
