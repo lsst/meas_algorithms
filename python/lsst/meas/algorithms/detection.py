@@ -600,7 +600,7 @@ class SourceDetectionTask(pipeBase.Task):
 
         return results
 
-    def finalizeFootprints(self, mask, results, sigma, factor=1.0, factorNeg=None):
+    def finalizeFootprints(self, mask, results, sigma, factor=1.0, factorNeg=None, growOverride=None):
         """Finalize the detected footprints.
 
         Grow the footprints, set the ``DETECTED`` and ``DETECTED_NEGATIVE``
@@ -629,6 +629,10 @@ class SourceDetectionTask(pipeBase.Task):
             for positive detection polarity) is assumed. Note that this is only
             used here for logging purposes.
         """
+        if growOverride is not None:
+            self.log.warning("config.nSigmaToGrow is set to %.2f, but the caller has set "
+                             "growOverride to %.2f, so the footprints will be grown by "
+                             "%.2f sigma.", self.config.nSigmaToGrow, growOverride, growOverride)
         factorNeg = factor if factorNeg is None else factorNeg
         for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
             fpSet = getattr(results, polarity)
