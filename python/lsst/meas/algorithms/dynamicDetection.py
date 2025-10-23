@@ -368,8 +368,12 @@ class DynamicDetectionTask(SourceDetectionTask):
         nPix = maskedImage.mask.array.size
         badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
         nGoodPix = np.sum(maskedImage.mask.array & badPixelMask == 0)
-        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.1f}% of total)".
+        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.2f}% of total)".
                       format(nGoodPix, 100*nGoodPix/nPix))
+        if nGoodPix/nPix < 0.005:
+            msg = (f"Image has a very low good pixel fraction ({nGoodPix} of {nPix}), so not worth further "
+                   "consideration.")
+            raise pipeBase.NoWorkFound(msg)
 
         with self.tempWideBackgroundContext(exposure):
             # Could potentially smooth with a wider kernel than the PSF in
