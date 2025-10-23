@@ -16,7 +16,7 @@ from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
-from lsst.pipe.base import Struct
+from lsst.pipe.base import NoWorkFound, Struct
 
 import lsst.afw.image
 import lsst.afw.math
@@ -67,6 +67,9 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                                 doc="Multiplier for the negative (relative to positive) polarity "
                                 "detections threshold to use for first pass (to find sky objects).")
     skyObjects = ConfigurableField(target=SkyObjectsTask, doc="Generate sky objects.")
+    minGoodPixelFraction = Field(dtype=float, default=0.005,
+                                 doc="Minimum fraction of 'good' pixels required to be deemed "
+                                 "worthwhile for an attempt at further processing.")
     doThresholdScaling = Field(dtype=bool, default=True,
                                doc="Scale the threshold level to get empirically measured S/N requested?")
     minThresholdScaleFactor = Field(dtype=float, default=0.1, optional=True,
@@ -429,8 +432,12 @@ class DynamicDetectionTask(SourceDetectionTask):
         nPix = maskedImage.mask.array.size
         badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
         nGoodPix = np.sum(maskedImage.mask.array & badPixelMask == 0)
-        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.1f}% of total)".
+        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.2f}% of total)".
                       format(nGoodPix, 100*nGoodPix/nPix))
+        if nGoodPix/nPix < self.config.minGoodPixelFraction:
+            msg = (f"Image has a very low good pixel fraction ({nGoodPix} of {nPix}), so not worth further "
+                   "consideration")
+            raise NoWorkFound(msg)
 
         with self.tempWideBackgroundContext(exposure):
             # Could potentially smooth with a wider kernel than the PSF in
