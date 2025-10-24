@@ -42,9 +42,9 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
     def tearDown(self):
         del self.exposure
 
-    def check(self, expectFactor):
+    def check(self, expectFactor, config):
         schema = SourceTable.makeMinimalSchema()
-        task = DynamicDetectionTask(config=self.config, schema=schema)
+        task = DynamicDetectionTask(config=config, schema=schema)
         table = SourceTable.make(schema)
 
         results = task.run(table, self.exposure, expId=12345)
@@ -52,7 +52,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
 
     def testVanilla(self):
         """Dynamic detection used as normal detection."""
-        self.check(1.0)
+        self.check(1.0, self.config)
 
     def testDynamic(self):
         """Modify the variance plane, and see if the task is able to determine
@@ -60,19 +60,43 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         """
         factor = 2.0
         self.exposure.maskedImage.variance /= factor
-        self.check(1.0/np.sqrt(factor))
+        self.check(1.0/np.sqrt(factor), self.config)
 
     def testNoWcs(self):
         """Check that dynamic detection runs when the exposure wcs is None."""
         self.exposure.setWcs(None)
-        self.check(1.0)
+        self.check(1.0, self.config)
 
     def testMinimalSkyObjects(self):
         """Check that dynamic detection runs when there are a relatively small
         number of sky objects.
         """
-        self.config.skyObjects.nSources = int(0.1 * self.config.skyObjects.nSources)
-        self.check(1.0)
+        config = DynamicDetectionTask.ConfigClass()
+        config.skyObjects.nSources = int(0.1 * self.config.skyObjects.nSources)
+        self.check(1.0, config)
+
+    def testNoThresholdScaling(self):
+        """Check that dynamic detection runs when doThresholdScaling is False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doThresholdScaling = False
+        self.check(1.0, config)
+
+    def testNoBackgroundTweak(self):
+        """Check that dynamic detection runs when doBackgroundTweak is False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doBackgroundTweak = False
+        self.check(1.0, config)
+
+    def testThresholdScalingAndNoBackgroundTweak(self):
+        """Check that dynamic detection runs when both doThresholdScalin and
+        doBackgroundTweak are False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doThresholdScaling = False
+        config.doBackgroundTweak = False
+        self.check(1.0, config)
 
     def testNoSkyObjects(self):
         """Check that dynamic detection runs when there are no sky objects.
