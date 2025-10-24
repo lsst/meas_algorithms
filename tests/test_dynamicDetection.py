@@ -7,6 +7,7 @@ from lsst.afw.table import SourceTable
 from lsst.geom import Box2I, Extent2I, Point2D, Point2I, SpherePoint, degrees
 from lsst.meas.algorithms import DynamicDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
+from lsst.pex.config import FieldValidationError
 
 
 class DynamicDetectionTest(lsst.utils.tests.TestCase):
@@ -42,9 +43,9 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
     def tearDown(self):
         del self.exposure
 
-    def check(self, expectFactor):
+    def check(self, expectFactor, config):
         schema = SourceTable.makeMinimalSchema()
-        task = DynamicDetectionTask(config=self.config, schema=schema)
+        task = DynamicDetectionTask(config=config, schema=schema)
         table = SourceTable.make(schema)
 
         results = task.run(table, self.exposure, expId=12345)
@@ -52,7 +53,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
 
     def testVanilla(self):
         """Dynamic detection used as normal detection."""
-        self.check(1.0)
+        self.check(1.0, self.config)
 
     def testDynamic(self):
         """Modify the variance plane, and see if the task is able to determine
@@ -60,19 +61,90 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         """
         factor = 2.0
         self.exposure.maskedImage.variance /= factor
-        self.check(1.0/np.sqrt(factor))
+        self.check(1.0/np.sqrt(factor), self.config)
 
     def testNoWcs(self):
         """Check that dynamic detection runs when the exposure wcs is None."""
         self.exposure.setWcs(None)
-        self.check(1.0)
+        self.check(1.0, self.config)
 
     def testMinimalSkyObjects(self):
         """Check that dynamic detection runs when there are a relatively small
         number of sky objects.
         """
-        self.config.skyObjects.nSources = int(0.1 * self.config.skyObjects.nSources)
-        self.check(1.0)
+        config = DynamicDetectionTask.ConfigClass()
+        config.skyObjects.nSources = int(0.1 * self.config.skyObjects.nSources)
+        self.check(1.0, config)
+
+    def testDynamicNoLimits(self):
+        """Test setting the threshold scaling and background tweak limits to
+        None (i.e. no limits imposed).
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.minThresholdScaleFactor = None
+        config.maxThresholdScaleFactor = None
+        config.minBackgroundTweak = None
+        config.maxBackgroundTweak = None
+        self.check(1.0, config)
+
+    def testNoThresholdScaling(self):
+        """Check that dynamic detection runs when doThresholdScaling is False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doThresholdScaling = False
+        self.check(1.0, config)
+
+    def testNoBackgroundTweak(self):
+        """Check that dynamic detection runs when doBackgroundTweak is False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doBackgroundTweak = False
+        self.check(1.0, config)
+
+    def testThresholdScalingAndNoBackgroundTweak(self):
+        """Check that dynamic detection runs when both doThresholdScaling and
+        doBackgroundTweak are False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doThresholdScaling = False
+        config.doBackgroundTweak = False
+        self.check(1.0, config)
+
+    def testThresholdsOutsideBounds(self):
+        """Check that dynamic detection properly sets threshold limits.
+        """
+        schema = SourceTable.makeMinimalSchema()
+        config = DynamicDetectionTask.ConfigClass()
+        config.minThresholdScaleFactor = 1.05
+        config.maxBackgroundTweak = -0.1
+        table = SourceTable.make(schema)
+        task = DynamicDetectionTask(config=config, schema=schema)
+        task.run(table, self.exposure, expId=12345)
+
+        config = DynamicDetectionTask.ConfigClass()
+        config.maxThresholdScaleFactor = 0.99
+        config.minBackgroundTweak = 0.1
+        table = SourceTable.make(schema)
+        task = DynamicDetectionTask(config=config, schema=schema)
+        task.run(table, self.exposure, expId=12345)
+
+    def testConfigValidation(self):
+        """Check that the field validation is working correctly.
+        """
+        schema = SourceTable.makeMinimalSchema()
+        config = DynamicDetectionTask.ConfigClass()
+        config.minThresholdScaleFactor = 1.05
+        config.maxThresholdScaleFactor = 1.01
+        with self.assertRaisesRegex(
+                FieldValidationError, "minThresholdScaleFactor must be <= maxThresholdScaleFactor"):
+            DynamicDetectionTask(config=config, schema=schema)
+
+        config = DynamicDetectionTask.ConfigClass()
+        config.minBackgroundTweak = 2.0
+        config.maxBackgroundTweak = 1.0
+        with self.assertRaisesRegex(
+                FieldValidationError, "minBackgroundTweak must be <= maxBackgroundTweak"):
+            DynamicDetectionTask(config=config, schema=schema)
 
     def testNoSkyObjects(self):
         """Check that dynamic detection runs when there are no sky objects.
