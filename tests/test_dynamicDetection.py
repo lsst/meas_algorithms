@@ -3,7 +3,6 @@ import unittest
 import lsst.utils.tests
 import numpy as np
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs
-from lsst.afw.image import PARENT
 from lsst.afw.table import SourceTable
 from lsst.geom import Box2I, Extent2I, Point2D, Point2I, SpherePoint, degrees
 from lsst.meas.algorithms import DynamicDetectionTask
@@ -37,42 +36,15 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
                                         crval=SpherePoint(0, 0, degrees),
                                         cdMatrix=makeCdMatrix(scale=scale)))
 
-        # Make a large area of extra background; we should be robust against
-        # it. Unfortunately, some tuning is required here to get something
-        # challenging but not impossible:
-        # * A very large box will cause failures because the "extra" and the
-        #   "normal" are reversed.
-        # * A small box will not be challenging because it's simple to clip
-        #   out.
-        # * A large value will cause failures because it produces large edges
-        #   in background-subtrction that broaden flux distributions.
-        # * A small value will not be challenging because it has little effect.
-        extraBox = Box2I(xy0 + Extent2I(345, 456), Extent2I(1234, 1234))  # Box for extra background
-        extraValue = 0.5*noise  # Extra background value to add in
-        self.exposure.image[extraBox, PARENT] += extraValue
-
         self.config = DynamicDetectionTask.ConfigClass()
-        self.config.skyObjects.nSources = 300
-        self.config.reEstimateBackground = False
-        self.config.doTempWideBackground = True
-        self.config.thresholdType = "pixel_stdev"
-
-        # Relative tolerance for tweak factor.
-        # Not sure why this isn't smaller; maybe due to use of Poisson instead
-        # of Gaussian noise?
-        # It seems as if some sky objects are being placed in the extra
-        # background region, which is causing the offset between the expected
-        # factor and the measured factor to be larger than otherwise expected.
-        # This relative tolerance was increased from 0.1 to 0.15 on DM-23781 to
-        # account for this.
-        self.rtol = 0.15
+        self.rtol = 0.1
 
     def tearDown(self):
         del self.exposure
 
-    def check(self, expectFactor):
+    def check(self, expectFactor, config):
         schema = SourceTable.makeMinimalSchema()
-        task = DynamicDetectionTask(config=self.config, schema=schema)
+        task = DynamicDetectionTask(config=config, schema=schema)
         table = SourceTable.make(schema)
 
         results = task.run(table, self.exposure, expId=12345)
@@ -80,7 +52,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
 
     def testVanilla(self):
         """Dynamic detection used as normal detection."""
-        self.check(1.0)
+        self.check(1.0, self.config)
 
     def testDynamic(self):
         """Modify the variance plane, and see if the task is able to determine
@@ -88,19 +60,43 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         """
         factor = 2.0
         self.exposure.maskedImage.variance /= factor
-        self.check(1.0/np.sqrt(factor))
+        self.check(1.0/np.sqrt(factor), self.config)
 
     def testNoWcs(self):
         """Check that dynamic detection runs when the exposure wcs is None."""
         self.exposure.setWcs(None)
-        self.check(1.0)
+        self.check(1.0, self.config)
 
     def testMinimalSkyObjects(self):
         """Check that dynamic detection runs when there are a relatively small
         number of sky objects.
         """
-        self.config.skyObjects.nSources = int(0.1 * self.config.skyObjects.nSources)
-        self.check(1.0)
+        config = DynamicDetectionTask.ConfigClass()
+        config.skyObjects.nSources = int(0.1 * self.config.skyObjects.nSources)
+        self.check(1.0, config)
+
+    def testNoThresholdScaling(self):
+        """Check that dynamic detection runs when doThresholdScaling is False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doThresholdScaling = False
+        self.check(1.0, config)
+
+    def testNoBackgroundTweak(self):
+        """Check that dynamic detection runs when doBackgroundTweak is False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doBackgroundTweak = False
+        self.check(1.0, config)
+
+    def testThresholdScalingAndNoBackgroundTweak(self):
+        """Check that dynamic detection runs when both doThresholdScalin and
+        doBackgroundTweak are False.
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.doThresholdScaling = False
+        config.doBackgroundTweak = False
+        self.check(1.0, config)
 
     def testNoSkyObjects(self):
         """Check that dynamic detection runs when there are no sky objects.
