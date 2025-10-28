@@ -20,7 +20,12 @@
 # the GNU General Public License along with this program.  If not,
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
-__all__ = ("SubtractBackgroundConfig", "SubtractBackgroundTask", "backgroundFlatContext")
+__all__ = (
+    "SubtractBackgroundConfig",
+    "SubtractBackgroundTask",
+    "backgroundFlatContext",
+    "TooManyMaskedPixelsError",
+)
 
 import itertools
 import math
