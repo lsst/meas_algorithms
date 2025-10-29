@@ -1,10 +1,10 @@
 
-__all__ = ["DynamicDetectionConfig", "DynamicDetectionTask"]
+__all__ = ["DynamicDetectionConfig", "DynamicDetectionTask", "InsufficientSourcesError"]
 
 import numpy as np
 
 from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Struct, NoWorkFound
+from lsst.pipe.base import Struct
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -17,6 +17,40 @@ from lsst.meas.base import ForcedMeasurementTask
 import lsst.afw.image
 import lsst.afw.math
 import lsst.geom as geom
+
+
+class InsufficientSourcesError(Exception):
+    """Raised if an insufficient number of sky sources are found for
+    dynamic detection.
+
+    Parameters
+    ----------
+    msg : `str`
+        Error message.
+    nGoodPix : `int`
+        Number of good pixels (i.e. not NO_DATA or BAD).
+    nPix : `int`
+        Total number of pixels.
+    **kwargs : `dict`, optional
+        Additional keyword arguments to initialize the Exception base class.
+    """
+    def __init__(self, msg, nGoodPix, nPix, **kwargs):
+        self.msg = msg
+        self._metadata = kwargs
+        super().__init__(msg, **kwargs)
+        self._metadata["nGoodPix"] = int(nGoodPix)
+        self._metadata["nPix"] = int(nPix)
+
+    def __str__(self):
+        # Exception doesn't handle **kwargs, so we need a custom str.
+        return f"{self.msg}: {self.metadata}"
+
+    @property
+    def metadata(self):
+        for key, value in self._metadata.items():
+            if not isinstance(value, (int, float, str)):
+                raise TypeError(f"{key} is of type {type(value)}, but only (int, float, str) are allowed.")
+        return self._metadata
 
 
 class DynamicDetectionConfig(SourceDetectionConfig):
@@ -259,8 +293,8 @@ class DynamicDetectionTask(SourceDetectionTask):
                         "so there should be sufficient area to locate suitable sky sources. "
                         f"Note that {nDetectedPix} of {nGoodPix} \"good\" pixels were marked "
                         "as DETECTED or DETECTED_NEGATIVE.")
-                raise RuntimeError(msg)
-            raise NoWorkFound(msg)
+                raise InsufficientSourcesError(msg, nGoodPix, nPix)
+            raise InsufficientSourcesError(msg, nGoodPix, nPix)
 
         if not isBgTweak:
             self.log.info("Number of good sky sources used for dynamic detection: %d (of %d requested).",
