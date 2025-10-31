@@ -5,7 +5,7 @@ import numpy as np
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs
 from lsst.afw.table import SourceTable
 from lsst.geom import Box2I, Extent2I, Point2D, Point2I, SpherePoint, degrees
-from lsst.meas.algorithms import AdaptiveThresholdDetectionTask
+from lsst.meas.algorithms.adaptive_thresholds import AdaptiveThresholdDetectionTask
 from lsst.meas.algorithms.testUtils import plantSources
 
 
