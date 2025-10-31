@@ -105,13 +105,13 @@ class AdaptiveThresholdDetectionTask(Task):
         Task.__init__(self, *args, **kwargs)
 
     def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0,
-            doReEstimageBackgroud=True, backgroundToPhotometricRatio=None):
+            doReEstimateBackground=True, backgroundToPhotometricRatio=None):
         """Perform detection with an adaptive threshold detection scheme
-        conditioned to maximize the likelihood of a succuessful PSF model fit
+        conditioned to maximize the likelihood of a successful PSF model fit
         for any given "scene".
 
         In particular, we'd like to be able to handle different scenes, from
-        sparsely populated ones through very crowded ones, and possibily high
+        sparsely populated ones through very crowded ones, and possibly high
         fill-factor nebulosity along the way, with a single pipeline (and set
         of configs). This requires some flexibility in setting the detection
         thresholds in order to detect enough sources suitable for PSF modeling
@@ -138,7 +138,7 @@ class AdaptiveThresholdDetectionTask(Task):
             Initial threshold for detection of PSF sources.
         initialThresholdMultiplier : `float`, optional
             Initial threshold for detection of PSF sources.
-        doReEstimageBackgroud: `bool`, optional
+        doReEstimateBackground: `bool`, optional
             Re-estimate the background during the final detection stage?
         backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
             Image to convert photometric-flattened image to
@@ -345,7 +345,7 @@ class AdaptiveThresholdDetectionTask(Task):
                 inAdaptiveDetection = False
         # Final round of detection with positive polarity
         adaptiveDetectionConfig.thresholdPolarity = "positive"
-        if doReEstimageBackgroud:
+        if doReEstimateBackground:
             adaptiveDetectionConfig.reEstimateBackground = True
         adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
         self.log.info("Perfomring final round of detection with threshold %.2f and multiplier %.1f",
