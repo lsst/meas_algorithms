@@ -37,8 +37,6 @@ class AdaptiveThresholdDetectionConfig(Config):
     """
     maxAdaptiveDetIter = Field(dtype=int, default=20,
                                doc="Maximum number of adaptive threshold detection iterations.")
-    maxDynDetIter = Field(dtype=int, default=20,
-                          doc="DEPRECATED...just including for config reading of prev runs...")
     maxNumPeakPerBand = DictField(
         keytype=str,
         itemtype=int,
