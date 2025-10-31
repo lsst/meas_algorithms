@@ -102,8 +102,7 @@ class AdaptiveThresholdDetectionTask(Task):
     def __init__(self, *args, **kwargs):
         Task.__init__(self, *args, **kwargs)
 
-    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0,
-            doReEstimateBackground=True, backgroundToPhotometricRatio=None):
+    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0):
         """Perform detection with an adaptive threshold detection scheme
         conditioned to maximize the likelihood of a successful PSF model fit
         for any given "scene".
@@ -136,13 +135,6 @@ class AdaptiveThresholdDetectionTask(Task):
             Initial threshold for detection of PSF sources.
         initialThresholdMultiplier : `float`, optional
             Initial threshold for detection of PSF sources.
-        doReEstimateBackground: `bool`, optional
-            Re-estimate the background during the final detection stage?
-        backgroundToPhotometricRatio : `lsst.afw.image.Image`, optional
-            Image to convert photometric-flattened image to
-            background-flattened image if ``reEstimateBackground`` is `True`
-            and exposure has been photometric-flattened, and
-            ``config.doApplyFlatBackgroundRatio`` is `True`.
 
         Returns
         -------
@@ -170,9 +162,8 @@ class AdaptiveThresholdDetectionTask(Task):
                     Number of footprints in negative or 0 if detection polarity was
                     positive (`int`).
                 ``background``
-                    Re-estimated background. `None` if
-                    ``reEstimateBackground==False``
-                    (`lsst.afw.math.BackgroundList`).
+                    Always `None`; provided for compatibility with
+                    `SourceDetectionTask`.
                 ``factor``
                     Multiplication factor applied to the configured detection
                     threshold. (`float`).
@@ -343,14 +334,12 @@ class AdaptiveThresholdDetectionTask(Task):
                 inAdaptiveDetection = False
         # Final round of detection with positive polarity
         adaptiveDetectionConfig.thresholdPolarity = "positive"
-        if doReEstimateBackground:
-            adaptiveDetectionConfig.reEstimateBackground = True
         adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
         self.log.info("Perfomring final round of detection with threshold %.2f and multiplier %.1f",
                       adaptiveDetectionConfig.thresholdValue,
                       adaptiveDetectionConfig.includeThresholdMultiplier)
         detRes = adaptiveDetectionTask.run(table=table, exposure=exposure, doSmooth=True,
-                                           backgroundToPhotometricRatio=backgroundToPhotometricRatio)
+                                           backgroundToPhotometricRatio=None)
         return Struct(
             detections=detRes,
             thresholdValue=adaptiveDetectionConfig.thresholdValue,
