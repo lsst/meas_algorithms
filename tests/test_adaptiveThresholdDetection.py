@@ -44,10 +44,14 @@ class AdaptiveThresholdDetectionTest(lsst.utils.tests.TestCase):
         del self.config
 
     def check(self, expectFactor, initialThreshold=None):
+        if initialThreshold is None:
+            maxSn = float(np.nanmax(self.exposure.image.array/np.sqrt(self.exposure.variance.array)))
+            initialThreshold = min(maxSn, 5.0)
         schema = SourceTable.makeMinimalSchema()
         table = SourceTable.make(schema)
+        self.config.baseline.thresholdValue = initialThreshold
         task = AdaptiveThresholdDetectionTask(config=self.config)
-        results = task.run(table, self.exposure, initialThreshold=initialThreshold)
+        results = task.run(table, self.exposure)
         self.assertFloatsAlmostEqual(results.thresholdValue, expectFactor, rtol=self.rtol)
 
     def testUncrowded(self):

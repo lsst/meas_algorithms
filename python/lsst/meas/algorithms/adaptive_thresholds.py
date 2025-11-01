@@ -26,8 +26,8 @@ __all__ = [
 
 import numpy as np
 
-from lsst.pex.config import Field, Config, DictField, FieldValidationError
-from lsst.pipe.base import Struct, Task
+from lsst.pex.config import Field, Config, ConfigField, DictField, FieldValidationError
+from lsst.pipe.base import Task
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 
@@ -75,12 +75,25 @@ class AdaptiveThresholdDetectionConfig(Config):
     sufficientFractionIsolated = Field(dtype=float, default=0.45,
                                        doc="Fraction of single-peaked (isolated) footprints considered "
                                        "sufficient to exit the iteration loop.")
+    baseline = ConfigField(
+        "Baseline configuration for SourceDetectionTask in the absence of any iteration. "
+        "All options other than thresholdPolarity, thresholdValue, and includeThresholdMultiplier "
+        "are held fixed at these values.",
+        SourceDetectionConfig,
+    )
+
+    def setDefaults(self):
+        self.baseline.reEstimateBackground = False
+        self.baseline.doTempWideBackground = True
+        self.baseline.tempWideBackground.binSize = 512
+        self.baseline.thresholdPolarity = "positive"  # for schema and final run.
+        self.baseline.includeThresholdMultiplier = 2.0
 
     def validate(self):
         super().validate()
         if "fallback" not in self.maxNumPeakPerBand:
             msg = ("Must include a \"fallback\" key in the config.maxNumPeakPerBand config dict. "
-                   f"It is currenly: {self.maxNumPeakPerBand}.")
+                   f"It is currently: {self.maxNumPeakPerBand}.")
             raise FieldValidationError(self.__class__.maxNumPeakPerBand, self, msg)
         if self.minFootprint < self.minIsolated:
             msg = (f"The config.minFootprint (= {self.minFootprint}) must be >= that of "
@@ -90,6 +103,11 @@ class AdaptiveThresholdDetectionConfig(Config):
             msg = (f"The config.sufficientIsolated (= {self.sufficientIsolated}) must be >= that of "
                    f"config.minIsolated (= {self.minIsolated}).")
             raise FieldValidationError(self.__class__.sufficientIsolated, self, msg)
+        if self.baseline.reEstimateBackground:
+            raise FieldValidationError(
+                self.__class__.baseline, self,
+                "Baseline detection configuration must not include background re-estimation."
+            )
 
 
 class AdaptiveThresholdDetectionTask(Task):
@@ -97,12 +115,15 @@ class AdaptiveThresholdDetectionTask(Task):
     the detection threshold.
     """
     ConfigClass = AdaptiveThresholdDetectionConfig
-    _DefaultName = "adaptiveThresholdDetection"
+    _DefaultName = "detection"
 
-    def __init__(self, *args, **kwargs):
-        Task.__init__(self, *args, **kwargs)
+    def __init__(self, schema=None, **kwargs):
+        super().__init__(**kwargs)
+        # We make a baseline SourceDetectionTask only to set up the schema.
+        if schema is not None:
+            SourceDetectionTask(config=self.config.baseline, schema=schema)
 
-    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0):
+    def run(self, table, exposure, **kwargs):
         """Perform detection with an adaptive threshold detection scheme
         conditioned to maximize the likelihood of a successful PSF model fit
         for any given "scene".
@@ -131,42 +152,15 @@ class AdaptiveThresholdDetectionTask(Task):
             Table object that will be used to create the SourceCatalog.
         exposure : `lsst.afw.image.Exposure`
             Exposure to process; DETECTED mask plane will be set in-place.
-        initialThreshold : `float`, optional
-            Initial threshold for detection of PSF sources.
-        initialThresholdMultiplier : `float`, optional
-            Initial threshold for detection of PSF sources.
+        **kwargs
+            Forwarded to internal runs of `SourceDetectionTask`.
 
         Returns
         -------
         results : `lsst.pipe.base.Struct`
-            The adaptive threshold detection results as a struct with
-            attributes:
+            The adaptive threshold detection results.  Most fields are directly
+            produced by `SourceDetectionTask.run`.  Additional fields include:
 
-            ``detections``
-                Results of the final round of detection as a struch with
-                attributes:
-
-                ``sources``
-                    Detected sources on the exposure
-                    (`lsst.afw.table.SourceCatalog`).
-                ``positive``
-                    Positive polarity footprints
-                    (`lsst.afw.detection.FootprintSet` or `None`).
-                ``negative``
-                    Negative polarity footprints
-                    (`lsst.afw.detection.FootprintSet` or `None`).
-                ``numPos``
-                    Number of footprints in positive or 0 if detection polarity was
-                    negative (`int`).
-                ``numNeg``
-                    Number of footprints in negative or 0 if detection polarity was
-                    positive (`int`).
-                ``background``
-                    Always `None`; provided for compatibility with
-                    `SourceDetectionTask`.
-                ``factor``
-                    Multiplication factor applied to the configured detection
-                    threshold. (`float`).
             ``thresholdValue``
                 The final threshold value used to the configure the final round
                 of detection (`float`).
@@ -187,29 +181,18 @@ class AdaptiveThresholdDetectionTask(Task):
         inAdaptiveDetection = True
         nAdaptiveDetIter = 0
         thresholdFactor = 1.0
-        if nAdaptiveDetIter == 0:
-            if initialThreshold is None:
-                maxSn = float(np.nanmax(exposure.image.array/np.sqrt(exposure.variance.array)))
-                adaptiveDetThreshold = min(maxSn, 5.0)
-            else:
-                adaptiveDetThreshold = initialThreshold
-            adaptiveDetectionConfig = SourceDetectionConfig()
-            adaptiveDetectionConfig.thresholdValue = adaptiveDetThreshold
-            adaptiveDetectionConfig.includeThresholdMultiplier = initialThresholdMultiplier
-            adaptiveDetectionConfig.reEstimateBackground = False
-            adaptiveDetectionConfig.doTempWideBackground = True
-            adaptiveDetectionConfig.tempWideBackground.binSize = 512
-            adaptiveDetectionConfig.thresholdPolarity = "both"
-            self.log.info("Using adaptive detection with thresholdValue = %.2f and multiplier = %.1f",
-                          adaptiveDetectionConfig.thresholdValue,
-                          adaptiveDetectionConfig.includeThresholdMultiplier)
-            adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
+        adaptiveDetectionConfig = self.config.baseline.copy()
+        adaptiveDetectionConfig.thresholdPolarity = "both"
+        self.log.info("Using adaptive detection with thresholdValue = %.2f and multiplier = %.1f",
+                      adaptiveDetectionConfig.thresholdValue,
+                      adaptiveDetectionConfig.includeThresholdMultiplier)
+        adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
 
         maxNumNegFactor = 1.0
         while inAdaptiveDetection:
             inAdaptiveDetection = False
             nAdaptiveDetIter += 1
-            detRes = adaptiveDetectionTask.run(table=table, exposure=exposure, doSmooth=True)
+            detRes = adaptiveDetectionTask.run(table=table, exposure=exposure, doSmooth=True, **kwargs)
             sourceCat = detRes.sources
             nFootprint = len(sourceCat)
             nPeak = 0
@@ -338,10 +321,8 @@ class AdaptiveThresholdDetectionTask(Task):
         self.log.info("Perfomring final round of detection with threshold %.2f and multiplier %.1f",
                       adaptiveDetectionConfig.thresholdValue,
                       adaptiveDetectionConfig.includeThresholdMultiplier)
-        detRes = adaptiveDetectionTask.run(table=table, exposure=exposure, doSmooth=True,
-                                           backgroundToPhotometricRatio=None)
-        return Struct(
-            detections=detRes,
-            thresholdValue=adaptiveDetectionConfig.thresholdValue,
-            includeThresholdMultiplier=adaptiveDetectionConfig.includeThresholdMultiplier,
-        )
+        detections = adaptiveDetectionTask.run(table=table, exposure=exposure, doSmooth=True, **kwargs)
+        detections.thresholdValue = adaptiveDetectionConfig.thresholdValue
+        detections.includeThresholdMultiplier = adaptiveDetectionConfig.includeThresholdMultiplier
+        return detections
+
