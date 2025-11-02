@@ -178,8 +178,6 @@ class AdaptiveThresholdDetectionTask(Task):
             maxNumPeak = self.config.maxNumPeakPerBand["fallback"]
 
         # Set up and configure the adaptive detection task on first iteration.
-        inAdaptiveDetection = True
-        nAdaptiveDetIter = 0
         thresholdFactor = 1.0
         adaptiveDetectionConfig = self.config.baseline.copy()
         adaptiveDetectionConfig.thresholdPolarity = "both"
@@ -189,9 +187,8 @@ class AdaptiveThresholdDetectionTask(Task):
         adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
 
         maxNumNegFactor = 1.0
-        while inAdaptiveDetection:
-            inAdaptiveDetection = False
-            nAdaptiveDetIter += 1
+        # We use a 1-indexed iteration variable just to make logs intuitive.
+        for nAdaptiveDetIter in range(1, self.config.maxAdaptiveDetIter + 1):
             detRes = adaptiveDetectionTask.run(table=table, exposure=exposure, doSmooth=True, **kwargs)
             sourceCat = detRes.sources
             nFootprint = len(sourceCat)
@@ -231,8 +228,7 @@ class AdaptiveThresholdDetectionTask(Task):
                                   "at iter: %d.",
                                   nIsolated, self.config.sufficientIsolated, fractionIsolated,
                                   self.config.sufficientFractionIsolated, nAdaptiveDetIter)
-                    inAdaptiveDetection = False
-                    continue
+                    break
 
             if nFootprint == 0 or nPosPeak == 0:
                 thresholdFactor = 0.25
@@ -243,7 +239,6 @@ class AdaptiveThresholdDetectionTask(Task):
                 adaptiveDetectionConfig.thresholdValue = (
                     thresholdFactor*adaptiveDetectionConfig.thresholdValue)
                 adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
-                inAdaptiveDetection = False if nAdaptiveDetIter >= self.config.maxAdaptiveDetIter else True
                 continue
 
             if ((nPeak/nFootprint > self.config.maxPeakToFootRatio and nIsolated < self.config.minIsolated)
@@ -265,7 +260,6 @@ class AdaptiveThresholdDetectionTask(Task):
                 adaptiveDetectionConfig.thresholdValue = (
                     thresholdFactor*adaptiveDetectionConfig.thresholdValue)
                 adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
-                inAdaptiveDetection = False if nAdaptiveDetIter >= self.config.maxAdaptiveDetIter else True
                 continue
 
             if (nPeak > maxNumPeak or nPeakPerSrcMax > maxNumPeakPerSrcMax
@@ -292,9 +286,6 @@ class AdaptiveThresholdDetectionTask(Task):
                                      adaptiveDetectionConfig.thresholdValue,
                                      adaptiveDetectionConfig.includeThresholdMultiplier)
                     adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
-                    inAdaptiveDetection = (
-                        False if nAdaptiveDetIter >= self.config.maxAdaptiveDetIter else True
-                    )
                     continue
 
                 if nFootprint <= self.config.minFootprint:
@@ -310,11 +301,8 @@ class AdaptiveThresholdDetectionTask(Task):
                     thresholdFactor*adaptiveDetectionConfig.thresholdValue
                 )
                 adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
-                inAdaptiveDetection = True
             else:
-                inAdaptiveDetection = False
-            if nAdaptiveDetIter >= self.config.maxAdaptiveDetIter:
-                inAdaptiveDetection = False
+                break
         # Final round of detection with positive polarity
         adaptiveDetectionConfig.thresholdPolarity = "positive"
         adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
