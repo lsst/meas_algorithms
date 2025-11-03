@@ -30,7 +30,7 @@ from contextlib import contextmanager
 
 import numpy as np
 
-from lsst.pex.config import Field, Config, ConfigField, DictField, FieldValidationError, ListField
+from lsst.pex.config import Field, Config, ConfigField, DictField, FieldValidationError, ListField, RangeField
 from lsst.pipe.base import Task
 
 from lsst.afw.geom import SpanSet
@@ -327,16 +327,41 @@ class AdaptiveThresholdDetectionTask(Task):
 class AdaptiveThresholdBackgroundConfig(SubtractBackgroundConfig):
     detectedFractionBadMaskPlanes = ListField(
         "Mask planes to ignore when computing the detected fraction.", dtype=str,
-        default=["BAD", "EDGE", "NO_DATA"]
+        default=["BAD", "EDGE", "NO_DATA"],
     )
     minDetFracForFinalBg = Field(
         "Minimum detected fraction for the final background.",
-        dtype=float, default=0.02
+        dtype=float, default=0.02,
     )
     maxDetFracForFinalBg = Field(
         "Maximum detected fraction for the final background.",
-        dtype=float, default=0.93
+        dtype=float, default=0.93,
     )
+    initialDilateRadius = RangeField(
+        "Number of pixels to dilate the original mask by.",
+        dtype=int, default=10, min=1,
+    )
+    doCheckPerAmpDetectionFraction = Field(
+        "Whether to check per-amplifier detection fractions.",
+        dtype=bool, default=True,
+    )
+    maxDetectionIterationCount = Field(
+        "Maximum number of adaptive detection iterations.",
+        dtype=int, default=39,  # Original code had 40, but iterated from [0, n] inclusive.
+    )
+    detection = ConfigField(
+        "Baseline configuration for SourceDetectionTask prior to iteration.",
+        SourceDetectionConfig,
+    )
+
+    def setDefaults(self):
+        super().setDefaults()
+        self.detection.doTempLocalBackground = False
+        self.detection.nSigmaToGrow = 70.0
+        self.detection.reEstimateBackground = False
+        self.detection.includeThresholdMultiplier = 1.0
+        self.detection.thresholdValue = 2.0  # Actually used only as a floor.
+        self.detection.thresholdType = "pixel_stdev"
 
 
 class AdaptiveThresholdBackgroundTask(SubtractBackgroundTask):
@@ -369,85 +394,72 @@ class AdaptiveThresholdBackgroundTask(SubtractBackgroundTask):
         exposure.image.array += background.getImage().array
 
         with self._restore_mask_when_done(exposure) as original_mask:
-            self._dilate_original_mask(exposure, original_mask)
-            self._set_adaptive_detection_mask(exposure, median_background)
+            dilated_mask = self._dilate_original_mask(exposure, original_mask)
+            self._set_adaptive_detection_mask(exposure, median_background, dilated_mask)
             # Do not pass the original background in, since we want to wholly
             # replace it.
             return super().run(exposure=exposure, stats=stats, statsKeys=statsKeys,
                                backgroundToPhotometricRatio=backgroundToPhotometricRatio)
 
     def _dilate_original_mask(self, exposure, original_mask):
-        nPixToDilate = 10
         detected_fraction_orig = self._compute_mask_fraction(exposure.mask)
         # Dilate the current detected mask planes and don't clear
         # them in the detection step.
-        inDilating = True
-        while inDilating:
-            dilatedMask = original_mask.clone()
-            for maskName in self._DETECTED_MASK_PLANES:
+        for n_pix_to_dilate in range(self.config.initialDilateRadius, 0, -1):
+            dilated_mask = original_mask.clone()
+            for mask_name in self._DETECTED_MASK_PLANES:
                 # Compute the grown detection mask plane using SpanSet
-                detectedMaskBit = dilatedMask.getPlaneBitMask(maskName)
-                detectedMaskSpanSet = SpanSet.fromMask(dilatedMask, detectedMaskBit)
-                detectedMaskSpanSet = detectedMaskSpanSet.dilated(nPixToDilate)
-                detectedMaskSpanSet = detectedMaskSpanSet.clippedTo(dilatedMask.getBBox())
+                detected_mask_bit = dilated_mask.getPlaneBitMask(mask_name)
+                detected_mask_span_set = SpanSet.fromMask(dilated_mask, detected_mask_bit)
+                detected_mask_span_set = detected_mask_span_set.dilated(n_pix_to_dilate)
+                detected_mask_span_set = detected_mask_span_set.clippedTo(dilated_mask.getBBox())
                 # Clear the detected mask plane
-                detectedMask = dilatedMask.getMaskPlane(maskName)
-                dilatedMask.clearMaskPlane(detectedMask)
+                detectedMask = dilated_mask.getMaskPlane(mask_name)
+                dilated_mask.clearMaskPlane(detectedMask)
                 # Set the mask plane to the dilated one
-                detectedMaskSpanSet.setMask(dilatedMask, detectedMaskBit)
+                detected_mask_span_set.setMask(dilated_mask, detected_mask_bit)
 
-            detected_fraction_dilated = self._compute_mask_fraction(dilatedMask)
-            if detected_fraction_dilated < self.config.maxDetFracForFinalBg or nPixToDilate == 1:
-                inDilating = False
-            else:
-                nPixToDilate -= 1
-        exposure.mask = dilatedMask
+            detected_fraction_dilated = self._compute_mask_fraction(dilated_mask)
+            if detected_fraction_dilated < self.config.maxDetFracForFinalBg or n_pix_to_dilate == 1:
+                break
+        exposure.mask = dilated_mask
         self.log.warning("detected_fraction_orig = %.3f  detected_fraction_dilated = %.3f",
                             detected_fraction_orig, detected_fraction_dilated)
         n_above_max_per_amp = -99
         highest_detected_fraction_per_amp = float("nan")
-        doCheckPerAmpDetFraction = True
-        if doCheckPerAmpDetFraction:  # detected_fraction < maxDetFracForFinalBg:
+        if self.config.doCheckPerAmpDetectionFraction:
             n_above_max_per_amp, highest_detected_fraction_per_amp, no_zero_det_amps = \
                 self._compute_per_amp_fraction(exposure, detected_fraction_dilated)
             self.log.warning("Dilated mask: n_above_max_per_amp = %d, "
                                 "highest_detected_fraction_per_amp = %.3f",
                                 n_above_max_per_amp, highest_detected_fraction_per_amp)
+        return dilated_mask
 
-    def _set_adaptive_detection_mask(self, exposure, median_background):
-        inBackgroundDet = True
+    def _set_adaptive_detection_mask(self, exposure, median_background, dilated_mask):
         detected_fraction = 1.0
-        maxIter = 40
-        nIter = 0
-        nFootprintTemp = 1e12
-        starBackgroundDetectionConfig = SourceDetectionConfig()
-        starBackgroundDetectionConfig.doTempLocalBackground = False
-        starBackgroundDetectionConfig.nSigmaToGrow = 70.0
-        starBackgroundDetectionConfig.reEstimateBackground = False
-        starBackgroundDetectionConfig.includeThresholdMultiplier = 1.0
-        starBackgroundDetectionConfig.thresholdValue = max(2.0, 0.2*median_background)
-        starBackgroundDetectionConfig.thresholdType = "pixel_stdev"  # "stdev"
+        n_footprint_tmp = 1e12
+        detection_config = self.config.detection.copy()
+        detection_config.thresholdValue = max(detection_config.thresholdValue, 0.2*median_background)
+        detection_config.thresholdType = "pixel_stdev"  # "stdev"
 
+        no_zero_det_amps = 0
         n_above_max_per_amp = -99
         highest_detected_fraction_per_amp = float("nan")
-        doCheckPerAmpDetFraction = True
 
-        while inBackgroundDet:
-            currentThresh = starBackgroundDetectionConfig.thresholdValue
+        for n_iter in range(0, self.config.maxDetectionIterationCount):
+            current_threshold = detection_config.thresholdValue
             if detected_fraction > self.config.maxDetFracForFinalBg:
-                starBackgroundDetectionConfig.thresholdValue = 1.07*currentThresh
-                if nFootprintTemp < 3 and detected_fraction > 0.9*self.config.maxDetFracForFinalBg:
-                    starBackgroundDetectionConfig.thresholdValue = 1.2*currentThresh
+                detection_config.thresholdValue = 1.07*current_threshold
+                if n_footprint_tmp < 3 and detected_fraction > 0.9*self.config.maxDetFracForFinalBg:
+                    detection_config.thresholdValue = 1.2*current_threshold
             if n_above_max_per_amp > 1:
-                starBackgroundDetectionConfig.thresholdValue = 1.1*currentThresh
+                detection_config.thresholdValue = 1.1*current_threshold
             if detected_fraction < self.config.minDetFracForFinalBg:
-                starBackgroundDetectionConfig.thresholdValue = 0.8*currentThresh
-            starBackgroundDetectionTask = SourceDetectionTask(
-                config=starBackgroundDetectionConfig)
-            tempDetections = starBackgroundDetectionTask.detectFootprints(
-                exposure=exposure, clearMask=True)
-            exposure.mask |= dilatedMask
-            nFootprintTemp = (
+                detection_config.thresholdValue = 0.8*current_threshold
+            detection_task = SourceDetectionTask(config=detection_config)
+            tempDetections = detection_task.detectFootprints(exposure=exposure, clearMask=True)
+            exposure.mask |= dilated_mask
+            n_footprint_tmp = (
                 (len(tempDetections.positive.getFootprints()) if tempDetections is not None else 0)
                 + (len(tempDetections.negative.getFootprints()) if tempDetections.negative is not None else 0)
             )
@@ -455,29 +467,26 @@ class AdaptiveThresholdBackgroundTask(SubtractBackgroundTask):
             self.log.info("nIter = %d, thresh = %.2f: Fraction of pixels marked as DETECTED or "
                           "DETECTED_NEGATIVE in star_background_detection = %.3f "
                           "(max is %.3f; min is %.3f)",
-                          nIter, starBackgroundDetectionConfig.thresholdValue,
+                          n_iter, detection_config.thresholdValue,
                           detected_fraction, self.config.maxDetFracForFinalBg, self.config.minDetFracForFinalBg)
 
             n_amp = len(exposure.detector.getAmplifiers())
-            if doCheckPerAmpDetFraction:  # detected_fraction < maxDetFracForFinalBg:
+            if self.config.doCheckPerAmpDetectionFraction:
                 n_above_max_per_amp, highest_detected_fraction_per_amp, no_zero_det_amps = \
                     self._compute_per_amp_fraction(exposure, detected_fraction)
 
             if not no_zero_det_amps:
-                starBackgroundDetectionConfig.thresholdValue = 0.95*currentThresh
-            nIter += 1
-            if nIter > maxIter:
-                inBackgroundDet = False
+                detection_config.thresholdValue = 0.95*current_threshold
 
             if (detected_fraction < self.config.maxDetFracForFinalBg and detected_fraction > self.config.minDetFracForFinalBg
                     and n_above_max_per_amp < int(0.75*n_amp)
                     and no_zero_det_amps):
                 if (n_above_max_per_amp < max(1, int(0.15*n_amp))
                         or detected_fraction < 0.85*self.config.maxDetFracForFinalBg):
-                    inBackgroundDet = False
+                    break
                 else:
                     self.log.warning("Making small tweak....")
-                    starBackgroundDetectionConfig.thresholdValue = 1.05*currentThresh
+                    detection_config.thresholdValue = 1.05*current_threshold
             self.log.warning("n_above_max_per_amp = %d (abs max is %d)", n_above_max_per_amp, int(0.75*n_amp))
 
         self.log.info("Fraction of pixels marked as DETECTED or DETECTED_NEGATIVE is now %.5f "
@@ -485,7 +494,7 @@ class AdaptiveThresholdBackgroundTask(SubtractBackgroundTask):
                       detected_fraction, highest_detected_fraction_per_amp)
 
         if detected_fraction > self.config.maxDetFracForFinalBg:
-            exposure.mask = dilatedMask
+            exposure.mask = dilated_mask
             self.log.warning("Final fraction of pixels marked as DETECTED or DETECTED_NEGATIVE "
                              "was too large in star_background_detection = %.3f (max = %.3f). "
                              "Reverting to dilated mask from PSF detection...",
