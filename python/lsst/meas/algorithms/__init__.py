@@ -72,3 +72,7 @@ from .normalizedCalibrationFlux import *
 from .version import *
 
 import lsst.utils
+
+# adaptive_thresholds.py is intentionally not imported and lifted, to
+# (belatedly) try to limit how much code is run when just importing
+# lsst.meas.algorithm.
