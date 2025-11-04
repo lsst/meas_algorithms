@@ -77,6 +77,12 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                                     "if the computed value is greater than it). Set to None for no limit.")
     doBackgroundTweak = Field(dtype=bool, default=True,
                               doc="Tweak background level so median PSF flux of sky objects is zero?")
+    minBackgroundTweak = Field(dtype=float, default=-100.0, optional=True,
+                               doc="Mininum background tweak allowed (i.e. it will be set to this "
+                               "if the computed value is smaller than it). Set to None for no limit.")
+    maxBackgroundTweak = Field(dtype=float, default=100.0, optional=True,
+                               doc="Maximum background tweak allowed (i.e. it will be set to this "
+                               "if the computed value is greater than it). Set to None for no limit.")
     minFractionSources = Field(dtype=float, default=0.02,
                                doc="Minimum fraction of the requested number of sky sources for dynamic "
                                "detection to be considered a success. If the number of good sky sources "
@@ -140,6 +146,14 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                     msg = "minThresholdScaleFactor must be <= maxThresholdScaleFactor"
                     raise FieldValidationError(
                         DynamicDetectionConfig.doThresholdScaling, self, msg,
+                    )
+
+        if self.doBackgroundTweak:
+            if self.minBackgroundTweak and self.maxBackgroundTweak:
+                if self.minBackgroundTweak > self.maxBackgroundTweak:
+                    msg = "minBackgroundTweak must be <= maxBackgroundTweak"
+                    raise FieldValidationError(
+                        DynamicDetectionConfig.doBackgroundTweak, self, msg,
                     )
 
 
@@ -548,6 +562,18 @@ class DynamicDetectionTask(SourceDetectionTask):
                 self.finalizeFootprints(maskedImage.mask, tweakDetResults, sigma, factor=factor)
                 bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma, minFractionSourcesFactor=0.5,
                                                   isBgTweak=True).additive
+                if self.config.minBackgroundTweak and bgLevel < self.config.minBackgroundTweak:
+                    self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
+                                     "[%.2f, %.2f].  Setting tweak to lower limit: %.2f.", bgLevel,
+                                     self.config.minBackgroundTweak, self.config.maxBackgroundTweak,
+                                     self.config.minBackgroundTweak)
+                    bgLevel = self.config.minBackgroundTweak
+                if self.config.maxBackgroundTweak and bgLevel > self.config.maxBackgroundTweak:
+                    self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
+                                     "[%.2f, %.2f].  Setting tweak to upper limit: %.2f.", bgLevel,
+                                     self.config.minBackgroundTweak, self.config.maxBackgroundTweak,
+                                     self.config.maxBackgroundTweak)
+                    bgLevel = self.config.maxBackgroundTweak
             finally:
                 maskedImage.mask.array[:] = originalMask
         else:
