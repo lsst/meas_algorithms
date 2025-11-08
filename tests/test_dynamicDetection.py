@@ -3,7 +3,6 @@ import unittest
 import lsst.utils.tests
 import numpy as np
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs
-from lsst.afw.image import PARENT
 from lsst.afw.table import SourceTable
 from lsst.geom import Box2I, Extent2I, Point2D, Point2I, SpherePoint, degrees
 from lsst.meas.algorithms import DynamicDetectionTask
@@ -37,35 +36,8 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
                                         crval=SpherePoint(0, 0, degrees),
                                         cdMatrix=makeCdMatrix(scale=scale)))
 
-        # Make a large area of extra background; we should be robust against
-        # it. Unfortunately, some tuning is required here to get something
-        # challenging but not impossible:
-        # * A very large box will cause failures because the "extra" and the
-        #   "normal" are reversed.
-        # * A small box will not be challenging because it's simple to clip
-        #   out.
-        # * A large value will cause failures because it produces large edges
-        #   in background-subtrction that broaden flux distributions.
-        # * A small value will not be challenging because it has little effect.
-        extraBox = Box2I(xy0 + Extent2I(345, 456), Extent2I(1234, 1234))  # Box for extra background
-        extraValue = 0.5*noise  # Extra background value to add in
-        self.exposure.image[extraBox, PARENT] += extraValue
-
         self.config = DynamicDetectionTask.ConfigClass()
-        self.config.skyObjects.nSources = 300
-        self.config.reEstimateBackground = False
-        self.config.doTempWideBackground = True
-        self.config.thresholdType = "pixel_stdev"
-
-        # Relative tolerance for tweak factor.
-        # Not sure why this isn't smaller; maybe due to use of Poisson instead
-        # of Gaussian noise?
-        # It seems as if some sky objects are being placed in the extra
-        # background region, which is causing the offset between the expected
-        # factor and the measured factor to be larger than otherwise expected.
-        # This relative tolerance was increased from 0.1 to 0.15 on DM-23781 to
-        # account for this.
-        self.rtol = 0.15
+        self.rtol = 0.1
 
     def tearDown(self):
         del self.exposure

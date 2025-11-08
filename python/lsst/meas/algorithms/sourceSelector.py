@@ -22,6 +22,7 @@
 __all__ = ["BaseSourceSelectorConfig", "BaseSourceSelectorTask", "sourceSelectorRegistry",
            "ColorLimit", "MagnitudeLimit", "SignalToNoiseLimit", "MagnitudeErrorLimit",
            "RequireFlags", "RequireUnresolved", "RequireFiniteRaDec", "RequirePrimary",
+           "CullFromMaskedRegion", "CentroidErrorLimit",
            "ScienceSourceSelectorConfig", "ScienceSourceSelectorTask",
            "ReferenceSourceSelectorConfig", "ReferenceSourceSelectorTask",
            "NullSourceSelectorTask"
@@ -639,6 +640,41 @@ class CullFromMaskedRegion(pexConfig.Config):
         return selected
 
 
+class CentroidErrorLimit(BaseLimit):
+    """Select sources using a limit on the centroid errors.
+
+    This object can be used as a `lsst.pex.config.Config` for configuring
+    the limit, and then the `apply` method can be used to identify sources
+    in the catalog that match the configured limit.
+    """
+    centroidField = pexConfig.Field(dtype=str, default="slot_Centroid",
+                                    doc="Name of the source centroid field to use.")
+
+    def setDefaults(self):
+        self.maximum = 3.0
+
+    def apply(self, catalog):
+        """Apply the limit on source centroid errors to a catalog.
+
+        Parameters
+        ----------
+        catalog : `lsst.afw.table.SourceCatalog`
+            Catalog of sources to which the limit will be applied.
+
+        Returns
+        -------
+        selected : `numpy.ndarray`
+            Boolean array indicating for each source whether it is selected
+            (True means selected).
+        """
+        xErrField = self.centroidField + "_xErr"
+        yErrField = self.centroidField + "_yErr"
+        selected = ((np.isfinite(catalog[xErrField])) & (np.isfinite(catalog[yErrField])))
+        selected &= BaseLimit.apply(self, catalog[xErrField])
+        selected &= BaseLimit.apply(self, catalog[yErrField])
+        return selected
+
+
 class ScienceSourceSelectorConfig(pexConfig.Config):
     """Configuration for selecting science sources"""
     doFluxLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply flux limit?")
@@ -652,6 +688,7 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
                                        doc="Apply source is primary check?")
     doSkySources = pexConfig.Field(dtype=bool, default=False,
                                    doc="Include sky sources, unioned with all other criteria?")
+    doCentroidErrorLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply limit on centroid errors?")
     fluxLimit = pexConfig.ConfigField(dtype=FluxLimit, doc="Flux limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
@@ -662,6 +699,8 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
     requirePrimary = pexConfig.ConfigField(dtype=RequirePrimary,
                                            doc="Primary source criteria to apply")
     skyFlag = pexConfig.ConfigField(dtype=RequireFlags, doc="Sky source flag to include")
+    centroidErrorLimit = pexConfig.ConfigField(dtype=CentroidErrorLimit,
+                                               doc="Limit to place on centroid errors.")
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
@@ -728,6 +767,8 @@ class ScienceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.requirePrimary.apply(sourceCat)
         if self.config.doSkySources:
             selected |= self.config.skyFlag.apply(sourceCat)
+        if self.config.doCentroidErrorLimit:
+            selected &= self.config.centroidErrorLimit.apply(sourceCat)
 
         self.log.info("Selected %d/%d sources", selected.sum(), len(sourceCat))
 

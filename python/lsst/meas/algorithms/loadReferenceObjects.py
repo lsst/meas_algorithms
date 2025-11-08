@@ -147,6 +147,22 @@ class LoadReferenceObjectsConfig(pexConfig.Config):
         dtype=bool,
         default=False,
     )
+    maxRefObjects = pexConfig.Field(
+        doc="Maximum number of reference objects to send to the matcher. Setting "
+            "this to a reasonable value may be desirable for memory reasons "
+            "(particularly in very crowded field).",
+        dtype=int,
+        default=None,
+        optional=True,
+    )
+    minRefMag = pexConfig.Field(
+        doc="Minimum (i.e. brightest) magnitude for reference catalog (the brightest "
+            "sources are typically saturated in the images, so may as well remove "
+            "them from the reference catalog).",
+        dtype=float,
+        default=None,
+        optional=True,
+    )
 
     def validate(self):
         super().validate()
@@ -232,7 +248,8 @@ class ReferenceObjectLoader:
                 self.log.debug("No epoch provided: not applying proper motion corrections to refcat.")
                 return
 
-        # Warn/raise for a catalog in an incorrect format, if epoch was specified.
+        # Warn/raise for a catalog in an incorrect format, if epoch was
+        # specified.
         if "pm_ra" in catalog.schema:
             pm_ra_radians = False
             field = catalog.schema["pm_ra"].asField()
@@ -290,10 +307,10 @@ class ReferenceObjectLoader:
         mapper.editOutputSchema().disconnectAliases()
 
         if centroids:
-            # Add and initialize centroid and hasCentroid fields (these are
-            # added after loading to avoid wasting space in the saved catalogs).
-            # The new fields are automatically initialized to (nan, nan) and
-            # False so no need to set them explicitly.
+            # Add and initialize centroid and hasCentroid fields (these
+            # are added after loading to avoid wasting space in the saved
+            # catalogs). The new fields are automatically initialized to
+            # (nan, nan) and False so no need to set them explicitly.
             mapper.editOutputSchema().addField("centroid_x", type=float, doReplace=True)
             mapper.editOutputSchema().addField("centroid_y", type=float, doReplace=True)
             mapper.editOutputSchema().addField("hasCentroid", type="Flag", doReplace=True)
@@ -665,11 +682,12 @@ class ReferenceObjectLoader:
                       regionLat.getA().asDegrees(), regionLat.getB().asDegrees())
         if filtFunc is None:
             filtFunc = _FilterCatalog(region)
-        # filter out all the regions supplied by the constructor that do not overlap
+        # Filter out all the regions supplied by the constructor that do not
+        # overlap.
         overlapList = []
         for dataId, refCat in zip(self.dataIds, self.refCats):
-            # SphGeom supports some objects intersecting others, but is not symmetric,
-            # try the intersect operation in both directions
+            # SphGeom supports some objects intersecting others, but is not
+            # symmetric, try the intersect operation in both directions.
             try:
                 intersects = dataId.region.intersects(region)
             except TypeError:
@@ -678,10 +696,27 @@ class ReferenceObjectLoader:
             if intersects:
                 overlapList.append((dataId, refCat))
 
-        if len(overlapList) == 0:
+        nOverlap = len(overlapList)
+        if nOverlap == 0:
             raise RuntimeError("No reference tables could be found for input region")
 
+        if self.config.maxRefObjects is not None:
+            maxRefObjectsPerInput = int(self.config.maxRefObjects/nOverlap)
+        else:
+            maxRefObjectsPerInput = None
+
+        if self.config.anyFilterMapsToThis is not None:
+            refFluxField = self.config.anyFilterMapsToThis + "_flux"
+        else:
+            refFluxField = None
+
         firstCat = overlapList[0][1].get()
+        # Filter catalog if limits were imposed by the maxRefObjects and/or
+        # minRefMag config settings.
+        if (refFluxField is not None
+                and (maxRefObjectsPerInput is not None or self.config.minRefMag is not None)):
+            firstCat = filterRefCat(firstCat, refFluxField, maxRefObjectsPerInput,
+                                    minRefMag=self.config.minRefMag, log=self.log)
         refCat = filtFunc(firstCat, overlapList[0][0].region)
         trimmedAmount = len(firstCat) - len(refCat)
 
@@ -692,7 +727,13 @@ class ReferenceObjectLoader:
             if tmpCat.schema != firstCat.schema:
                 raise TypeError("Reference catalogs have mismatching schemas")
 
-            filteredCat = filtFunc(tmpCat, dataId.region)
+            if maxRefObjectsPerInput is not None or self.config.minRefMag is not None:
+                filteredCat = filterRefCat(tmpCat, refFluxField, maxRefObjectsPerInput,
+                                           minRefMag=self.config.minRefMag, log=self.log)
+            else:
+                filteredCat = tmpCat
+            filteredCat = filtFunc(filteredCat, dataId.region)
+
             refCat.extend(filteredCat)
             trimmedAmount += len(tmpCat) - len(filteredCat)
 
@@ -802,6 +843,86 @@ class ReferenceObjectLoader:
             if version > LATEST_FORMAT_VERSION:
                 raise ValueError(f"Unsupported refcat format version: {version} > {LATEST_FORMAT_VERSION}.")
         return pipeBase.Struct(schema=expandedEmptyCat.schema, fluxField=fluxField)
+
+
+def filterRefCat(refCat, refFluxField, maxRefObjects=None, minRefMag=None, log=None):
+    """Sub-select a number of reference objects starting from the brightest
+    and maxing out at the number specified by maxRefObjects.
+
+    No further trimming is done if len(refCat) > maxRefObjects after trimming
+    to minRefMag.
+
+    Parameters
+    ----------
+    refCat : `lsst.afw.table.SimpleCatalog`
+        Catalog of reference objects to trim.
+    refFluxField : `str`
+        Field of refCat to use for flux.
+    maxRefObjects : `int` or `None`, optional
+        Maximum number of reference objects (i.e. trim refCat down to
+        this number of objects).
+    minRefMag : `int` or `None`, optional
+        Minimum (i.e. brightest) magnitude to include in the reference
+        catalog.
+    log : `lsst.log.Log` or `logging.Logger` or `None`, optional
+        Logger object used to write out messages. If `None`, no messages
+        will be logged.
+
+    Returns
+    -------
+    filteredCat : `lsst.afw.table.SimpleCatalog`
+        Catalog trimmed to the maximum brightness and/or maximum number set
+        in the task config from the brightest flux down.
+    """
+    if maxRefObjects is None and minRefMag is None:
+        if log is not None:
+            log.debug("No filtering of the reference catalog has been actually requested "
+                      "(i.e maxRefObjects and minRefMag are both `None`)  Returning "
+                      "original catalog.")
+        return refCat
+
+    filteredCat = refCat.copy(deep=True)
+
+    if minRefMag is not None:
+        refFlux = filteredCat.get(refFluxField)
+        refMag = (refFlux*astropy.units.nJy).to_value(astropy.units.ABmag)
+        if numpy.nanmin(refMag) <= minRefMag:
+            filteredCat = filteredCat[(refMag > minRefMag)].copy(deep=True)
+            if log is not None:
+                log.info("Trimming the loaded reference catalog to %s > %.2f", refFluxField, minRefMag)
+
+    if maxRefObjects is not None:
+        if len(filteredCat) <= maxRefObjects:
+            if log is not None:
+                log.debug("Number of reference objects in reference catalog = %d (max is %d). "
+                          "Returning catalog without further filtering.",
+                          len(filteredCat), maxRefObjects)
+            return filteredCat
+        if log is not None:
+            log.info("Trimming number of reference objects in refCat from %d down to %d. ",
+                     len(refCat), maxRefObjects)
+        if not filteredCat.isContiguous():
+            filteredCat = filteredCat.copy(deep=True)
+
+        refFlux = filteredCat.get(refFluxField)
+        sortedRefFlux = refFlux[refFlux.argsort()]
+        minRefFlux = sortedRefFlux[-(maxRefObjects + 1)]
+
+        selected = (filteredCat.get(refFluxField) > minRefFlux)
+        filteredCat = filteredCat[selected]
+
+    if not filteredCat.isContiguous():
+        filteredCat = filteredCat.copy(deep=True)
+
+    if log is not None:
+        if len(filteredCat) > 0:
+            refFlux = filteredCat[refFluxField]
+            refMag = (refFlux*astropy.units.nJy).to_value(astropy.units.ABmag)
+            log.info("Reference catalog magnitude range for filter %s after trimming: refMagMin = %.2f; "
+                     "refMagMax = %.2f", refFluxField, numpy.nanmin(refMag), numpy.nanmax(refMag))
+        else:
+            log.warning("Length of reference catalog after filtering is 0.")
+    return filteredCat
 
 
 def getRefFluxField(schema, filterName):

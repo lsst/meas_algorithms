@@ -1,10 +1,13 @@
 
-__all__ = ["DynamicDetectionConfig", "DynamicDetectionTask", "InsufficientSourcesError"]
+__all__ = [
+    "DynamicDetectionConfig",
+    "DynamicDetectionTask",
+    "InsufficientSourcesError",
+]
 
 import numpy as np
 
 from lsst.pex.config import Field, ConfigurableField
-from lsst.pipe.base import Struct
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -13,6 +16,7 @@ from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
+from lsst.pipe.base import Struct
 
 import lsst.afw.image
 import lsst.afw.math
@@ -99,6 +103,15 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                            "suitable locations to lay down sky objects. To allow for best effort "
                            "sky source placement, if True, this allows for a slight erosion of "
                            "the detection masks.")
+    maxPeakToFootRatio = Field(dtype=float, default=150.0,
+                               doc="Maximum ratio of peak per footprint in the detection mask. "
+                               "This is to help prevent single contiguous footprints that nothing "
+                               "can be done with (i.e. deblending will be skipped). If the current "
+                               "detection plane does not satisfy this constraint, the detection "
+                               "threshold is increased iteratively until it is. This behaviour is "
+                               "intended to be an effective no-op for most \"typical\" scenes/standard "
+                               "quality observations, but can avoid total meltdown in, e.g. very "
+                               "crowded regions.")
 
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)
@@ -139,7 +152,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         # Set up forced measurement.
         config = ForcedMeasurementTask.ConfigClass()
-        config.plugins.names = ['base_TransformedCentroid', 'base_PsfFlux', 'base_LocalBackground']
+        config.plugins.names = ["base_TransformedCentroid", "base_PsfFlux"]
         # We'll need the "centroid" and "psfFlux" slots
         for slot in ("shape", "psfShape", "apFlux", "modelFlux", "gaussianFlux", "calibFlux"):
             setattr(config.slots, slot, None)
@@ -270,10 +283,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         # Calculate new threshold
         fluxes = catalog["base_PsfFlux_instFlux"]
         area = catalog["base_PsfFlux_area"]
-        bg = catalog["base_LocalBackground_instFlux"]
-
-        good = (~catalog["base_PsfFlux_flag"] & ~catalog["base_LocalBackground_flag"]
-                & np.isfinite(fluxes) & np.isfinite(area) & np.isfinite(bg))
+        good = (~catalog["base_PsfFlux_flag"] & np.isfinite(fluxes))
 
         if good.sum() < minNumSources:
             if not isBgTweak:
@@ -302,9 +312,9 @@ class DynamicDetectionTask(SourceDetectionTask):
         else:
             self.log.info("Number of good sky sources used for dynamic detection background tweak:"
                           " %d (of %d requested).", good.sum(), self.skyObjects.config.nSources)
-        bgMedian = np.median((fluxes/area)[good])
 
-        lq, uq = np.percentile((fluxes - bg*area)[good], [25.0, 75.0])
+        bgMedian = np.median((fluxes/area)[good])
+        lq, uq = np.percentile(fluxes[good], [25.0, 75.0])
         stdevMeas = 0.741*(uq - lq)
         medianError = np.median(catalog["base_PsfFlux_instFluxErr"][good])
         if wcsIsNone:
@@ -421,22 +431,59 @@ class DynamicDetectionTask(SourceDetectionTask):
             # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
             seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
             threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
-            factor = threshResults.multiplicative
-            self.log.info("Modifying configured detection threshold by factor %f to %f",
+            minMultiplicative = 0.5
+            if threshResults.multiplicative < minMultiplicative:
+                self.log.warning("threshResults.multiplicative = %.2f is less than minimum value (%.2f). "
+                                 "Setting to %.2f.", threshResults.multiplicative, minMultiplicative,
+                                 minMultiplicative)
+            factor = max(minMultiplicative, threshResults.multiplicative)
+            self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
                           factor, factor*self.config.thresholdValue)
 
-            # Blow away preliminary (low threshold) detection mask
-            self.clearMask(maskedImage.mask)
-            if not clearMask:
-                maskedImage.mask.array |= oldDetected
+            growOverride = None
+            inFinalize = True
+            while inFinalize:
+                inFinalize = False
+                # Blow away preliminary (low threshold) detection mask
+                self.clearMask(maskedImage.mask)
+                if not clearMask:
+                    maskedImage.mask.array |= oldDetected
 
-            # Rinse and repeat thresholding with new calculated threshold
-            results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
-            results.prelim = prelim
-            results.background = background if background is not None else lsst.afw.math.BackgroundList()
-            if self.config.doTempLocalBackground:
-                self.applyTempLocalBackground(exposure, middle, results)
-            self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor)
+                # Rinse and repeat thresholding with new calculated threshold
+                results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
+                results.prelim = prelim
+                results.background = background if background is not None else lsst.afw.math.BackgroundList()
+                if self.config.doTempLocalBackground:
+                    self.applyTempLocalBackground(exposure, middle, results)
+                self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor,
+                                        growOverride=growOverride)
+                self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
+                                 results.numPosPeaks/results.numPos,
+                                 self.config.maxPeakToFootRatio)
+                if results.numPosPeaks/results.numPos > self.config.maxPeakToFootRatio:
+                    if results.numPosPeaks/results.numPos > 3*self.config.maxPeakToFootRatio:
+                        factor *= 1.4
+                    else:
+                        factor *= 1.2
+                    if factor > 2.0:
+                        if growOverride is None:
+                            growOverride = 0.75*self.config.nSigmaToGrow
+                        else:
+                            growOverride *= 0.75
+                        self.log.warning("Decreasing nSigmaToGrow to %.2f", growOverride)
+                    if factor >= 5:
+                        self.log.warning("New theshold value would be > 5 times the initially requested "
+                                         "one (%.2f > %.2f). Leaving inFinalize iteration without "
+                                         "getting the number of peaks per footprint below %.1f",
+                                         factor*self.config.thresholdValue, self.config.thresholdValue,
+                                         self.config.maxPeakToFootRatio)
+                        inFinalize = False
+                    else:
+                        inFinalize = True
+                        self.log.warning("numPosPeaks/numPos (%d) > maxPeakPerFootprint (%.1f). "
+                                         "Increasing threshold factor to %.2f and re-running,",
+                                         results.numPosPeaks/results.numPos, self.config.maxPeakToFootRatio,
+                                         factor)
 
             self.clearUnwantedResults(maskedImage.mask, results)
 
@@ -445,15 +492,22 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         self.display(exposure, results, middle)
 
+        # Re-do the background tweak after any temporary backgrounds have
+        # been restored.
+        #
+        # But we want to keep any large-scale background (e.g., scattered
+        # light from bright stars) from being selected for sky objects in
+        # the calculation, so do another detection pass without either the
+        # local or wide temporary background subtraction; the DETECTED
+        # pixels will mark the area to ignore.
+
+        # The following if/else is to workaround the fact that it is
+        # currently not possible to persist an empty BackgroundList, so
+        # we instead set the value of the backround tweak to 0.0 if
+        # doBackgroundTweak is False and call the tweakBackground function
+        # regardless to get at least one background into the list (do we
+        # need a TODO here?).
         if self.config.doBackgroundTweak:
-            # Re-do the background tweak after any temporary backgrounds have
-            # been restored.
-            #
-            # But we want to keep any large-scale background (e.g., scattered
-            # light from bright stars) from being selected for sky objects in
-            # the calculation, so do another detection pass without either the
-            # local or wide temporary background subtraction; the DETECTED
-            # pixels will mark the area to ignore.
             originalMask = maskedImage.mask.array.copy()
             try:
                 self.clearMask(exposure.mask)
@@ -464,7 +518,9 @@ class DynamicDetectionTask(SourceDetectionTask):
                                                   isBgTweak=True).additive
             finally:
                 maskedImage.mask.array[:] = originalMask
-            self.tweakBackground(exposure, bgLevel, results.background)
+        else:
+            bgLevel = 0.0
+        self.tweakBackground(exposure, bgLevel, results.background)
 
         return results
 
@@ -485,7 +541,8 @@ class DynamicDetectionTask(SourceDetectionTask):
         bg : `lsst.afw.math.BackgroundMI`
             Constant background model.
         """
-        self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
+        if bgLevel != 0.0:
+            self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
         exposure.image -= bgLevel
         bgStats = lsst.afw.image.MaskedImageF(1, 1)
         bgStats.set(bgLevel, 0, bgLevel)
@@ -564,7 +621,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                           format(nPixDetNeg, 100*nPixDetNeg/nPix))
             if nPixDetNeg/nPix > brightMaskFractionMax or nPixDet/nPix > brightMaskFractionMax:
                 self.log.warn("Too high a fraction (%.1f > %.1f) of pixels were masked with current "
-                              "\"bright\" detection round thresholds.  Increasing by a factor of %f "
+                              "\"bright\" detection round thresholds.  Increasing by a factor of %.2f "
                               "and trying again.", max(nPixDetNeg, nPixDet)/nPix,
                               brightMaskFractionMax, self.config.bisectFactor)
 
