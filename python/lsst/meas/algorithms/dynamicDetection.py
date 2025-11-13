@@ -7,7 +7,7 @@ __all__ = [
 
 import numpy as np
 
-from lsst.pex.config import Field, ConfigurableField
+from lsst.pex.config import Field, ConfigurableField, FieldValidationError
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
@@ -16,7 +16,7 @@ from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
-from lsst.pipe.base import Struct
+from lsst.pipe.base import NoWorkFound, Struct
 
 import lsst.afw.image
 import lsst.afw.math
@@ -67,8 +67,25 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                                 doc="Multiplier for the negative (relative to positive) polarity "
                                 "detections threshold to use for first pass (to find sky objects).")
     skyObjects = ConfigurableField(target=SkyObjectsTask, doc="Generate sky objects.")
+    minGoodPixelFraction = Field(dtype=float, default=0.005,
+                                 doc="Minimum fraction of 'good' pixels required to be deemed "
+                                 "worthwhile for an attempt at further processing.")
+    doThresholdScaling = Field(dtype=bool, default=True,
+                               doc="Scale the threshold level to get empirically measured S/N requested?")
+    minThresholdScaleFactor = Field(dtype=float, default=0.1, optional=True,
+                                    doc="Mininum threshold scaling allowed (i.e. it will be set to this "
+                                    "if the computed value is smaller than it). Set to None for no limit.")
+    maxThresholdScaleFactor = Field(dtype=float, default=10.0, optional=True,
+                                    doc="Maximum threshold scaling allowed (i.e. it will be set to this "
+                                    "if the computed value is greater than it). Set to None for no limit.")
     doBackgroundTweak = Field(dtype=bool, default=True,
                               doc="Tweak background level so median PSF flux of sky objects is zero?")
+    minBackgroundTweak = Field(dtype=float, default=-100.0, optional=True,
+                               doc="Mininum background tweak allowed (i.e. it will be set to this "
+                               "if the computed value is smaller than it). Set to None for no limit.")
+    maxBackgroundTweak = Field(dtype=float, default=100.0, optional=True,
+                               doc="Maximum background tweak allowed (i.e. it will be set to this "
+                               "if the computed value is greater than it). Set to None for no limit.")
     minFractionSources = Field(dtype=float, default=0.02,
                                doc="Minimum fraction of the requested number of sky sources for dynamic "
                                "detection to be considered a success. If the number of good sky sources "
@@ -125,6 +142,22 @@ class DynamicDetectionConfig(SourceDetectionConfig):
 
         if self.doApplyFlatBackgroundRatio:
             raise ValueError("DynamicDetectionTask does not support doApplyFlatBackgroundRatio.")
+
+        if self.doThresholdScaling:
+            if self.minThresholdScaleFactor and self.maxThresholdScaleFactor:
+                if self.minThresholdScaleFactor > self.maxThresholdScaleFactor:
+                    msg = "minThresholdScaleFactor must be <= maxThresholdScaleFactor"
+                    raise FieldValidationError(
+                        DynamicDetectionConfig.doThresholdScaling, self, msg,
+                    )
+
+        if self.doBackgroundTweak:
+            if self.minBackgroundTweak and self.maxBackgroundTweak:
+                if self.minBackgroundTweak > self.maxBackgroundTweak:
+                    msg = "minBackgroundTweak must be <= maxBackgroundTweak"
+                    raise FieldValidationError(
+                        DynamicDetectionConfig.doBackgroundTweak, self, msg,
+                    )
 
 
 class DynamicDetectionTask(SourceDetectionTask):
@@ -399,8 +432,12 @@ class DynamicDetectionTask(SourceDetectionTask):
         nPix = maskedImage.mask.array.size
         badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
         nGoodPix = np.sum(maskedImage.mask.array & badPixelMask == 0)
-        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.1f}% of total)".
+        self.log.info("Number of good data pixels (i.e. not NO_DATA or BAD): {} ({:.2f}% of total)".
                       format(nGoodPix, 100*nGoodPix/nPix))
+        if nGoodPix/nPix < self.config.minGoodPixelFraction:
+            msg = (f"Image has a very low good pixel fraction ({nGoodPix} of {nPix}), so not worth further "
+                   "consideration")
+            raise NoWorkFound(msg)
 
         with self.tempWideBackgroundContext(exposure):
             # Could potentially smooth with a wider kernel than the PSF in
@@ -409,36 +446,52 @@ class DynamicDetectionTask(SourceDetectionTask):
             psf = self.getPsf(exposure, sigma=sigma)
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
 
-            if self.config.doBrightPrelimDetection:
-                brightDetectedMask = self._computeBrightDetectionMask(maskedImage, convolveResults)
+            if self.config.doThresholdScaling:
+                if self.config.doBrightPrelimDetection:
+                    brightDetectedMask = self._computeBrightDetectionMask(maskedImage, convolveResults)
+            else:
+                prelim = None
+                factor = 1.0
+
+            # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
+            seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
 
             middle = convolveResults.middle
             sigma = convolveResults.sigma
-            prelim = self.applyThreshold(
-                middle, maskedImage.getBBox(), factor=self.config.prelimThresholdFactor,
-                factorNeg=self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
-            )
-            self.finalizeFootprints(
-                maskedImage.mask, prelim, sigma, factor=self.config.prelimThresholdFactor,
-                factorNeg=self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
-            )
-            if self.config.doBrightPrelimDetection:
-                # Combine prelim and bright detection masks for multiplier
-                # determination.
-                maskedImage.mask.array |= brightDetectedMask
+            if self.config.doThresholdScaling:
+                prelim = self.applyThreshold(
+                    middle, maskedImage.getBBox(), factor=self.config.prelimThresholdFactor,
+                    factorNeg=self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
+                )
+                self.finalizeFootprints(
+                    maskedImage.mask, prelim, sigma, factor=self.config.prelimThresholdFactor,
+                    factorNeg=self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
+                )
+                if self.config.doBrightPrelimDetection:
+                    # Combine prelim and bright detection masks for multiplier
+                    # determination.
+                    maskedImage.mask.array |= brightDetectedMask
 
-            # Calculate the proper threshold
-            # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
-            seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
-            threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
-            minMultiplicative = 0.5
-            if threshResults.multiplicative < minMultiplicative:
-                self.log.warning("threshResults.multiplicative = %.2f is less than minimum value (%.2f). "
-                                 "Setting to %.2f.", threshResults.multiplicative, minMultiplicative,
-                                 minMultiplicative)
-            factor = max(minMultiplicative, threshResults.multiplicative)
-            self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
-                          factor, factor*self.config.thresholdValue)
+                # Calculate the proper threshold
+                threshResults = self.calculateThreshold(exposure, seed, sigma=sigma)
+                if (self.config.minThresholdScaleFactor
+                        and threshResults.multiplicative < self.config.minThresholdScaleFactor):
+                    self.log.warning("Measured threshold scaling factor (%.2f) is outside [min, max] "
+                                     "bounds [%.2f, %.2f].  Setting factor to lower limit: %.2f.",
+                                     threshResults.multiplicative, self.config.minThresholdScaleFactor,
+                                     self.config.maxThresholdScaleFactor, self.config.minThresholdScaleFactor)
+                    factor = self.config.minThresholdScaleFactor
+                elif (self.config.maxThresholdScaleFactor
+                        and threshResults.multiplicative > self.config.maxThresholdScaleFactor):
+                    self.log.warning("Measured threshold scaling factor (%.2f) is outside [min, max] "
+                                     "bounds [%.2f, %.2f].  Setting factor to upper limit: %.2f.",
+                                     threshResults.multiplicative, self.config.minThresholdScaleFactor,
+                                     self.config.maxThresholdScaleFactor, self.config.maxThresholdScaleFactor)
+                    factor = self.config.maxThresholdScaleFactor
+                else:
+                    factor = threshResults.multiplicative
+                self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
+                              factor, factor*self.config.thresholdValue)
 
             growOverride = None
             inFinalize = True
@@ -516,6 +569,18 @@ class DynamicDetectionTask(SourceDetectionTask):
                 self.finalizeFootprints(maskedImage.mask, tweakDetResults, sigma, factor=factor)
                 bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma, minFractionSourcesFactor=0.5,
                                                   isBgTweak=True).additive
+                if self.config.minBackgroundTweak and bgLevel < self.config.minBackgroundTweak:
+                    self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
+                                     "[%.2f, %.2f].  Setting tweak to lower limit: %.2f.", bgLevel,
+                                     self.config.minBackgroundTweak, self.config.maxBackgroundTweak,
+                                     self.config.minBackgroundTweak)
+                    bgLevel = self.config.minBackgroundTweak
+                if self.config.maxBackgroundTweak and bgLevel > self.config.maxBackgroundTweak:
+                    self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
+                                     "[%.2f, %.2f].  Setting tweak to upper limit: %.2f.", bgLevel,
+                                     self.config.minBackgroundTweak, self.config.maxBackgroundTweak,
+                                     self.config.maxBackgroundTweak)
+                    bgLevel = self.config.maxBackgroundTweak
             finally:
                 maskedImage.mask.array[:] = originalMask
         else:
