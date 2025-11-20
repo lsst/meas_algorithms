@@ -510,33 +510,37 @@ class DynamicDetectionTask(SourceDetectionTask):
                     self.applyTempLocalBackground(exposure, middle, results)
                 self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor,
                                         growOverride=growOverride)
-                self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
-                                 results.numPosPeaks/results.numPos,
-                                 self.config.maxPeakToFootRatio)
-                if results.numPosPeaks/results.numPos > self.config.maxPeakToFootRatio:
-                    if results.numPosPeaks/results.numPos > 3*self.config.maxPeakToFootRatio:
-                        factor *= 1.4
-                    else:
-                        factor *= 1.2
-                    if factor > 2.0:
-                        if growOverride is None:
-                            growOverride = 0.75*self.config.nSigmaToGrow
+                if results.numPos == 0:
+                    msg = "No footprints were detected, so further processing would be moot"
+                    raise NoWorkFound(msg)
+                else:
+                    self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
+                                     results.numPosPeaks/results.numPos,
+                                     self.config.maxPeakToFootRatio)
+                    if results.numPosPeaks/results.numPos > self.config.maxPeakToFootRatio:
+                        if results.numPosPeaks/results.numPos > 3*self.config.maxPeakToFootRatio:
+                            factor *= 1.4
                         else:
-                            growOverride *= 0.75
-                        self.log.warning("Decreasing nSigmaToGrow to %.2f", growOverride)
-                    if factor >= 5:
-                        self.log.warning("New theshold value would be > 5 times the initially requested "
-                                         "one (%.2f > %.2f). Leaving inFinalize iteration without "
-                                         "getting the number of peaks per footprint below %.1f",
-                                         factor*self.config.thresholdValue, self.config.thresholdValue,
-                                         self.config.maxPeakToFootRatio)
-                        inFinalize = False
-                    else:
-                        inFinalize = True
-                        self.log.warning("numPosPeaks/numPos (%d) > maxPeakPerFootprint (%.1f). "
-                                         "Increasing threshold factor to %.2f and re-running,",
-                                         results.numPosPeaks/results.numPos, self.config.maxPeakToFootRatio,
-                                         factor)
+                            factor *= 1.2
+                        if factor > 2.0:
+                            if growOverride is None:
+                                growOverride = 0.75*self.config.nSigmaToGrow
+                            else:
+                                growOverride *= 0.75
+                            self.log.warning("Decreasing nSigmaToGrow to %.2f", growOverride)
+                        if factor >= 5:
+                            self.log.warning("New theshold value would be > 5 times the initially requested "
+                                             "one (%.2f > %.2f). Leaving inFinalize iteration without "
+                                             "getting the number of peaks per footprint below %.1f",
+                                             factor*self.config.thresholdValue, self.config.thresholdValue,
+                                             self.config.maxPeakToFootRatio)
+                            inFinalize = False
+                        else:
+                            inFinalize = True
+                            self.log.warning("numPosPeaks/numPos (%d) > maxPeakPerFootprint (%.1f). "
+                                             "Increasing threshold factor to %.2f and re-running,",
+                                             results.numPosPeaks/results.numPos,
+                                             self.config.maxPeakToFootRatio, factor)
 
             self.clearUnwantedResults(maskedImage.mask, results)
 
