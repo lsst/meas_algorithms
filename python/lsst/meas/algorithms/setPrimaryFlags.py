@@ -80,7 +80,7 @@ class SetPrimaryFlagsTask(Task):
             doc=primaryDoc,
         )
 
-        if "deblend_nChild" in schema.getNames() or "deblend_scarletFlux" in schema.getNames():
+        if "deblend_nChild" in schema.getNames():
             self.includeDeblend = True
             self.isDeblendedSourceKey = self.schema.addField(
                 "detect_isDeblendedSource", type="Flag",
