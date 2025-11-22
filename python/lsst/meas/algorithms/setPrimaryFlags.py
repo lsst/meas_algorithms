@@ -285,26 +285,21 @@ def getDeblendPrimaryFlags(sources):
         True for each source that is a "DeblendedSourceModel"
         as defined above.
     """
-    nChildKey = "deblend_nChild"
-    nChild = sources[nChildKey]
     parent = sources["parent"]
 
     if "deblend_scarletFlux" in sources.schema:
-        # The number of peaks in the sources footprint.
-        # This (may be) different than nChild,
-        # the number of deblended sources in the catalog,
-        # because some peaks might have been culled during deblending.
-        nPeaks = sources["deblend_nPeaks"]
+        # The number of peaks in the parent footprint
         parentNChild = sources["deblend_parentNChild"]
-        # It is possible for a catalog to contain a hierarchy of sources,
-        # so we mark the leaves (end nodes of the hierarchy tree with no
-        # children).
-        isLeaf = nPeaks == 1
+        # The number of peaks in the deconvolved-parent footprint
+        blendNChild = sources["deblend_blendNChild"]
         fromBlend = parentNChild > 1
-        isIsolated = isLeaf & ((parent == 0) | parentNChild == 1)
-        isDeblendedSource = (fromBlend & isLeaf) | (isIsolated & (parent == 0))
-        isDeblendedModelSource = (parent != 0) & isLeaf
+        isIsolated = (blendNChild == 0) | (parentNChild == 1)
+        isDeblendedSource = (blendNChild == 0) | (parentNChild > 1)
+        isDeblendedModelSource = parent != 0
     else:
+        nChildKey = "deblend_nChild"
+        nChild = sources[nChildKey]
+        parent = sources["parent"]
         # Set the flags for meas_deblender
         fromBlend = parent != 0
         isIsolated = (nChild == 0) & (parent == 0)
