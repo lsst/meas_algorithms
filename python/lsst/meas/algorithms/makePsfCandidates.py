@@ -35,8 +35,8 @@ from . import makePsfCandidate
 class MakePsfCandidatesConfig(pexConfig.Config):
     kernelSize = pexConfig.Field[int](
         doc="Size of the postage stamp in pixels (excluding the border) around each star that is extracted "
-            "for fitting. Should be odd and preferably at least 25.",
-        default=25,
+        "for fitting. Should be odd and preferably at least 25.",
+        default=27,
     )
     borderWidth = pexConfig.Field[int](
         doc="Number of pixels to ignore around the edge of PSF candidate postage stamps",
@@ -45,8 +45,8 @@ class MakePsfCandidatesConfig(pexConfig.Config):
 
 
 class MakePsfCandidatesTask(pipeBase.Task):
-    """Create PSF candidates given an input catalog.
-    """
+    """Create PSF candidates given an input catalog."""
+
     ConfigClass = MakePsfCandidatesConfig
     _DefaultName = "makePsfCandidates"
 
@@ -112,8 +112,8 @@ class MakePsfCandidatesTask(pipeBase.Task):
         for star in starCat:
             psfCandidate = makePsfCandidate(star, exposure)
             try:
-                psfCandidate.setPsfColorValue(star['psf_color_value'])
-                psfCandidate.setPsfColorType(star['psf_color_type'])
+                psfCandidate.setPsfColorValue(star["psf_color_value"])
+                psfCandidate.setPsfColorType(star["psf_color_type"])
             except Exception:
                 psfCandidate.setPsfColorValue(np.nan)
                 psfCandidate.setPsfColorType("")
@@ -123,26 +123,31 @@ class MakePsfCandidatesTask(pipeBase.Task):
                 # (and hence psfCandidate's exact type)
                 if not didSetSize:
                     psfCandidate.setBorderWidth(self.config.borderWidth)
-                    psfCandidate.setWidth(self.config.kernelSize + 2*self.config.borderWidth)
-                    psfCandidate.setHeight(self.config.kernelSize + 2*self.config.borderWidth)
+                    psfCandidate.setWidth(self.config.kernelSize + 2 * self.config.borderWidth)
+                    psfCandidate.setHeight(self.config.kernelSize + 2 * self.config.borderWidth)
                     didSetSize = True
 
                 im = psfCandidate.getMaskedImage().getImage()
             except lsst.pex.exceptions.LengthError:
-                self.log.warning("Could not get stamp for psfCandidate with source id=%s: %s",
-                                 star.getId(), psfCandidate)
+                self.log.warning(
+                    "Could not get stamp for psfCandidate with source id=%s: %s", star.getId(), psfCandidate
+                )
                 continue
             except lsst.pex.exceptions.Exception as e:
-                self.log.error("%s raised making psfCandidate from source id=%s: %s",
-                               e.__class__.__name__, star.getId(), psfCandidate)
+                self.log.error(
+                    "%s raised making psfCandidate from source id=%s: %s",
+                    e.__class__.__name__,
+                    star.getId(),
+                    psfCandidate,
+                )
                 self.log.error("psfCandidate exception: %s", e)
                 continue
 
             vmax = afwMath.makeStatistics(im, afwMath.MAX).getValue()
             if not np.isfinite(vmax):
                 continue
-            if 'psf_max_value' in star.schema:
-                star['psf_max_value'] = vmax
+            if "psf_max_value" in star.schema:
+                star["psf_max_value"] = vmax
             psfCandidateList.append(psfCandidate)
             goodStarCat.append(star)
 
