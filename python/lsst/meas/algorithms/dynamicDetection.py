@@ -3,6 +3,7 @@ __all__ = [
     "DynamicDetectionConfig",
     "DynamicDetectionTask",
     "InsufficientSourcesError",
+    "ZeroFootprintError",
 ]
 
 import numpy as np
@@ -17,14 +18,14 @@ from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
-from lsst.pipe.base import Struct
+from lsst.pipe.base import AlgorithmError, Struct
 
 import lsst.afw.image
 import lsst.afw.math
 import lsst.geom as geom
 
 
-class InsufficientSourcesError(Exception):
+class InsufficientSourcesError(AlgorithmError):
     """Raised if an insufficient number of sky sources are found for
     dynamic detection.
 
@@ -45,6 +46,33 @@ class InsufficientSourcesError(Exception):
         super().__init__(msg, **kwargs)
         self._metadata["nGoodPix"] = int(nGoodPix)
         self._metadata["nPix"] = int(nPix)
+
+    def __str__(self):
+        # Exception doesn't handle **kwargs, so we need a custom str.
+        return f"{self.msg}: {self.metadata}"
+
+    @property
+    def metadata(self):
+        for key, value in self._metadata.items():
+            if not isinstance(value, (int, float, str)):
+                raise TypeError(f"{key} is of type {type(value)}, but only (int, float, str) are allowed.")
+        return self._metadata
+
+
+class ZeroFootprintError(AlgorithmError):
+    """Raised if no footprints are detected in the image.
+
+    Parameters
+    ----------
+    msg : `str`
+        Error message.
+    **kwargs : `dict`, optional
+        Additional keyword arguments to initialize the Exception base class.
+    """
+    def __init__(self, msg, **kwargs):
+        self.msg = msg
+        self._metadata = kwargs
+        super().__init__(msg, **kwargs)
 
     def __str__(self):
         # Exception doesn't handle **kwargs, so we need a custom str.
@@ -514,7 +542,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                                         growOverride=growOverride)
                 if results.numPos == 0:
                     msg = "No footprints were detected, so further processing would be moot"
-                    raise InsufficientSourcesError(msg)
+                    raise ZeroFootprintError(msg)
                 else:
                     self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
                                      results.numPosPeaks/results.numPos,
