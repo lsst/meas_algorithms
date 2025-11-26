@@ -188,6 +188,7 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
 
         # Make a temporary butler to ingest them into.
         butler = cls.makeTemporaryRepo(repoPath, config.dataset_config.indexer.active.depth)
+        cls.enterClassContext(butler)
         dimensions = [f"htm{depth}"]
         datasetType = DatasetType(config.dataset_config.ref_dataset_name,
                                   dimensions,
@@ -206,7 +207,8 @@ class ReferenceObjectLoaderLoadTests(convertReferenceCatalogTestBase.ConvertRefe
                      transfer="auto")
 
         # Test if we can get back the catalogs, with a new butler.
-        butler = lsst.daf.butler.Butler(repoPath)
+        butler = lsst.daf.butler.Butler.from_config(repoPath)
+        cls.enterClassContext(butler)
         datasetRefs = list(butler.registry.queryDatasets(config.dataset_config.ref_dataset_name,
                                                          collections=[run]).expanded())
         handles = []
