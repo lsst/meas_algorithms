@@ -11,12 +11,13 @@ from lsst.pex.config import Field, ConfigurableField, FieldValidationError
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
+from .subtractBackground import TooManyMaskedPixelsError
 
 from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
-from lsst.pipe.base import NoWorkFound, Struct
+from lsst.pipe.base import Struct
 
 import lsst.afw.image
 import lsst.afw.math
@@ -89,8 +90,9 @@ class DynamicDetectionConfig(SourceDetectionConfig):
     minFractionSources = Field(dtype=float, default=0.02,
                                doc="Minimum fraction of the requested number of sky sources for dynamic "
                                "detection to be considered a success. If the number of good sky sources "
-                               "identified falls below this threshold, a NoWorkFound error is raised so "
-                               "that this dataId is no longer considered in downstream processing.")
+                               "identified falls below this threshold, an InsufficientSourcesError error "
+                               "is raised so that this dataId is no longer considered in downstream "
+                               "processing.")
     doBrightPrelimDetection = Field(dtype=bool, default=True,
                                     doc="Do initial bright detection pass where footprints are grown "
                                     "by brightGrowFactor?")
@@ -245,7 +247,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         Raises
         ------
-        NoWorkFound
+        InsufficientSourcesError
             Raised if the number of good sky sources found is less than the
             minimum fraction
             (``self.config.minFractionSources``*``minFractionSourcesFactor``)
@@ -437,7 +439,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         if nGoodPix/nPix < self.config.minGoodPixelFraction:
             msg = (f"Image has a very low good pixel fraction ({nGoodPix} of {nPix}), so not worth further "
                    "consideration")
-            raise NoWorkFound(msg)
+            raise TooManyMaskedPixelsError(msg)
 
         with self.tempWideBackgroundContext(exposure):
             # Could potentially smooth with a wider kernel than the PSF in
@@ -512,7 +514,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                                         growOverride=growOverride)
                 if results.numPos == 0:
                     msg = "No footprints were detected, so further processing would be moot"
-                    raise NoWorkFound(msg)
+                    raise InsufficientSourcesError(msg)
                 else:
                     self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
                                      results.numPosPeaks/results.numPos,
