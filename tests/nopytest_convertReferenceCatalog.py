@@ -101,20 +101,20 @@ class TestConvertReferenceCatalogParallel(convertReferenceCatalogTestBase.Conver
                          transfer="auto")
 
             # Test if we can get back the catalogs, with a new butler.
-            butler = lsst.daf.butler.Butler(repoPath)
-            datasetRefs = list(butler.registry.queryDatasets(config.dataset_config.ref_dataset_name,
-                                                             collections=[run]).expanded())
-            handlers = []
-            for dataRef in datasetRefs:
-                handlers.append(DeferredDatasetHandle(butler=butler, ref=dataRef, parameters=None))
-            loaderConfig = ReferenceObjectLoader.ConfigClass()
-            loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
-                                           handlers,
-                                           name="testRefCat",
-                                           config=loaderConfig,
-                                           log=self.logger)
-            self.checkAllRowsInRefcat(loader, skyCatalog1, config)
-            self.checkAllRowsInRefcat(loader, skyCatalog2, config)
+            with lsst.daf.butler.Butler.from_config(repoPath) as butler:
+                datasetRefs = list(butler.registry.queryDatasets(config.dataset_config.ref_dataset_name,
+                                                                 collections=[run]).expanded())
+                handlers = []
+                for dataRef in datasetRefs:
+                    handlers.append(DeferredDatasetHandle(butler=butler, ref=dataRef, parameters=None))
+                loaderConfig = ReferenceObjectLoader.ConfigClass()
+                loader = ReferenceObjectLoader([dataRef.dataId for dataRef in datasetRefs],
+                                               handlers,
+                                               name="testRefCat",
+                                               config=loaderConfig,
+                                               log=self.logger)
+                self.checkAllRowsInRefcat(loader, skyCatalog1, config)
+                self.checkAllRowsInRefcat(loader, skyCatalog2, config)
 
 
 class TestConvertRefcatManager(convertReferenceCatalogTestBase.ConvertReferenceCatalogTestBase,

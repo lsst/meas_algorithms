@@ -25,9 +25,9 @@ __all__ = ["Curve", "AmpCurve", "DetectorCurve", "ImageCurve"]
 
 from scipy.interpolate import interp1d
 from astropy.table import QTable
+from astropy.time import Time
 import astropy.units as u
 from abc import ABC, abstractmethod
-import datetime
 import os
 import numpy
 
@@ -242,12 +242,12 @@ class Curve(ABC):
 
     def _to_table_with_meta(self):
         """Compute standard metadata before writing file out"""
-        now = datetime.datetime.utcnow()
+        now = Time.now()
         table = self.toTable()
         metadata = table.meta
-        metadata["DATE"] = now.isoformat()
+        metadata["DATE"] = now.fits
         metadata["CALIB_CREATION_DATE"] = now.strftime("%Y-%m-%d")
-        metadata["CALIB_CREATION_TIME"] = now.strftime("%T %Z").strip()
+        metadata["CALIB_CREATION_TIME"] = now.strftime("%T")
         return table
 
     def writeText(self, filename):

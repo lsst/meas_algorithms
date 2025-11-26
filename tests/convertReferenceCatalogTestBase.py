@@ -258,6 +258,7 @@ class ConvertReferenceCatalogTestBase:
     def setUp(self):
         self.repoPath = tempfile.TemporaryDirectory()  # cleaned up automatically when test ends
         self.butler = self.makeTemporaryRepo(self.repoPath.name, self.depth)
+        self.enterContext(self.butler)
         self.logger = logging.getLogger('lsst.ReferenceObjectLoader')
 
     def tearDown(self):
@@ -283,7 +284,7 @@ class ConvertReferenceCatalogTestBase:
         dimensionConfig = lsst.daf.butler.DimensionConfig()
         dimensionConfig['skypix']['common'] = f'htm{depth}'
         lsst.daf.butler.Butler.makeRepo(rootPath, dimensionConfig=dimensionConfig)
-        return lsst.daf.butler.Butler(rootPath, writeable=True)
+        return lsst.daf.butler.Butler.from_config(rootPath, writeable=True)
 
     def checkAllRowsInRefcat(self, refObjLoader, skyCatalog, config):
         """Check that every item in ``skyCatalog`` is in the converted catalog,
