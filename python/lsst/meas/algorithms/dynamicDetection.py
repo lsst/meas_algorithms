@@ -3,6 +3,7 @@ __all__ = [
     "DynamicDetectionConfig",
     "DynamicDetectionTask",
     "InsufficientSourcesError",
+    "ZeroFootprintError",
 ]
 
 import numpy as np
@@ -11,19 +12,20 @@ from lsst.pex.config import Field, ConfigurableField, FieldValidationError
 
 from .detection import SourceDetectionConfig, SourceDetectionTask
 from .skyObjects import SkyObjectsTask
+from .subtractBackground import TooManyMaskedPixelsError
 
 from lsst.afw.detection import FootprintSet
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs, SpanSet
 from lsst.afw.table import SourceCatalog, SourceTable
 from lsst.meas.base import ForcedMeasurementTask
-from lsst.pipe.base import NoWorkFound, Struct
+from lsst.pipe.base import AlgorithmError, Struct
 
 import lsst.afw.image
 import lsst.afw.math
 import lsst.geom as geom
 
 
-class InsufficientSourcesError(Exception):
+class InsufficientSourcesError(AlgorithmError):
     """Raised if an insufficient number of sky sources are found for
     dynamic detection.
 
@@ -44,6 +46,33 @@ class InsufficientSourcesError(Exception):
         super().__init__(msg, **kwargs)
         self._metadata["nGoodPix"] = int(nGoodPix)
         self._metadata["nPix"] = int(nPix)
+
+    def __str__(self):
+        # Exception doesn't handle **kwargs, so we need a custom str.
+        return f"{self.msg}: {self.metadata}"
+
+    @property
+    def metadata(self):
+        for key, value in self._metadata.items():
+            if not isinstance(value, (int, float, str)):
+                raise TypeError(f"{key} is of type {type(value)}, but only (int, float, str) are allowed.")
+        return self._metadata
+
+
+class ZeroFootprintError(AlgorithmError):
+    """Raised if no footprints are detected in the image.
+
+    Parameters
+    ----------
+    msg : `str`
+        Error message.
+    **kwargs : `dict`, optional
+        Additional keyword arguments to initialize the Exception base class.
+    """
+    def __init__(self, msg, **kwargs):
+        self.msg = msg
+        self._metadata = kwargs
+        super().__init__(msg, **kwargs)
 
     def __str__(self):
         # Exception doesn't handle **kwargs, so we need a custom str.
@@ -89,8 +118,9 @@ class DynamicDetectionConfig(SourceDetectionConfig):
     minFractionSources = Field(dtype=float, default=0.02,
                                doc="Minimum fraction of the requested number of sky sources for dynamic "
                                "detection to be considered a success. If the number of good sky sources "
-                               "identified falls below this threshold, a NoWorkFound error is raised so "
-                               "that this dataId is no longer considered in downstream processing.")
+                               "identified falls below this threshold, an InsufficientSourcesError error "
+                               "is raised so that this dataId is no longer considered in downstream "
+                               "processing.")
     doBrightPrelimDetection = Field(dtype=bool, default=True,
                                     doc="Do initial bright detection pass where footprints are grown "
                                     "by brightGrowFactor?")
@@ -245,7 +275,7 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         Raises
         ------
-        NoWorkFound
+        InsufficientSourcesError
             Raised if the number of good sky sources found is less than the
             minimum fraction
             (``self.config.minFractionSources``*``minFractionSourcesFactor``)
@@ -437,7 +467,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         if nGoodPix/nPix < self.config.minGoodPixelFraction:
             msg = (f"Image has a very low good pixel fraction ({nGoodPix} of {nPix}), so not worth further "
                    "consideration")
-            raise NoWorkFound(msg)
+            raise TooManyMaskedPixelsError(msg)
 
         with self.tempWideBackgroundContext(exposure):
             # Could potentially smooth with a wider kernel than the PSF in
@@ -512,7 +542,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                                         growOverride=growOverride)
                 if results.numPos == 0:
                     msg = "No footprints were detected, so further processing would be moot"
-                    raise NoWorkFound(msg)
+                    raise ZeroFootprintError(msg)
                 else:
                     self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
                                      results.numPosPeaks/results.numPos,

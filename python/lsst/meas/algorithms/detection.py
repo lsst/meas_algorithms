@@ -21,7 +21,7 @@
 # see <https://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ("SourceDetectionConfig", "SourceDetectionTask", "addExposures")
+__all__ = ("PsfGenerationError", "SourceDetectionConfig", "SourceDetectionTask", "addExposures")
 
 from contextlib import contextmanager
 
@@ -38,6 +38,33 @@ import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.utils.timer import timeMethod
 from .subtractBackground import SubtractBackgroundTask, backgroundFlatContext
+
+
+class PsfGenerationError(pipeBase.AlgorithmError):
+    """Raised when we cannot generate a PSF for detection
+
+    Parameters
+    ----------
+    msg : `str`
+        Error message.
+    **kwargs : `dict`, optional
+        Additional keyword arguments to initialize the Exception base class.
+    """
+    def __init__(self, msg, **kwargs):
+        self.msg = msg
+        self._metadata = kwargs
+        super().__init__(msg, **kwargs)
+
+    def __str__(self):
+        # Exception doesn't handle **kwargs, so we need a custom str.
+        return f"{self.msg}: {self.metadata}"
+
+    @property
+    def metadata(self):
+        for key, value in self._metadata.items():
+            if not isinstance(value, (int, float, str)):
+                raise TypeError(f"{key} is of type {type(value)}, but only (int, float, str) are allowed.")
+        return self._metadata
 
 
 class SourceDetectionConfig(pexConfig.Config):
@@ -466,8 +493,10 @@ class SourceDetectionTask(pipeBase.Task):
         if sigma is None:
             psf = exposure.getPsf()
             if psf is None:
-                raise RuntimeError("Unable to determine PSF to use for detection: no sigma provided")
+                raise PsfGenerationError("Unable to determine PSF to use for detection: no sigma provided")
             sigma = psf.computeShape(psf.getAveragePosition()).getDeterminantRadius()
+        if not np.isfinite(sigma) or sigma <= 0.0:
+            raise PsfGenerationError("Invalid sigma=%s for PSF used in detection" % (sigma,))
         size = self.calculateKernelSize(sigma)
         psf = afwDet.GaussianPsf(size, size, sigma)
         return psf
