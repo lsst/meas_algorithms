@@ -361,11 +361,14 @@ class DynamicDetectionTask(SourceDetectionTask):
             nGoodPix = np.sum(exposure.mask.array & badPixelMask == 0)
             if nGoodPix/nPix > 0.2:
                 detectedPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED", "DETECTED_NEGATIVE"])
-                nDetectedPix = np.sum(exposure.mask.array & detectedPixelMask != 0)
-                msg += (f" However, {nGoodPix}/{nPix} pixels are not marked NO_DATA or BAD, "
+                nDetectedPix = np.sum((exposure.mask.array & detectedPixelMask != 0)
+                                      & (exposure.mask.array & badPixelMask == 0))
+                msg += (" However, {} of {} ({:.3f}%) pixels are not marked NO_DATA or BAD, "
                         "so there should be sufficient area to locate suitable sky sources. "
-                        f"Note that {nDetectedPix} of {nGoodPix} \"good\" pixels were marked "
-                        "as DETECTED or DETECTED_NEGATIVE.")
+                        "Note that {} of {} ({:.3f}%) \"good\" pixels were marked "
+                        "as DETECTED or DETECTED_NEGATIVE.".format(
+                            nGoodPix, nPix, 100.0*nGoodPix/nPix,
+                            nDetectedPix, nGoodPix, 100.0*nDetectedPix/nGoodPix))
                 raise InsufficientSourcesError(msg, nGoodPix, nPix)
             raise InsufficientSourcesError(msg, nGoodPix, nPix)
 
