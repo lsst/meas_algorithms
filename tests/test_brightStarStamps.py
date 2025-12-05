@@ -64,7 +64,7 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
             metadata.set("GRADIENT_Y", rng.random())
             metadata.set("CURVATURE_X", rng.random())
             metadata.set("CURVATURE_Y", rng.random())
-            metadata.set("CROSS_TILT", rng.random())
+            metadata.set("CURVATURE_XY", rng.random())
             metadata.set("GLOBAL_REDUCED_CHI_SQUARED", rng.random())
             metadata.set("GLOBAL_DEGREES_OF_FREEDOM", rng.integers(1, 100))
             metadata.set("PSF_REDUCED_CHI_SQUARED", rng.random())

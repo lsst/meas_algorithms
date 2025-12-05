@@ -82,11 +82,11 @@ class BrightStarStamp(AbstractStamp):
     gradient_y : `float`, optional
         Background gradient in the Y direction.
     curvature_x: `float`, optional
-        Background curvature in the X direction
+        Background curvature in the X direction.
     curvature_y: `float`, optional
-        Background curvature in the Y direction
-    cross_tilt: `float`, optional
-        Background cross tilt (xy component of the second oreder fit)
+        Background curvature in the Y direction.
+    curvature_xy: `float`, optional
+        The xy component of the second order fit.
     global_reduced_chi_squared : `float`, optional
         Reduced chi-squared for the global model fit.
     global_degrees_of_freedom : `int`, optional
@@ -126,7 +126,7 @@ class BrightStarStamp(AbstractStamp):
     gradient_y: float | None
     curvature_x: float | None
     curvature_y: float | None
-    cross_tilt: float | None
+    curvature_xy: float | None
     global_reduced_chi_squared: float | None
     global_degrees_of_freedom: int | None
     psf_reduced_chi_squared: float | None
@@ -152,7 +152,7 @@ class BrightStarStamp(AbstractStamp):
         "GRADIENT_Y": "gradient_y",
         "CURVATURE_X": "curvature_x",
         "CURVATURE_Y": "curvature_y",
-        "CROSS_TILT": "cross_tilt",
+        "CURVATURE_XY": "curvature_xy",
         "GLOBAL_REDUCED_CHI_SQUARED": "global_reduced_chi_squared",
         "GLOBAL_DEGREES_OF_FREEDOM": "global_degrees_of_freedom",
         "PSF_REDUCED_CHI_SQUARED": "psf_reduced_chi_squared",
