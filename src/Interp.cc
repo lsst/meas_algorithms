@@ -292,286 +292,286 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                 switch (defectType) {
                     case 02: /* .#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 06: /* .##, <noise^2> = 0 */
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 014: /* ..##, <noise^2> = 0 */
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 04: /* ..#?, <noise^2> = 0 */
                         val = 1.000 * out2_1;
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 030: /* ...##, <noise^2> = 0 */
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 010: /* ...#?, <noise^2> = 0 */
                         val = 1.000 * out2_1;
 
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 060: /* ....##, <noise^2> = 0 */
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 020: /* ....#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
 
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 0140: /* .....##, <noise^2> = 0 */
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 040: /* .....#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 0300: /* ......##, <noise^2> = 0 */
                         val = 0.5003 * out2_1 + 0.4997 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 0100: /* ......#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
 
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 0600: /* .......##, <noise^2> = 0 */
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5003 * out2_1 + 0.4997 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 0200: /* .......#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 01400: /* ........##, <noise^2> = 0 */
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5003 * out2_1 + 0.4997 * out2_2;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX0 + 3] = (val < min) ? out2_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 0400: /* ........#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
-                        out[badX0 + 3] = (val < min) ? out2_1 : val;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 03000: /* .........##, <noise^2> = 0 */
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5003 * out2_1 + 0.4997 * out2_2;
-                        out[badX0 + 3] = (val < min) ? out2_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX1 - 4] = (val < min) ? out2_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 01000: /* .........#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
-                        out[badX0 + 3] = (val < min) ? out2_1 : val;
-                        out[badX1 - 4] = (val < min) ? out2_1 : val;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 06000: /* ..........##, <noise^2> = 0 */
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        out[badX0 + 3] = (val < min) ? out2_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5003 * out2_1 + 0.4997 * out2_2;
-                        out[badX0 + 4] = (val < min) ? out2_1 : val;
+                        out[badX0 + 4] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX1 - 4] = (val < min) ? out2_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     case 02000: /* ..........#?, <noise^2> = 0 */
                         val = 1.0000 * out2_1;
 
-                        out[badX0] = (val < min) ? out2_1 : val;
-                        out[badX0 + 1] = (val < min) ? out2_1 : val;
-                        out[badX0 + 2] = (val < min) ? out2_1 : val;
-                        out[badX0 + 3] = (val < min) ? out2_1 : val;
-                        out[badX0 + 4] = (val < min) ? out2_1 : val;
-                        out[badX1 - 4] = (val < min) ? out2_1 : val;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX0] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX0 + 4] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     default:
@@ -599,7 +599,7 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                 switch (defectType) {
                     case 02: /* ?#., <noise^2> = 0 */
                         val = 1.0000 * out2_1;
-                        val = (val < min) ? out2_1 : val;
+                        val = (!(val >= min)) ? out2_1 : val;
 
                         for (int j = badX0; j <= badX1; j++) {
                             out[j] = val;
@@ -607,7 +607,7 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                         break;
                     case 03: /* ?##, <noise^2> = 0 */
                         val = 0.5000 * out2_1 + 0.5000 * out2_2;
-                        if (val < min) {
+                        if (!(val >= min)) {
                             val = out2_1;
                         }
 
@@ -616,22 +616,22 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                         }
 
                         val = 0.5003 * out2_1 + 0.4997 * out2_2;
-                        out[badX1 - 5] = (val < min) ? out2_1 : val;
+                        out[badX1 - 5] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5041 * out2_1 + 0.4959 * out2_2;
-                        out[badX1 - 4] = (val < min) ? out2_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.5370 * out2_1 + 0.4630 * out2_2;
-                        out[badX1 - 3] = (val < min) ? out2_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out2_1 : val;
 
                         val = 0.6968 * out2_1 + 0.3032 * out2_2;
-                        out[badX1 - 2] = (val < min) ? out2_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.0933 * out2_1 - 0.0933 * out2_2;
-                        out[badX1 - 1] = (val < min) ? out2_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out2_1 : val;
 
                         val = 1.4288 * out2_1 - 0.4288 * out2_2;
-                        out[badX1] = (val < min) ? out2_1 : val;
+                        out[badX1] = (!(val >= min)) ? out2_1 : val;
 
                         break;
                     default:
@@ -649,187 +649,187 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                 switch (defectType) {
                     case 06: /* ##., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 014: /* ##.., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 030: /* ##..., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 060: /* ##...., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 0140: /* ##....., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX1 - 2] = (val < min) ? out1_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 0300: /* ##......, <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX0 + 2] = (val < min) ? out1_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX1 - 2] = (val < min) ? out1_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4997 * out1_2 + 0.5003 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 0600: /* ##......., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX0 + 2] = (val < min) ? out1_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX1 - 3] = (val < min) ? out1_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX1 - 2] = (val < min) ? out1_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4997 * out1_2 + 0.5003 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 01400: /* ##........, <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX0 + 2] = (val < min) ? out1_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX0 + 3] = (val < min) ? out1_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX1 - 3] = (val < min) ? out1_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4997 * out1_2 + 0.5003 * out1_1;
-                        out[badX1 - 2] = (val < min) ? out1_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 03000: /* ##........., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX0 + 2] = (val < min) ? out1_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX0 + 3] = (val < min) ? out1_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX1 - 4] = (val < min) ? out1_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4997 * out1_2 + 0.5003 * out1_1;
-                        out[badX1 - 3] = (val < min) ? out1_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1 - 2] = (val < min) ? out1_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     case 06000: /* ##.........., <noise^2> = 0 */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX0 + 2] = (val < min) ? out1_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX0 + 3] = (val < min) ? out1_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX0 + 4] = (val < min) ? out1_1 : val;
+                        out[badX0 + 4] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4997 * out1_2 + 0.5003 * out1_1;
-                        out[badX1 - 4] = (val < min) ? out1_1 : val;
+                        out[badX1 - 4] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1 - 3] = (val < min) ? out1_1 : val;
+                        out[badX1 - 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1 - 2] = (val < min) ? out1_1 : val;
+                        out[badX1 - 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1 - 1] = (val < min) ? out1_1 : val;
+                        out[badX1 - 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        out[badX1] = (val < min) ? out1_1 : val;
+                        out[badX1] = (!(val >= min)) ? out1_1 : val;
 
                         break;
                     default:
@@ -859,25 +859,25 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                 switch (defectType) {
                     case 03: /* ##?, S/N = infty */
                         val = -0.4288 * out1_2 + 1.4288 * out1_1;
-                        out[badX0] = (val < min) ? out1_1 : val;
+                        out[badX0] = (!(val >= min)) ? out1_1 : val;
 
                         val = -0.0933 * out1_2 + 1.0933 * out1_1;
-                        out[badX0 + 1] = (val < min) ? out1_1 : val;
+                        out[badX0 + 1] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.3032 * out1_2 + 0.6968 * out1_1;
-                        out[badX0 + 2] = (val < min) ? out1_1 : val;
+                        out[badX0 + 2] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4630 * out1_2 + 0.5370 * out1_1;
-                        out[badX0 + 3] = (val < min) ? out1_1 : val;
+                        out[badX0 + 3] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4959 * out1_2 + 0.5041 * out1_1;
-                        out[badX0 + 4] = (val < min) ? out1_1 : val;
+                        out[badX0 + 4] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.4997 * out1_2 + 0.5003 * out1_1;
-                        out[badX0 + 5] = (val < min) ? out1_1 : val;
+                        out[badX0 + 5] = (!(val >= min)) ? out1_1 : val;
 
                         val = 0.5000 * out1_2 + 0.5000 * out1_1;
-                        val = (val < min) ? out1_1 : val;
+                        val = (!(val >= min)) ? out1_1 : val;
 
                         for (int j = badX0 + 6; j <= badX1; j++) {
                             out[j] = val;
@@ -913,12 +913,12 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                 switch (defectType) {
                     case 012: /* #.#., <noise^2> = 0, sigma = 1 */
                         val = 0.5000 * out1_1 + 0.5000 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 013: /* #.##, <noise^2> = 0 */
                         val = 0.4875 * out1_1 + 0.8959 * out2_1 - 0.3834 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 022: /* #..#., <noise^2> = 0, sigma = 1 */
@@ -931,834 +931,834 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                         break;
                     case 023: /* #..##, <noise^2> = 0 */
                         val = 0.7538 * out1_1 + 0.5680 * out2_1 - 0.3218 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3095 * out1_1 + 1.2132 * out2_1 - 0.5227 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 032: /* ##.#., <noise^2> = 0 */
                         val = -0.3834 * out1_2 + 0.8959 * out1_1 + 0.4875 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 033: /* ##.##, <noise^2> = 0 */
                         /* These coefficients are also available as
                            interp::interp_1_c1 and interp::interp_1_c2 */
                         val = -0.2737 * out1_2 + 0.7737 * out1_1 + 0.7737 * out2_1 - 0.2737 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 042: /* #...#., <noise^2> = 0, sigma = 1 */
                         val = 0.8430 * out1_1 + 0.1570 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5000 * out1_1 + 0.5000 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1570 * out1_1 + 0.8430 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 043: /* #...##, <noise^2> = 0 */
                         val = 0.8525 * out1_1 + 0.2390 * out2_1 - 0.0915 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5356 * out1_1 + 0.8057 * out2_1 - 0.3413 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2120 * out1_1 + 1.3150 * out2_1 - 0.5270 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 062: /* ##..#., <noise^2> = 0 */
                         val = -0.5227 * out1_2 + 1.2132 * out1_1 + 0.3095 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.3218 * out1_2 + 0.5680 * out1_1 + 0.7538 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 063: /* ##..##, <noise^2> = 0 */
                         val = -0.4793 * out1_2 + 1.1904 * out1_1 + 0.5212 * out2_1 - 0.2323 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2323 * out1_2 + 0.5212 * out1_1 + 1.1904 * out2_1 - 0.4793 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0102: /* #....#., <noise^2> = 0, sigma = 1 */
                         val = 0.8810 * out1_1 + 0.1190 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6315 * out1_1 + 0.3685 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3685 * out1_1 + 0.6315 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1190 * out1_1 + 0.8810 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0103: /* #....##, <noise^2> = 0 */
                         val = 0.8779 * out1_1 + 0.0945 * out2_1 + 0.0276 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6327 * out1_1 + 0.3779 * out2_1 - 0.0106 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4006 * out1_1 + 0.8914 * out2_1 - 0.2920 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1757 * out1_1 + 1.3403 * out2_1 - 0.5160 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0142: /* ##...#., <noise^2> = 0 */
                         val = -0.5270 * out1_2 + 1.3150 * out1_1 + 0.2120 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.3413 * out1_2 + 0.8057 * out1_1 + 0.5356 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.0915 * out1_2 + 0.2390 * out1_1 + 0.8525 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0143: /* ##...##, <noise^2> = 0 */
                         val = -0.5230 * out1_2 + 1.3163 * out1_1 + 0.2536 * out2_1 - 0.0469 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.3144 * out1_2 + 0.8144 * out1_1 + 0.8144 * out2_1 - 0.3144 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.0469 * out1_2 + 0.2536 * out1_1 + 1.3163 * out2_1 - 0.5230 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0202: /* #.....#., <noise^2> = 0, sigma = 1 */
                         val = 0.8885 * out1_1 + 0.1115 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6748 * out1_1 + 0.3252 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5000 * out1_1 + 0.5000 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3252 * out1_1 + 0.6748 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1115 * out1_1 + 0.8885 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0203: /* #.....##, <noise^2> = 0 */
                         val = 0.8824 * out1_1 + 0.0626 * out2_1 + 0.0549 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6601 * out1_1 + 0.2068 * out2_1 + 0.1331 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4938 * out1_1 + 0.4498 * out2_1 + 0.0564 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3551 * out1_1 + 0.9157 * out2_1 - 0.2708 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1682 * out1_1 + 1.3447 * out2_1 - 0.5129 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0302: /* ##....#., <noise^2> = 0 */
                         val = -0.5160 * out1_2 + 1.3403 * out1_1 + 0.1757 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2920 * out1_2 + 0.8914 * out1_1 + 0.4006 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.0106 * out1_2 + 0.3779 * out1_1 + 0.6327 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0276 * out1_2 + 0.0945 * out1_1 + 0.8779 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0303: /* ##....##, <noise^2> = 0 */
                         val = -0.5197 * out1_2 + 1.3370 * out1_1 + 0.1231 * out2_1 + 0.0596 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2924 * out1_2 + 0.8910 * out1_1 + 0.3940 * out2_1 + 0.0074 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0074 * out1_2 + 0.3940 * out1_1 + 0.8910 * out2_1 - 0.2924 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0596 * out1_2 + 0.1231 * out1_1 + 1.3370 * out2_1 - 0.5197 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0402: /* #......#., <noise^2> = 0, sigma = 1 */
                         val = 0.8893 * out1_1 + 0.1107 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6830 * out1_1 + 0.3170 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5435 * out1_1 + 0.4565 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4565 * out1_1 + 0.5435 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3170 * out1_1 + 0.6830 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1107 * out1_1 + 0.8893 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0403: /* #......##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0588 * out2_1 + 0.0583 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6649 * out1_1 + 0.1716 * out2_1 + 0.1635 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5212 * out1_1 + 0.2765 * out2_1 + 0.2024 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4477 * out1_1 + 0.4730 * out2_1 + 0.0793 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3465 * out1_1 + 0.9201 * out2_1 - 0.2666 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0602: /* ##.....#., <noise^2> = 0 */
                         val = -0.5129 * out1_2 + 1.3447 * out1_1 + 0.1682 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2708 * out1_2 + 0.9157 * out1_1 + 0.3551 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0564 * out1_2 + 0.4498 * out1_1 + 0.4938 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1331 * out1_2 + 0.2068 * out1_1 + 0.6601 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0549 * out1_2 + 0.0626 * out1_1 + 0.8824 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 0603: /* ##.....##, <noise^2> = 0 */
                         val = -0.5179 * out1_2 + 1.3397 * out1_1 + 0.0928 * out2_1 + 0.0854 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2796 * out1_2 + 0.9069 * out1_1 + 0.2231 * out2_1 + 0.1495 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0533 * out1_2 + 0.4467 * out1_1 + 0.4467 * out2_1 + 0.0533 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1495 * out1_2 + 0.2231 * out1_1 + 0.9069 * out2_1 - 0.2796 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0854 * out1_2 + 0.0928 * out1_1 + 1.3397 * out2_1 - 0.5179 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 01002: /* #.......#., <noise^2> = 0, sigma = 1 */
                         val = 0.8894 * out1_1 + 0.1106 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6839 * out1_1 + 0.3161 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5517 * out1_1 + 0.4483 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5000 * out1_1 + 0.5000 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4483 * out1_1 + 0.5517 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3161 * out1_1 + 0.6839 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1106 * out1_1 + 0.8894 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 01003: /* #.......##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1676 * out2_1 + 0.1670 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5260 * out1_1 + 0.2411 * out2_1 + 0.2329 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4751 * out1_1 + 0.2995 * out2_1 + 0.2254 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4390 * out1_1 + 0.4773 * out2_1 + 0.0836 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3456 * out1_1 + 0.9205 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 01402: /* ##......#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2666 * out1_2 + 0.9201 * out1_1 + 0.3465 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0793 * out1_2 + 0.4730 * out1_1 + 0.4477 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2024 * out1_2 + 0.2765 * out1_1 + 0.5212 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1635 * out1_2 + 0.1716 * out1_1 + 0.6649 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0583 * out1_2 + 0.0588 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 01403: /* ##......##, <noise^2> = 0 */
                         val = -0.5177 * out1_2 + 1.3400 * out1_1 + 0.0891 * out2_1 + 0.0886 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2771 * out1_2 + 0.9095 * out1_1 + 0.1878 * out2_1 + 0.1797 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0677 * out1_2 + 0.4614 * out1_1 + 0.2725 * out2_1 + 0.1984 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1984 * out1_2 + 0.2725 * out1_1 + 0.4614 * out2_1 + 0.0677 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1797 * out1_2 + 0.1878 * out1_1 + 0.9095 * out2_1 - 0.2771 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0886 * out1_2 + 0.0891 * out1_1 + 1.3400 * out2_1 - 0.5177 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 02002: /* #........#., <noise^2> = 0, sigma = 1 */
                         val = 0.8894 * out1_1 + 0.1106 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6839 * out1_1 + 0.3161 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5526 * out1_1 + 0.4474 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5082 * out1_1 + 0.4918 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4918 * out1_1 + 0.5082 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4474 * out1_1 + 0.5526 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3161 * out1_1 + 0.6839 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1106 * out1_1 + 0.8894 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 02003: /* #........##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1673 * out2_1 + 0.1673 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5265 * out1_1 + 0.2370 * out2_1 + 0.2365 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4799 * out1_1 + 0.2641 * out2_1 + 0.2560 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4664 * out1_1 + 0.3038 * out2_1 + 0.2298 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4381 * out1_1 + 0.4778 * out2_1 + 0.0841 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3455 * out1_1 + 0.9206 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 03002: /* ##.......#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2661 * out1_2 + 0.9205 * out1_1 + 0.3456 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0836 * out1_2 + 0.4773 * out1_1 + 0.4390 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2254 * out1_2 + 0.2995 * out1_1 + 0.4751 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2329 * out1_2 + 0.2411 * out1_1 + 0.5260 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1670 * out1_2 + 0.1676 * out1_1 + 0.6654 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0585 * out1_2 + 0.0585 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 03003: /* ##.......##, <noise^2> = 0 */
                         val = -0.5177 * out1_2 + 1.3400 * out1_1 + 0.0889 * out2_1 + 0.0888 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2768 * out1_2 + 0.9098 * out1_1 + 0.1838 * out2_1 + 0.1832 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0703 * out1_2 + 0.4639 * out1_1 + 0.2370 * out2_1 + 0.2288 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2130 * out1_2 + 0.2870 * out1_1 + 0.2870 * out2_1 + 0.2130 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2288 * out1_2 + 0.2370 * out1_1 + 0.4639 * out2_1 + 0.0703 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1832 * out1_2 + 0.1838 * out1_1 + 0.9098 * out2_1 - 0.2768 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0888 * out1_2 + 0.0889 * out1_1 + 1.3400 * out2_1 - 0.5177 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 04002: /* #.........#., <noise^2> = 0 */
                         val = 0.8894 * out1_1 + 0.1106 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6839 * out1_1 + 0.3161 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5527 * out1_1 + 0.4473 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5091 * out1_1 + 0.4909 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5000 * out1_1 + 0.5000 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4909 * out1_1 + 0.5091 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4473 * out1_1 + 0.5527 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3161 * out1_1 + 0.6839 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1106 * out1_1 + 0.8894 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 04003: /* #.........##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1673 * out2_1 + 0.1673 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5265 * out1_1 + 0.2368 * out2_1 + 0.2367 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4804 * out1_1 + 0.2601 * out2_1 + 0.2595 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4712 * out1_1 + 0.2685 * out2_1 + 0.2603 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4654 * out1_1 + 0.3043 * out2_1 + 0.2302 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4380 * out1_1 + 0.4778 * out2_1 + 0.0842 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3455 * out1_1 + 0.9206 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 06002: /* ##........#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2661 * out1_2 + 0.9206 * out1_1 + 0.3455 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0841 * out1_2 + 0.4778 * out1_1 + 0.4381 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2298 * out1_2 + 0.3038 * out1_1 + 0.4664 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2560 * out1_2 + 0.2641 * out1_1 + 0.4799 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2365 * out1_2 + 0.2370 * out1_1 + 0.5265 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_2 + 0.1673 * out1_1 + 0.6654 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0585 * out1_2 + 0.0585 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 06003: /* ##........##, <noise^2> = 0 */
                         val = -0.5177 * out1_2 + 1.3400 * out1_1 + 0.0888 * out2_1 + 0.0888 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2768 * out1_2 + 0.9098 * out1_1 + 0.1835 * out2_1 + 0.1835 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0705 * out1_2 + 0.4642 * out1_1 + 0.2329 * out2_1 + 0.2324 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2155 * out1_2 + 0.2896 * out1_1 + 0.2515 * out2_1 + 0.2434 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2434 * out1_2 + 0.2515 * out1_1 + 0.2896 * out2_1 + 0.2155 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2324 * out1_2 + 0.2329 * out1_1 + 0.4642 * out2_1 + 0.0705 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1835 * out1_2 + 0.1835 * out1_1 + 0.9098 * out2_1 - 0.2768 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0888 * out1_2 + 0.0888 * out1_1 + 1.3400 * out2_1 - 0.5177 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 010002: /* #..........#., <noise^2> = 0, sigma = 1 */
                         val = 0.8894 * out1_1 + 0.1106 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6839 * out1_1 + 0.3161 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5527 * out1_1 + 0.4473 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5092 * out1_1 + 0.4908 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5009 * out1_1 + 0.4991 * out2_1;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4991 * out1_1 + 0.5009 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4908 * out1_1 + 0.5092 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4473 * out1_1 + 0.5527 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3161 * out1_1 + 0.6839 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1106 * out1_1 + 0.8894 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 010003: /* #..........##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1673 * out2_1 + 0.1673 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5265 * out1_1 + 0.2367 * out2_1 + 0.2367 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4804 * out1_1 + 0.2598 * out2_1 + 0.2598 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4717 * out1_1 + 0.2644 * out2_1 + 0.2639 * out2_2;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4703 * out1_1 + 0.2690 * out2_1 + 0.2608 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4654 * out1_1 + 0.3043 * out2_1 + 0.2303 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4380 * out1_1 + 0.4778 * out2_1 + 0.0842 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3455 * out1_1 + 0.9206 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 014002: /* ##.........#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2661 * out1_2 + 0.9206 * out1_1 + 0.3455 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0842 * out1_2 + 0.4778 * out1_1 + 0.4380 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2302 * out1_2 + 0.3043 * out1_1 + 0.4654 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2603 * out1_2 + 0.2685 * out1_1 + 0.4712 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2595 * out1_2 + 0.2601 * out1_1 + 0.4804 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2367 * out1_2 + 0.2368 * out1_1 + 0.5265 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_2 + 0.1673 * out1_1 + 0.6654 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0585 * out1_2 + 0.0585 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 014003: /* ##.........##, <noise^2> = 0 */
                         val = -0.5177 * out1_2 + 1.3400 * out1_1 + 0.0888 * out2_1 + 0.0888 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2768 * out1_2 + 0.9098 * out1_1 + 0.1835 * out2_1 + 0.1835 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0705 * out1_2 + 0.4642 * out1_1 + 0.2326 * out2_1 + 0.2326 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2158 * out1_2 + 0.2899 * out1_1 + 0.2474 * out2_1 + 0.2469 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2459 * out1_2 + 0.2541 * out1_1 + 0.2541 * out2_1 + 0.2459 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2469 * out1_2 + 0.2474 * out1_1 + 0.2899 * out2_1 + 0.2158 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2326 * out1_2 + 0.2326 * out1_1 + 0.4642 * out2_1 + 0.0705 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1835 * out1_2 + 0.1835 * out1_1 + 0.9098 * out2_1 - 0.2768 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0888 * out1_2 + 0.0888 * out1_1 + 1.3400 * out2_1 - 0.5177 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 020003: /* #...........##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1673 * out2_1 + 0.1673 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5265 * out1_1 + 0.2367 * out2_1 + 0.2367 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4804 * out1_1 + 0.2598 * out2_1 + 0.2598 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4718 * out1_1 + 0.2641 * out2_1 + 0.2641 * out2_2;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4708 * out1_1 + 0.2649 * out2_1 + 0.2644 * out2_2;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4702 * out1_1 + 0.2690 * out2_1 + 0.2608 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4654 * out1_1 + 0.3044 * out2_1 + 0.2303 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4380 * out1_1 + 0.4778 * out2_1 + 0.0842 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3455 * out1_1 + 0.9206 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 030002: /* ##..........#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2661 * out1_2 + 0.9206 * out1_1 + 0.3455 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0842 * out1_2 + 0.4778 * out1_1 + 0.4380 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2303 * out1_2 + 0.3043 * out1_1 + 0.4654 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2608 * out1_2 + 0.2690 * out1_1 + 0.4703 * out2_1;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2639 * out1_2 + 0.2644 * out1_1 + 0.4717 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2598 * out1_2 + 0.2598 * out1_1 + 0.4804 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2367 * out1_2 + 0.2367 * out1_1 + 0.5265 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_2 + 0.1673 * out1_1 + 0.6654 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0585 * out1_2 + 0.0585 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 030003: /* ##..........##, <noise^2> = 0 */
                         val = -0.5177 * out1_2 + 1.3400 * out1_1 + 0.0888 * out2_1 + 0.0888 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2768 * out1_2 + 0.9098 * out1_1 + 0.1835 * out2_1 + 0.1835 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0705 * out1_2 + 0.4642 * out1_1 + 0.2326 * out2_1 + 0.2326 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2158 * out1_2 + 0.2899 * out1_1 + 0.2472 * out2_1 + 0.2471 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2462 * out1_2 + 0.2544 * out1_1 + 0.2500 * out2_1 + 0.2495 * out2_2;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2495 * out1_2 + 0.2500 * out1_1 + 0.2544 * out2_1 + 0.2462 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2471 * out1_2 + 0.2472 * out1_1 + 0.2899 * out2_1 + 0.2158 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2326 * out1_2 + 0.2326 * out1_1 + 0.4642 * out2_1 + 0.0705 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1835 * out1_2 + 0.1835 * out1_1 + 0.9098 * out2_1 - 0.2768 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0888 * out1_2 + 0.0888 * out1_1 + 1.3400 * out2_1 - 0.5177 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 040003: /* #............##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1673 * out2_1 + 0.1673 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5265 * out1_1 + 0.2367 * out2_1 + 0.2367 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4804 * out1_1 + 0.2598 * out2_1 + 0.2598 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4718 * out1_1 + 0.2641 * out2_1 + 0.2641 * out2_2;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4708 * out1_1 + 0.2646 * out2_1 + 0.2646 * out2_2;
-                        out[badX0 + 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4707 * out1_1 + 0.2649 * out2_1 + 0.2644 * out2_2;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4702 * out1_1 + 0.2690 * out2_1 + 0.2608 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4654 * out1_1 + 0.3044 * out2_1 + 0.2303 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4380 * out1_1 + 0.4778 * out2_1 + 0.0842 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3455 * out1_1 + 0.9206 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 060002: /* ##...........#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2661 * out1_2 + 0.9206 * out1_1 + 0.3455 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0842 * out1_2 + 0.4778 * out1_1 + 0.4380 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2303 * out1_2 + 0.3044 * out1_1 + 0.4654 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2608 * out1_2 + 0.2690 * out1_1 + 0.4702 * out2_1;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2644 * out1_2 + 0.2649 * out1_1 + 0.4708 * out2_1;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2641 * out1_2 + 0.2641 * out1_1 + 0.4718 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2598 * out1_2 + 0.2598 * out1_1 + 0.4804 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2367 * out1_2 + 0.2367 * out1_1 + 0.5265 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_2 + 0.1673 * out1_1 + 0.6654 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0585 * out1_2 + 0.0585 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     default:
@@ -1818,22 +1818,22 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                 switch (defectType) {
                     case 06: /* #?#., <noise^2> = 0 */
                         val = 0.8894 * out1_1 + 0.1106 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6839 * out1_1 + 0.3161 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5527 * out1_1 + 0.4473 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5092 * out1_1 + 0.4908 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5010 * out1_1 + 0.4990 * out2_1;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5001 * out1_1 + 0.4999 * out2_1;
-                        out[badX0 + 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5000 * out1_1 + 0.5000 * out2_1;
 
@@ -1842,42 +1842,42 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                         }
 
                         val = 0.4999 * out1_1 + 0.5001 * out2_1;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4990 * out1_1 + 0.5010 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4908 * out1_1 + 0.5092 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4473 * out1_1 + 0.5527 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3161 * out1_1 + 0.6839 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1106 * out1_1 + 0.8894 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 07: /* #?##, <noise^2> = 0 */
                         val = 0.8829 * out1_1 + 0.0585 * out2_1 + 0.0585 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.6654 * out1_1 + 0.1673 * out2_1 + 0.1673 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.5265 * out1_1 + 0.2367 * out2_1 + 0.2367 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4804 * out1_1 + 0.2598 * out2_1 + 0.2598 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4718 * out1_1 + 0.2641 * out2_1 + 0.2641 * out2_2;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4708 * out1_1 + 0.2646 * out2_1 + 0.2646 * out2_2;
-                        out[badX0 + 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4707 * out[badX0 - 1] + 0.2646 * out[badX1 + 1] + 0.2646 * out[badX1 + 2];
 
@@ -1886,112 +1886,112 @@ static void do_defects(std::vector<Defect::Ptr> const &badList,  // list of bad 
                         }
 
                         val = 0.4707 * out1_1 + 0.2649 * out2_1 + 0.2644 * out2_2;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4702 * out1_1 + 0.2690 * out2_1 + 0.2608 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4654 * out1_1 + 0.3044 * out2_1 + 0.2303 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.4380 * out1_1 + 0.4778 * out2_1 + 0.0842 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.3455 * out1_1 + 0.9206 * out2_1 - 0.2661 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_1 + 1.3452 * out2_1 - 0.5125 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 016: /* ##?#., <noise^2> = 0 */
                         val = -0.5125 * out1_2 + 1.3452 * out1_1 + 0.1673 * out2_1;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2661 * out1_2 + 0.9206 * out1_1 + 0.3455 * out2_1;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0842 * out1_2 + 0.4778 * out1_1 + 0.4380 * out2_1;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2303 * out1_2 + 0.3044 * out1_1 + 0.4654 * out2_1;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2608 * out1_2 + 0.2690 * out1_1 + 0.4702 * out2_1;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2644 * out1_2 + 0.2649 * out1_1 + 0.4707 * out2_1;
-                        out[badX0 + 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2646 * out1_2 + 0.2646 * out1_1 + 0.4707 * out2_1;
-                        val = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        val = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         for (int j = badX0 + 6; j < badX1 - 5; j++) {
                             out[j] = val;
                         }
 
                         val = 0.2646 * out1_2 + 0.2646 * out1_1 + 0.4708 * out2_1;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2641 * out1_2 + 0.2641 * out1_1 + 0.4718 * out2_1;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2598 * out1_2 + 0.2598 * out1_1 + 0.4804 * out2_1;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2367 * out1_2 + 0.2367 * out1_1 + 0.5265 * out2_1;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1673 * out1_2 + 0.1673 * out1_1 + 0.6654 * out2_1;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0585 * out1_2 + 0.0585 * out1_1 + 0.8829 * out2_1;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     case 017: /* ##?##, S/N = infty */
                         val = -0.5177 * out1_2 + 1.3400 * out1_1 + 0.0888 * out2_1 + 0.0888 * out2_2;
-                        out[badX0] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = -0.2768 * out1_2 + 0.9098 * out1_1 + 0.1835 * out2_1 + 0.1835 * out2_2;
-                        out[badX0 + 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0705 * out1_2 + 0.4642 * out1_1 + 0.2326 * out2_1 + 0.2326 * out2_2;
-                        out[badX0 + 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2158 * out1_2 + 0.2899 * out1_1 + 0.2472 * out2_1 + 0.2472 * out2_2;
-                        out[badX0 + 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2462 * out1_2 + 0.2544 * out1_1 + 0.2497 * out2_1 + 0.2497 * out2_2;
-                        out[badX0 + 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2497 * out1_2 + 0.2503 * out1_1 + 0.2500 * out2_1 + 0.2500 * out2_2;
-                        out[badX0 + 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX0 + 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2500 * out1_2 + 0.2500 * out1_1 + 0.2500 * out2_1 + 0.2500 * out2_2;
-                        val = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        val = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         for (int j = badX0 + 6; j < badX1 - 5; j++) {
                             out[j] = val;
                         }
 
                         val = 0.2500 * out1_2 + 0.2500 * out1_1 + 0.2503 * out2_1 + 0.2497 * out2_2;
-                        out[badX1 - 5] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 5] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2497 * out1_2 + 0.2497 * out1_1 + 0.2544 * out2_1 + 0.2462 * out2_2;
-                        out[badX1 - 4] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 4] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2472 * out1_2 + 0.2472 * out1_1 + 0.2899 * out2_1 + 0.2158 * out2_2;
-                        out[badX1 - 3] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 3] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.2326 * out1_2 + 0.2326 * out1_1 + 0.4642 * out2_1 + 0.0705 * out2_2;
-                        out[badX1 - 2] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 2] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.1835 * out1_2 + 0.1835 * out1_1 + 0.9098 * out2_1 - 0.2768 * out2_2;
-                        out[badX1 - 1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1 - 1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         val = 0.0888 * out1_2 + 0.0888 * out1_1 + 1.3400 * out2_1 - 0.5177 * out2_2;
-                        out[badX1] = (val < min) ? 0.5 * (out1_1 + out2_1) : val;
+                        out[badX1] = (!(val >= min)) ? 0.5 * (out1_1 + out2_1) : val;
 
                         break;
                     default:
