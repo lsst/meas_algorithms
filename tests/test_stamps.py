@@ -22,7 +22,6 @@
 import unittest
 import numpy as np
 import tempfile
-import os
 
 from lsst.meas.algorithms import stamps
 from lsst.afw import image as afwImage
@@ -64,21 +63,6 @@ def make_stamps(n_stamps=3, use_archive=False):
                   for stampIm, ra, dec, ae in zip(stampImages, ras, decs, archive_elements)]
 
     return stamps.Stamps(stamp_list, metadata=metadata, use_archive=True)
-
-
-class TransformTestClass(TransformTestBaseClass):
-    """Class for unit tests for Transform<X>To<Y> within meas_algorithms.
-
-    Inherits from `lsst.afw.geom.testUtils.TransformTestBaseClass`.
-    """
-    def getTestDir(self):
-        """Returns the test directory of the `meas_algorithms` package.
-
-        If a similar test is needed in another package, inherit from
-        `TransformTestBaseClass` and overwrite this method; see the docstrings
-        in the parent class.
-        """
-        return os.path.join(lsst.utils.getPackageDir("meas_algorithms"), "tests")
 
 
 class StampsBaseTestCase(lsst.utils.tests.TestCase):
@@ -210,7 +194,7 @@ class StampsTestCase(lsst.utils.tests.TestCase):
     def roundtripWithArchive(self, ss):
         """Round trip a Stamps object, including Archive elements, and check values
         """
-        transformTest = TransformTestClass()
+        transformTest = TransformTestBaseClass()
         with tempfile.NamedTemporaryFile() as f:
             ss.writeFits(f.name)
             options = PropertyList()
