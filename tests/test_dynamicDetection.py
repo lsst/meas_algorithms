@@ -5,7 +5,7 @@ import numpy as np
 from lsst.afw.geom import makeCdMatrix, makeSkyWcs
 from lsst.afw.table import SourceTable
 from lsst.geom import Box2I, Extent2I, Point2D, Point2I, SpherePoint, degrees
-from lsst.meas.algorithms import DynamicDetectionTask
+from lsst.meas.algorithms import DynamicDetectionTask, InsufficientSourcesError
 from lsst.meas.algorithms.testUtils import plantSources
 from lsst.pex.config import FieldValidationError
 
@@ -109,6 +109,21 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         config.doThresholdScaling = False
         config.doBackgroundTweak = False
         self.check(1.0, config)
+
+    def testBrightDetectionPass(self):
+        """Check that the maximum number of bright detection iterations is
+        observed.
+
+        The bright detection loop is forced by setting config.brightMultiplier
+        so low such that the entire image is marked as DETECTED.  As such, the
+        task is doomed to fail where it tries to lay down sky sources."
+        """
+        config = DynamicDetectionTask.ConfigClass()
+        config.brightMultiplier = 0.05
+        config.brightDetectionIterMax = 2
+        with self.assertRaisesRegex(
+                InsufficientSourcesError, "Insufficient good sky source flux measurements"):
+            self.check(1.0, config)
 
     def testThresholdsOutsideBounds(self):
         """Check that dynamic detection properly sets threshold limits.

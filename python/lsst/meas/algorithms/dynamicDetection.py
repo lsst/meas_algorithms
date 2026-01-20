@@ -124,6 +124,9 @@ class DynamicDetectionConfig(SourceDetectionConfig):
     doBrightPrelimDetection = Field(dtype=bool, default=True,
                                     doc="Do initial bright detection pass where footprints are grown "
                                     "by brightGrowFactor?")
+    brightDetectionIterMax = Field(dtype=int, default=10,
+                                   doc="Maximum number of iterations in the initial bright detection "
+                                   "pass.")
     brightMultiplier = Field(dtype=float, default=2000.0,
                              doc="Multiplier to apply to the prelimThresholdFactor for the "
                              "\"bright\" detections stage (want this to be large to only "
@@ -660,12 +663,12 @@ class DynamicDetectionTask(SourceDetectionTask):
 
         Perform an initial bright object detection pass using a high detection
         threshold. The footprints in this pass are grown significantly more
-        than is typical to account for wings around bright sources.  The
+        than is typical to account for wings around bright sources. The
         negative polarity detections in this pass help in masking severely
         over-subtracted regions.
 
         A maximum fraction of masked pixel from this pass is ensured via
-        the config ``brightMaskFractionMax``.  If the masked pixel fraction is
+        the config ``brightMaskFractionMax``. If the masked pixel fraction is
         above this value, the detection thresholds here are increased by
         ``bisectFactor`` in a while loop until the detected masked fraction
         falls below this value.
@@ -703,7 +706,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         # brightMaskFractionMax, increasing the thresholds by
         # config.bisectFactor on each iteration (rarely necessary
         # for current defaults).
-        while nPixDetNeg/nPix > brightMaskFractionMax or nPixDet/nPix > brightMaskFractionMax:
+        for nIter in range(self.config.brightDetectionIterMax):
             self.clearMask(maskedImage.mask)
             brightPosFactor *= self.config.bisectFactor
             brightNegFactor *= self.config.bisectFactor
@@ -722,10 +725,17 @@ class DynamicDetectionTask(SourceDetectionTask):
             self.log.info("Number (%) of bright DETECTED_NEGATIVE pix: {} ({:.1f}%)".
                           format(nPixDetNeg, 100*nPixDetNeg/nPix))
             if nPixDetNeg/nPix > brightMaskFractionMax or nPixDet/nPix > brightMaskFractionMax:
-                self.log.warn("Too high a fraction (%.1f > %.1f) of pixels were masked with current "
-                              "\"bright\" detection round thresholds.  Increasing by a factor of %.2f "
-                              "and trying again.", max(nPixDetNeg, nPixDet)/nPix,
-                              brightMaskFractionMax, self.config.bisectFactor)
+                self.log.warning("Too high a fraction (%.2f > %.2f) of pixels were masked with current "
+                                 "\"bright\" detection round thresholds (at nIter = %d). Increasing by "
+                                 "a factor of %.2f and trying again.", max(nPixDetNeg, nPixDet)/nPix,
+                                 brightMaskFractionMax, nIter, self.config.bisectFactor)
+                if nIter == self.config.brightDetectionIterMax - 1:
+                    self.log.warning("Reached maximum number of iterations and still have too high "
+                                     "detected mask fractions in bright detection pass.  Image is "
+                                     "likely mostly masked with BAD or NO_DATA or \"bad\" in some "
+                                     "other respect (so expected to likely fail further downstream).")
+            else:
+                break
 
         # Save the mask planes from the "bright" detection round, then
         # clear them before moving on to the "prelim" detection phase.
