@@ -492,6 +492,8 @@ class LineProfile:
                     log.warning("Hessian matrix is not invertible.")
                 break
             dx = scipy.linalg.cho_solve(cholesky, b)
+            # Normalize the search direction to avoid bracketing errors
+            dx /= np.linalg.norm(dx)
 
             factor, fmin, _, _ = scipy.optimize.brent(line_search, args=(dx,), full_output=True, tol=0.05)
             x -= factor * dx
