@@ -147,6 +147,7 @@ class LineProfile:
         self.mask = (weights != 0)
 
         self._initLine = line
+        self.modelFailure = False
         self.setLineMask(line, maxStreakWidth=0, nSigmaMask=10, detectionMask=detectionMask)
 
     def getLineXY(self, line):
@@ -227,6 +228,11 @@ class LineProfile:
                 # happens when, for example, the streak ends in the middle of
                 # the image.
                 lineEnds = self.getLineXY(line)
+                if lineEnds.size == 0:
+                    if logger is not None:
+                        logger.debug("Calculated line not contained in image bounding box")
+                    self.modelFailure = True
+                    return
                 xA = lineEnds[0, 0] - self._xmax / 2.
                 yA = lineEnds[0, 1] - self._ymax / 2.
 
@@ -895,7 +901,7 @@ class MaskStreaksTask(pipeBase.Task):
             line.sigma = self.config.invSigma**-1
             lineModel = LineProfile(data, weights, line=line, detectionMask=detectionMask)
             # Skip any lines that do not cover any data (sometimes happens because of chip gaps)
-            if lineModel.lineMask.sum() == 0:
+            if lineModel.modelFailure or lineModel.lineMask.sum() == 0:
                 continue
 
             fit, fitFailure = lineModel.fit(dChi2Tol=self.config.dChi2Tolerance, log=self.log,
