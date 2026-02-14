@@ -499,7 +499,13 @@ class LineProfile:
                 break
             dx = scipy.linalg.cho_solve(cholesky, b)
 
-            factor, fmin, _, _ = scipy.optimize.brent(line_search, args=(dx,), full_output=True, tol=0.05)
+            if abs(line_search(1, dx) - chi2) < 1e-12:
+                # Step size is too small for the brent line search to work well.
+                # Just use the step fit from the Cholesky solve.
+                factor = 1
+            else:
+                factor, _, _, _ = scipy.optimize.brent(line_search, args=(dx,), full_output=True, tol=0.05)
+
             x -= factor * dx
             if (abs(x[0]) > 1.5 * self._rhoMax) or (iter > maxIter):
                 fitFailure = True
@@ -921,6 +927,7 @@ class MaskStreaksTask(pipeBase.Task):
             # Drop this line if the model profile is below the footprint
             # threshold
             if not finalLineMask.any():
+                self.log.debug("Streak model profile is below the footprintThreshold.")
                 continue
             fit.modelMaximum = finalModelMax
             lineFits.append(fit)
