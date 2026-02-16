@@ -623,7 +623,7 @@ class ReferenceObjectLoader:
             return filteredRefCat
         return self.loadRegion(outerSkyRegion, filterName, filtFunc=_filterFunction, epoch=epoch)
 
-    def loadRegion(self, region, filterName, filtFunc=None, epoch=None):
+    def loadRegion(self, region, filterName, filtFunc=None, epoch=None, wcsForCentroids=None):
         """Load reference objects within a specified region.
 
         This function loads the DataIds used to construct an instance of this
@@ -651,6 +651,9 @@ class ReferenceObjectLoader:
         epoch : `astropy.time.Time` or `None`, optional
             Epoch to which to correct proper motion and parallax, or `None` to
             not apply such corrections.
+        wcsForCentroids : `lsst.afw.geom.SkyWcs`, optional
+            If provided, this WCS will be used to convert the reference catalog
+            sky coordinates to pixel positions.
 
         Returns
         -------
@@ -747,9 +750,20 @@ class ReferenceObjectLoader:
 
         self.applyProperMotions(refCat, epoch)
 
-        expandedCat = self._remapReferenceCatalogSchema(refCat,
-                                                        anyFilterMapsToThis=self.config.anyFilterMapsToThis,
-                                                        filterMap=self.config.filterMap)
+        if wcsForCentroids is not None:
+            expandedCat = self._remapReferenceCatalogSchema(
+                refCat,
+                anyFilterMapsToThis=self.config.anyFilterMapsToThis,
+                filterMap=self.config.filterMap,
+                centroids=True,
+            )
+            afwTable.updateRefCentroids(wcsForCentroids, expandedCat)
+        else:
+            expandedCat = self._remapReferenceCatalogSchema(
+                refCat,
+                anyFilterMapsToThis=self.config.anyFilterMapsToThis,
+                filterMap=self.config.filterMap,
+            )
 
         # Ensure that the returned reference catalog is continuous in memory
         if not expandedCat.isContiguous():
