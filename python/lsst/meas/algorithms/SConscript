@@ -15,5 +15,6 @@ scripts.BasicSConscript.python(['_algorithmsLib'], [
     'pcaPsf.cc',
     'psfCandidate/psfCandidate.cc',
     'singleGaussianPsf.cc',
+    'spanSetMoments.cc',
     'spatialModelPsf.cc',
     'warpedPsf.cc'])
