@@ -40,7 +40,7 @@ namespace algorithms {
  * `lsst.afw.geom.SpanSet`.
  *
  * This class provides low-level pixel-processing code for
- * `ComputeRoughtPsfShapeletsTask`.
+ * `ComputeRoughPsfShapeletsTask`.
  */
 struct SpanSetMoments {
 
@@ -59,7 +59,7 @@ struct SpanSetMoments {
     /// The pixels actually used to compute the moments.
     std::shared_ptr<afw::geom::SpanSet> spans;
 
-    /// Flag if there were too many bad pixels to compute the moments.
+    /// Flag set if there were too many bad pixels to compute the moments.
     bool too_many_bad_pixels = false;
 
     /// Flag set if the center did not lie within the SpanSet.
@@ -68,10 +68,10 @@ struct SpanSetMoments {
     /// Flag set if there was a bad pixel too close to the center.
     bool bad_pixel_in_center = false;
 
-    /// Flag set if the second moments do not resolve to an ellipse.
+    /// Flag set if the second moments did not resolve to an ellipse.
     bool singular_second_moments = false;
 
-    /// Test whether any failure falg is set.
+    /// Test whether any failure flag is set.
     bool any_flags_set() const {
         return too_many_bad_pixels || center_out_of_bounds || bad_pixel_in_center || singular_second_moments;
     }
@@ -87,14 +87,15 @@ struct SpanSetMoments {
      *
      * @param[in] spans          Pixel region to use.
      * @param[in] masked_image   Image to measure.
-     * @param[in] bad_bitmask    Mask of bad pixels to remove from `spans` to
+     * @param[in] bad_bitmask    Mask of bad pixels to remove from `spans`
      *                           before computing the moments.
      * @param[in] bad_pixel_mask_fraction     Maximum fraction of the pixels
      *                                        in `spans` that can be bad
      *                                        before giving up.
      * @param[in] bad_pixel_exlusion_radius   Radius around the estimated
-     *                                        center where bad pixels will
-     *                                        cause the algorithm to give up.
+     *                                        center where the present of a
+     *                                        bad pixels will cause the
+     *                                        algorithm to give up.
      */
     static std::shared_ptr<SpanSetMoments> compute(afw::geom::SpanSet const& spans,
                                                    afw::image::MaskedImage<float> const& masked_image,
