@@ -79,7 +79,7 @@ class ComputeRoughPsfShapeletsConfig(Config):
         default=2.0,
     )
     max_footprint_area = Field(
-        "Footprints larger than this threshold are dropped before computing moments.",
+        "Footprints with a pixel count larger than this threshold are dropped before computing moments.",
         dtype=int,
         default=10000,
     )
@@ -691,6 +691,10 @@ class ComputeRoughPsfShapeletsTask(Task):
         indices
             Indices into ``values``.
         """
+        if min_count < len(values):
+            raise NoStarsForShapeletsError(
+                f"Not enough sources ({len(values)}) for {name} cut that must yield at least {min_count}."
+            )
         sorter = values.argsort()
         n = np.searchsorted(values[sorter], threshold)
         if kind == ">":
