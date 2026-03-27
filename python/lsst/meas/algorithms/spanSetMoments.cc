@@ -39,7 +39,7 @@ void wrapSpanSetMoments(lsst::cpputils::python::WrapperCollection& wrappers) {
                 cls.def_readonly("flux", &SpanSetMoments::flux);
                 cls.def_readonly("variance", &SpanSetMoments::variance);
                 // def_readonly doesn't ever seem to do the right thing w.r.t.
-                // memory management, even when explicit return value policies.
+                // memory management, even with explicit return value policies.
                 // Copying in a getter seems to be the only safe way to avoid
                 // issues.
                 cls.def_property_readonly(
