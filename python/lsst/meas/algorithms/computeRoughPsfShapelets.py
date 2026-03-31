@@ -139,7 +139,7 @@ class ComputeRoughPsfShapeletsConfig(Config):
         default=4,
     )
     shapelet_scale_factor = Field(
-        "Scale fractor to apply to the moments ellipse when computing the ellipse for the shapelet basis.",
+        "Scale factor to apply to the moments ellipse when computing the ellipse for the shapelet basis.",
         dtype=float,
         default=1.0,
     )

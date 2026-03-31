@@ -113,7 +113,7 @@ struct SpanSetMoments {
      * used for the expansion to vary (i.e. to partially capture spatial
      * variation in the PSF).
      *
-     * @param[in] masked_image    Image ot measure.
+     * @param[in] masked_image    Image to measure.
      * @param[in] moments         Moments already measured on stars.
      * @param[in] order           Order of the shapelet expansion.
      * @param[in] scale           Factor to scale the moments ellipses by to
