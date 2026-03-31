@@ -125,10 +125,10 @@ std::shared_ptr<SpanSetMoments> SpanSetMoments::compute(afw::geom::SpanSet const
 
 shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
         afw::image::MaskedImage<float> const& masked_image,
-        std::vector<std::shared_ptr<SpanSetMoments>> const& moments, int order, double scale) {
-    std::size_t n_pixels = std::accumulate(moments.begin(), moments.end(), 0,
-                                           [](std::size_t n, std::shared_ptr<SpanSetMoments> const& moments) {
-                                               return n + moments->spans->getArea();
+        std::vector<std::shared_ptr<SpanSetMoments>> const& sources, int order, double scale) {
+    std::size_t n_pixels = std::accumulate(sources.begin(), sources.end(), 0,
+                                           [](std::size_t n, std::shared_ptr<SpanSetMoments> const& source) {
+                                               return n + source->spans->getArea();
                                            });
     std::size_t n_coeff = shapelet::computeSize(order);
     ndarray::Array<float, 1, 1> data_array = ndarray::allocate(n_pixels);
@@ -140,12 +140,12 @@ shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
             ndarray::Array<float, 2, 2>(ndarray::allocate(n_coeff, n_pixels)).transpose();
     design_matrix.deep() = 0.0;
     std::size_t start = 0;
-    for (auto const& source_moments : moments) {
-        shapelet::MatrixBuilder<float> builder(source_moments->get_x_array(), source_moments->get_y_array(), order);
+    for (auto const& source : sources) {
+        shapelet::MatrixBuilder<float> builder(source->get_x_array(), source->get_y_array(), order);
         std::size_t stop = start + builder.getDataSize();
         auto source_data_array = data_array[ndarray::view(start, stop)].shallow();
         ndarray::Array<float, 1, 1> source_weight_array = ndarray::allocate(builder.getDataSize());
-        source_moments->spans->applyFunctor(
+        source->spans->applyFunctor(
                 [](geom::Point2I const& point, float& data, float& weight, float img, float var) {
                     weight = 1.0 / std::sqrt(var);
                     data = img * weight;
@@ -153,10 +153,10 @@ shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
                 ndFlat(source_data_array), ndFlat(source_weight_array), *masked_image.getImage(),
                 *masked_image.getVariance());
         auto source_design_matrix = design_matrix[ndarray::view(start, stop)()].shallow();
-        afw::geom::ellipses::Ellipse ellipse(source_moments->shape, source_moments->center);
+        afw::geom::ellipses::Ellipse ellipse(source->shape, source->center);
         ellipse.scale(scale);
         builder(source_design_matrix, ellipse);
-        asEigenArray(source_design_matrix) *= source_moments->flux;
+        asEigenArray(source_design_matrix) *= source->flux;
         asEigenArray(source_design_matrix).colwise() *= asEigenArray(source_weight_array);
         start = stop;
     }

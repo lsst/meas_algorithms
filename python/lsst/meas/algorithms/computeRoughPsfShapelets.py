@@ -122,7 +122,7 @@ class ComputeRoughPsfShapeletsConfig(Config):
         default=False,
     )
     radius_mode_min = Field(
-        "Minimum radius at which to start searching for the first mode. "
+        "Minimum radius in pixels at which to start searching for the first mode. "
         "This just needs be large enough to avoid unphysically small garbage (e.g. CRs).",
         dtype=float,
         default=1.0,
@@ -736,7 +736,7 @@ class ComputeRoughPsfShapeletsTask(Task):
         sorted_radii = radii.copy()
         sorted_radii.sort()
         sorted_radii = sorted_radii[sorted_radii.searchsorted(self.config.radius_mode_min):]
-        scores = kde.score_samples(radii.reshape(-1, 1))
+        scores = kde.score_samples(sorted_radii.reshape(-1, 1))
         peaks, _ = scipy.signal.find_peaks(scores)
         if not peaks.size:
             raise NoStarsForShapeletsError("Radius distribute has no mode.")
