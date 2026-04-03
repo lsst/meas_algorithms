@@ -23,220 +23,286 @@
 
 from __future__ import annotations
 
-__all__ = ["BrightStarStamp", "BrightStarStamps"]
+__all__ = [
+    "BrightStarStampInfo",
+    "BrightStarStampSerializationModel",
+    "BrightStarStampsSerializationModel",
+    "BrightStarStamp",
+    "BrightStarStamps",
+]
 
+import functools
 from collections.abc import Sequence
-from dataclasses import dataclass
+from types import EllipsisType
+from typing import Any
 
-import numpy as np
+from astro_metadata_translator import ObservationInfo
+from pydantic import BaseModel, Field
 
-from lsst.afw.detection import Psf
-from lsst.afw.fits import Fits, readMetadata
-from lsst.afw.geom import SkyWcs
-from lsst.afw.image import ImageFitsReader, MaskedImageF, MaskFitsReader
-from lsst.afw.table.io import InputArchive, OutputArchive
 from lsst.daf.base import PropertyList
-from lsst.geom import Angle, Point2D, degrees
-from lsst.meas.algorithms.stamps import AbstractStamp
-from lsst.utils.introspection import get_full_type_name
+from lsst.images import (
+    Box,
+    Image,
+    ImageSerializationModel,
+    Mask,
+    MaskedImage,
+    MaskedImageSerializationModel,
+    MaskSchema,
+    MaskSerializationModel,
+    Projection,
+    ProjectionSerializationModel,
+    fits,
+)
+from lsst.images.serialization import (
+    ArchiveTree,
+    InputArchive,
+    MetadataValue,
+    OutputArchive,
+    Quantity,
+)
+from lsst.images.utils import is_none
 
 
-@dataclass
-class BrightStarStamp(AbstractStamp):
-    """A single postage stamp centered on a bright star.
+class BrightStarStampInfo(BaseModel):
+    """Information about a bright star in a `BrightStarStamp`.
 
     Attributes
     ----------
-    stamp_im : `~lsst.afw.image.MaskedImageF`
-        The pixel data for this stamp.
-    psf : `~lsst.afw.detection.Psf`, optional
-        The point-spread function for this star.
-    wcs : `~lsst.afw.geom.SkyWcs`, optional
-        World coordinate system associated with the stamp.
     visit : `int`, optional
-        Visit number of the observation.
+        The visit during which the bright star was observed.
     detector : `int`, optional
-        Detector ID within the visit.
+        The detector on which the bright star was observed.
     ref_id : `int`, optional
-        Reference catalog ID of the star.
+        The reference catalog ID for the bright star.
     ref_mag : `float`, optional
-        Reference catalog magnitude of the star.
-    position : `~lsst.geom.Point2D`, optional
-        Center position of the star on the detector in pixel coordinates.
-    focal_plane_radius : `float`, optional
-        Radial distance from the focal plane center in tangent-plane pixels.
-    focal_plane_angle : `~lsst.geom.Angle`, optional
-        Azimuthal angle on the focal plane (counterclockwise from +X).
-    scale : `float`, optional
-        Flux scaling factor applied to the PSF model.
-    scale_err : `float`, optional
-        Error in the flux scale.
-    pedestal : `float`, optional
-        Background pedestal level.
-    pedestal_err : `float`, optional
-        Error on the pedestal.
-    pedestal_scale_cov : `float`, optional
-        Covariance between pedestal and scale.
-    gradient_x : `float`, optional
-        Background gradient in the X direction.
-    gradient_y : `float`, optional
-        Background gradient in the Y direction.
-    curvature_x: `float`, optional
-        Background curvature in the X direction.
-    curvature_y: `float`, optional
-        Background curvature in the Y direction.
-    curvature_xy: `float`, optional
-        The xy component of the second order fit.
-    global_reduced_chi_squared : `float`, optional
-        Reduced chi-squared for the global model fit.
-    global_degrees_of_freedom : `int`, optional
-        Degrees of freedom for the global model fit.
-    psf_reduced_chi_squared : `float`, optional
-        Reduced chi-squared for the PSF fit.
-    psf_degrees_of_freedom : `int`, optional
-        Degrees of freedom for the PSF fit.
-    psf_masked_flux_fraction : `float`, optional
-        Fraction of flux masked in the PSF.
-
-    Notes
-    -----
-    This class is designed to be used with `BrightStarStamps`, which manages
-    collections of these stamps and handles reading/writing them to FITS files.
-    The `factory` class method provides a standard interface to construct
-    instances from image data and metadata, while the `_getMetadata` method
-    extracts metadata for storage in FITS headers.
+        The reference magnitude for the bright star.
+    position_x : `float`, optional
+        The x-coordinate of the bright star in the focal plane.
+    position_y : `float`, optional
+        The y-coordinate of the bright star in the focal plane.
+    focal_plane_radius : `~lsst.images.utils.Quantity`, optional
+        The radius of the bright star from the center of the focal plane.
+    focal_plane_angle : `~lsst.images.utils.Quantity`, optional
+        The angle of the bright star in the focal plane,
+        measured from the +x axis.
     """
 
-    stamp_im: MaskedImageF
-    psf: Psf | None
-    wcs: SkyWcs | None
-    visit: int | None
-    detector: int | None
-    ref_id: int | None
-    ref_mag: float | None
-    position: Point2D | None
-    focal_plane_radius: float | None
-    focal_plane_angle: Angle | None
-    scale: float | None
-    scale_err: float | None
-    pedestal: float | None
-    pedestal_err: float | None
-    pedestal_scale_cov: float | None
-    gradient_x: float | None
-    gradient_y: float | None
-    curvature_x: float | None
-    curvature_y: float | None
-    curvature_xy: float | None
-    global_reduced_chi_squared: float | None
-    global_degrees_of_freedom: int | None
-    psf_reduced_chi_squared: float | None
-    psf_degrees_of_freedom: int | None
-    psf_masked_flux_fraction: float | None
+    visit: int | None = None
+    detector: int | None = None
+    ref_id: int | None = None
+    ref_mag: float | None = None
+    position_x: float | None = None
+    position_y: float | None = None
+    focal_plane_radius: Quantity | None = None
+    focal_plane_angle: Quantity | None = None
 
-    # Mapping of metadata keys to attribute names
-    _metadata_attribute_map = {
-        "VISIT": "visit",
-        "DETECTOR": "detector",
-        "REF_ID": "ref_id",
-        "REF_MAG": "ref_mag",
-        "POSITION_X": "position.x",
-        "POSITION_Y": "position.y",
-        "FOCAL_PLANE_RADIUS": "focal_plane_radius",
-        "FOCAL_PLANE_ANGLE_DEGREES": "focal_plane_angle",
-        "SCALE": "scale",
-        "SCALE_ERR": "scale_err",
-        "PEDESTAL": "pedestal",
-        "PEDESTAL_ERR": "pedestal_err",
-        "PEDESTAL_SCALE_COV": "pedestal_scale_cov",
-        "GRADIENT_X": "gradient_x",
-        "GRADIENT_Y": "gradient_y",
-        "CURVATURE_X": "curvature_x",
-        "CURVATURE_Y": "curvature_y",
-        "CURVATURE_XY": "curvature_xy",
-        "GLOBAL_REDUCED_CHI_SQUARED": "global_reduced_chi_squared",
-        "GLOBAL_DEGREES_OF_FREEDOM": "global_degrees_of_freedom",
-        "PSF_REDUCED_CHI_SQUARED": "psf_reduced_chi_squared",
-        "PSF_DEGREES_OF_FREEDOM": "psf_degrees_of_freedom",
-        "PSF_MASKED_FLUX_FRACTION": "psf_masked_flux_fraction",
-    }
+    def __str__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"BrightStarStampInfo({attrs})"
 
-    def _getMetadata(self) -> PropertyList:
-        """Extract metadata from the stamp's attributes.
+    __repr__ = __str__
 
-        This method constructs a `PropertyList` containing metadata
-        extracted from the stamp's attributes. It is used when writing the
-        stamp to a FITS file to store relevant metadata in the FITS headers.
 
-        Returns
-        -------
-        metadata : `PropertyList`
-            A `PropertyList` containing the metadata, or `None` if no
-            metadata attributes are defined.
-        """
-        metadata = PropertyList()
-        for metadata_key, attribute_name in self._metadata_attribute_map.items():
-            if "." in attribute_name:
-                top_attr, sub_attr = attribute_name.split(".")
-                value = getattr(getattr(self, top_attr), sub_attr)
-            elif metadata_key == "FOCAL_PLANE_ANGLE_DEGREES":
-                value = getattr(self, attribute_name).asDegrees()
-            else:
-                value = getattr(self, attribute_name)
-            metadata[metadata_key] = value
-        return metadata
+class BrightStarStampSerializationModel[P: BaseModel](MaskedImageSerializationModel[P]):
+    """A Pydantic model used to represent a serialized `BrightStarStamp`."""
+
+    image: ImageSerializationModel[P] = Field(description="The main data image.")
+    mask: MaskSerializationModel[P] = Field(description="Bitmask that annotates the main image's pixels.")
+    variance: ImageSerializationModel[P] = Field(description="Per-pixel variance estimates for the image.")
+    projection: ProjectionSerializationModel[P] | None = Field(
+        default=None,
+        exclude_if=is_none,
+        description="Projection to map pixels to the sky.",
+    )
+    psf_kernel_image: ImageSerializationModel[P] | None = Field(
+        default=None,
+        exclude_if=is_none,
+        description="Kernel image of the PSF at the stamp center.",
+    )
+    obs_info: ObservationInfo | None = Field(
+        default=None,
+        exclude_if=is_none,
+        description="Standardized description of visit metadata.",
+    )
+    stamp_info: BrightStarStampInfo = Field(description="Information about the bright star in the stamp.")
+
+
+class BrightStarStampsSerializationModel[P: BaseModel](ArchiveTree):
+    """A Pydantic model used to represent serialized `BrightStarStamps`."""
+
+    stamps: list[BrightStarStampSerializationModel[P]] = Field(
+        default_factory=list,
+        description="The bright star stamps in this collection.",
+    )
+
+
+class BrightStarStamp(MaskedImage):
+    """A postage stamp centered on a bright star, with associated metadata.
+
+    Parameters
+    ----------
+    image : `~lsst.images.Image`
+        The main data image for this bright star stamp.
+    mask : `~lsst.images.Mask`, optional
+        Bitmask that annotates the main image's pixels.
+    variance : `~lsst.images.Image`, optional
+        Per-pixel variance estimates for the image.
+    mask_schema : `~lsst.images.MaskSchema`, optional
+        Schema for the mask, required if a mask is provided.
+    projection : `~lsst.images.Projection`, optional
+        Projection to map pixels to the sky.
+    obs_info : `~astro_metadata_translator.ObservationInfo`, optional
+        Standardized description of visit metadata.
+    metadata : `dict` [`str`, `MetadataValue`], optional
+        Additional metadata to associate with this stamp.
+    psf : `~lsst.images.Image`, optional
+        Kernel image of the PSF at the stamp center.
+    stamp_info : `BrightStarStampInfo`, optional
+        Information about the bright star in the stamp.
+
+    Attributes
+    ----------
+    psf : `~lsst.images.Image`
+        Kernel image of the PSF at the stamp center.
+    stamp_info : `BrightStarStampInfo`
+        Information about the bright star in this stamp.
+    """
+
+    def __init__(
+        self,
+        image: Image,
+        *,
+        mask: Mask | None = None,
+        variance: Image | None = None,
+        mask_schema: MaskSchema | None = None,
+        projection: Projection | None = None,
+        obs_info: ObservationInfo | None = None,
+        metadata: dict[str, MetadataValue] | None = None,
+        psf: Image | None = None,
+        stamp_info: BrightStarStampInfo | None = None,
+    ):
+        super().__init__(
+            image,
+            mask=mask,
+            variance=variance,
+            mask_schema=mask_schema,
+            projection=projection,
+            obs_info=obs_info,
+            metadata=metadata,
+        )
+
+        self._psf = psf
+        self._stamp_info = stamp_info or BrightStarStampInfo()
+
+    def __getitem__(self, bbox: Box | EllipsisType) -> BrightStarStamp:
+        super().__getitem__(bbox)
+        if bbox is ...:
+            return self
+        return self._transfer_metadata(
+            BrightStarStamp(
+                # Projection and obs_info propagate from the image.
+                self.image[bbox],
+                mask=self.mask[bbox],
+                variance=self.variance[bbox],
+                psf=self.psf,
+                stamp_info=self.stamp_info,
+            ),
+            bbox=bbox,
+        )
+
+    def __str__(self) -> str:
+        return f"BrightStarStamp({self.image!s}, {list(self.mask.schema.names)}, {self.stamp_info})"
+
+    def __repr__(self) -> str:
+        return (
+            f"BrightStarStamp({self.image!r}, mask_schema={self.mask.schema!r}, "
+            f"stamp_info={self.stamp_info!r})"
+        )
 
     @property
-    def metadata(self) -> PropertyList:
-        """Return the stamp's metadata as a PropertyList."""
-        return self._getMetadata()
+    def psf(self) -> Image:
+        """Kernel image of the PSF at the stamp center."""
+        if self._psf is None:
+            raise RuntimeError("No PSF kernel image is attached to this BrightStarStamp.")
+        return self._psf
 
-    @classmethod
-    def factory(
-        cls,
-        stamp_im: MaskedImageF,
-        psf: Psf | None,
-        wcs: SkyWcs | None,
-        metadata: PropertyList,
+    @property
+    def stamp_info(self) -> BrightStarStampInfo:
+        """Return the BrightStarStampInfo associated with this stamp."""
+        return self._stamp_info
+
+    def copy(self) -> BrightStarStamp:
+        """Deep-copy the bright star stamp, metadata, and stamp info."""
+        return self._transfer_metadata(
+            BrightStarStamp(
+                image=self._image.copy(),
+                mask=self._mask.copy(),
+                variance=self._variance.copy(),
+                psf=self._psf,
+                stamp_info=self._stamp_info.model_copy(),
+            ),
+            copy=True,
+        )
+
+    def serialize(self, archive: OutputArchive[Any]) -> BrightStarStampSerializationModel:
+        serialized_image = archive.serialize_direct(
+            "image", functools.partial(self.image.serialize, save_projection=False)
+        )
+        serialized_mask = archive.serialize_direct(
+            "mask", functools.partial(self.mask.serialize, save_projection=False)
+        )
+        serialized_variance = archive.serialize_direct(
+            "variance", functools.partial(self.variance.serialize, save_projection=False)
+        )
+        serialized_projection = (
+            archive.serialize_direct("projection", self.projection.serialize)
+            if self.projection is not None
+            else None
+        )
+        serialized_psf_kernel_image = (
+            archive.serialize_direct(
+                "psf_kernel_image",
+                functools.partial(self._psf.serialize, save_projection=False),
+            )
+            if self._psf is not None
+            else None
+        )
+        return BrightStarStampSerializationModel(
+            image=serialized_image,
+            mask=serialized_mask,
+            variance=serialized_variance,
+            projection=serialized_projection,
+            psf_kernel_image=serialized_psf_kernel_image,
+            obs_info=self.obs_info,
+            metadata=self.metadata,
+            stamp_info=self.stamp_info,
+        )
+
+    @staticmethod
+    def deserialize(
+        model: BrightStarStampSerializationModel[Any],
+        archive: InputArchive[Any],
+        *,
+        bbox: Box | None = None,
     ) -> BrightStarStamp:
-        """Construct a `BrightStarStamp` from image data and metadata.
-
-        This method provides a standard interface to create a `BrightStarStamp`
-        from its image data, PSF, WCS, and associated metadata.
-        It is used by the `BrightStarStamps.readFits` method to construct
-        individual bright star stamps from FITS files.
-
-        Parameters
-        ----------
-        stamp_im : `~lsst.afw.image.MaskedImageF`
-            Masked image for the stamp.
-        psf : `~lsst.afw.detection.Psf`, optional
-            Point-spread function for the stamp.
-        wcs : `~lsst.afw.geom.SkyWcs`, optional
-            World coordinate system for the stamp.
-        metadata : `PropertyList`
-            Metadata associated with the stamp, containing keys for all
-            required attributes.
-
-        Returns
-        -------
-        brightStarStamp : `BrightStarStamp`
-            The constructed `BrightStarStamp` instance.
-        """
-        kwargs = {}
-
-        for metadata_key, attribute_name in cls._metadata_attribute_map.items():
-            if "." in attribute_name:  # for nested attributes like position.x
-                top_attr, sub_attr = attribute_name.split(".")
-                if top_attr not in kwargs:  # avoid overwriting position
-                    if top_attr == "position":  # make an initial Point2D
-                        kwargs[top_attr] = Point2D(0, 0)
-                setattr(kwargs[top_attr], sub_attr, metadata[metadata_key])
-            elif attribute_name == "focal_plane_angle":
-                kwargs[attribute_name] = Angle(metadata[metadata_key], degrees)
-            else:
-                kwargs[attribute_name] = metadata[metadata_key]
-
-        return cls(stamp_im=stamp_im, psf=psf, wcs=wcs, **kwargs)
+        masked_image = MaskedImage.deserialize(model, archive, bbox=bbox)
+        psf_kernel_image = (
+            Image.deserialize(model.psf_kernel_image, archive)
+            if model.psf_kernel_image is not None
+            else None
+        )
+        projection = (
+            Projection.deserialize(model.projection, archive) if model.projection is not None else None
+        )
+        return BrightStarStamp(
+            masked_image.image,
+            mask=masked_image.mask,
+            variance=masked_image.variance,
+            psf=psf_kernel_image,
+            projection=projection,
+            obs_info=model.obs_info,
+            stamp_info=model.stamp_info,
+        )._finish_deserialize(model)
 
 
 class BrightStarStamps(Sequence[BrightStarStamp]):
@@ -244,20 +310,30 @@ class BrightStarStamps(Sequence[BrightStarStamp]):
 
     Parameters
     ----------
-    brightStarStamps : `Iterable` [`BrightStarStamp`]
+    stamps : `Iterable` [`BrightStarStamp`]
         Collection of `BrightStarStamp` instances.
-    metadata : `~lsst.daf.base.PropertyList`, optional
+    metadata : `dict` [`str`, `MetadataValue`], optional
         Global metadata associated with the collection.
+
+    Attributes
+    ----------
+    metadata : `dict` [`str`, `MetadataValue`]
+        Global metadata associated with the collection.
+    ref_id_map : `dict` [`int`, `BrightStarStamp`]
+        A mapping from reference IDs to `BrightStarStamp` objects.
+        Only includes stamps with valid reference IDs.
     """
 
     def __init__(
         self,
-        brightStarStamps: Sequence[BrightStarStamp],
-        metadata: PropertyList | None = None,
+        stamps: Sequence[BrightStarStamp],
+        metadata: dict[str, MetadataValue] | None = None,
     ):
-        self._stamps = list(brightStarStamps)
-        self._metadata = PropertyList() if metadata is None else metadata.deepCopy()
-        self.by_ref_id = {stamp.ref_id: stamp for stamp in self}
+        self._stamps = list(stamps)
+        self._metadata = {} if metadata is None else dict(metadata)
+        self._ref_id_map = {
+            stamp.stamp_info.ref_id: stamp for stamp in self if stamp.stamp_info.ref_id is not None
+        }
 
     def __len__(self):
         return len(self._stamps)
@@ -270,10 +346,45 @@ class BrightStarStamps(Sequence[BrightStarStamp]):
     def __iter__(self):
         return iter(self._stamps)
 
+    def __str__(self) -> str:
+        return f"BrightStarStamps(length={len(self)})"
+
+    __repr__ = __str__
+
     @property
     def metadata(self):
-        """Return the collection's global metadata as a PropertyList."""
+        """Return the collection's global metadata as a dict."""
         return self._metadata
+
+    @property
+    def ref_id_map(self):
+        """Map reference IDs to `BrightStarStamp` objects."""
+        return self._ref_id_map
+
+    def serialize(self, archive: OutputArchive[Any]) -> BrightStarStampsSerializationModel:
+        return BrightStarStampsSerializationModel(
+            stamps=[
+                archive.serialize_direct(f"stamp_{index}", stamp.serialize)
+                for index, stamp in enumerate(self._stamps)
+            ],
+            metadata=self._metadata,
+        )
+
+    @staticmethod
+    def deserialize(
+        model: BrightStarStampsSerializationModel[Any],
+        archive: InputArchive[Any],
+    ) -> BrightStarStamps:
+        return BrightStarStamps(
+            [BrightStarStamp.deserialize(stamp_model, archive) for stamp_model in model.stamps],
+            metadata=model.metadata,
+        )
+
+    @staticmethod
+    def _get_archive_tree_type[P: BaseModel](
+        pointer_type: type[P],
+    ) -> type[BrightStarStampsSerializationModel[P]]:
+        return BrightStarStampsSerializationModel[pointer_type]
 
     @classmethod
     def readFits(cls, filename: str) -> BrightStarStamps:
@@ -286,10 +397,10 @@ class BrightStarStamps(Sequence[BrightStarStamp]):
 
         Returns
         -------
-        brightStarStamps : `BrightStarStamps`
+        bright_star_stamps : `BrightStarStamps`
             The constructed `BrightStarStamps` instance.
         """
-        return cls.readFitsWithOptions(filename, None)
+        return fits.read(cls, filename).deserialized
 
     @classmethod
     def readFitsWithOptions(cls, filename: str, options: PropertyList | None) -> BrightStarStamps:
@@ -304,72 +415,10 @@ class BrightStarStamps(Sequence[BrightStarStamp]):
 
         Returns
         -------
-        brightStarStamps : `BrightStarStamps`
+        bright_star_stamps : `BrightStarStamps`
             The constructed `BrightStarStamps` instance.
         """
-        with Fits(filename, "r") as fits_file:
-            stamp_planes = {}
-            stamp_psf_ids = {}
-            stamp_wcs_ids = {}
-            stamp_metadata = {}
-            archive = None
-
-            for hdu_num in range(1, fits_file.countHdus()):  # Skip primary HDU
-                metadata = readMetadata(filename, hdu=hdu_num)
-                extname = metadata["EXTNAME"]
-                stamp_id: int | None = metadata.get("EXTVER", None)
-
-                # Skip non-image BINTABLEs (except ARCHIVE_INDEX)
-                if metadata["XTENSION"] == "BINTABLE" and not metadata.get("ZIMAGE", False):
-                    if extname != "ARCHIVE_INDEX":
-                        continue
-
-                # Handle the archive index separately
-                if extname == "ARCHIVE_INDEX":
-                    fits_file.setHdu(hdu_num)
-                    archive = InputArchive.readFits(fits_file)
-                    continue
-                elif metadata.get("EXTTYPE") == "ARCHIVE_DATA":
-                    continue
-
-                # Select reader and dtype
-                if extname == "IMAGE":
-                    reader = ImageFitsReader(filename, hdu=hdu_num)
-                    dtype = np.dtype(MaskedImageF.dtype)
-                    stamp_psf_ids[stamp_id] = metadata.pop("PSF", None)
-                    stamp_wcs_ids[stamp_id] = metadata.pop("WCS", None)
-                    stamp_metadata[stamp_id] = metadata
-                elif extname == "MASK":
-                    reader = MaskFitsReader(filename, hdu=hdu_num)
-                    dtype = None
-                elif extname == "VARIANCE":
-                    reader = ImageFitsReader(filename, hdu=hdu_num)
-                    dtype = np.dtype("float32")
-                else:
-                    raise ValueError(f"Unknown extension type: {extname}")
-
-                if stamp_id is not None:
-                    stamp_planes.setdefault(stamp_id, {})[extname.lower()] = reader.read(dtype=dtype)
-
-        primary_metadata = readMetadata(filename, hdu=0)
-        num_stamps = primary_metadata["N_STAMPS"]
-
-        if len(stamp_planes) != num_stamps:
-            raise ValueError(
-                f"Number of stamps read ({len(stamp_planes)}) does not agree with the "
-                f"number of stamps recorded in the primary HDU metadata ({num_stamps})."
-            )
-        if archive is None:
-            raise ValueError("No archive index was found in the FITS file; cannot read PSF or WCS.")
-
-        brightStarStamps = []
-        for stamp_id in range(1, num_stamps + 1):  # Need to increment by one as EXTVER starts at 1
-            stamp = MaskedImageF(**stamp_planes[stamp_id])
-            psf = archive.get(stamp_psf_ids[stamp_id])
-            wcs = archive.get(stamp_wcs_ids[stamp_id])
-            brightStarStamps.append(BrightStarStamp.factory(stamp, psf, wcs, stamp_metadata[stamp_id]))
-
-        return cls(brightStarStamps, primary_metadata)
+        return cls.readFits(filename)
 
     def writeFits(self, filename: str):
         """Write this `BrightStarStamps` object to a FITS file.
@@ -379,47 +428,4 @@ class BrightStarStamps(Sequence[BrightStarStamp]):
         filename : `str`
             Name of the FITS file to write.
         """
-        metadata = self._metadata.deepCopy()
-
-        # Store metadata in the primary HDU
-        metadata["N_STAMPS"] = len(self._stamps)
-        metadata["VERSION"] = 2  # Record version number in case of future code changes
-        metadata["STAMPCLS"] = get_full_type_name(self)
-
-        # Create and write to the FITS file within a context manager
-        with Fits(filename, "w") as fits_file:
-            fits_file.createEmpty()
-
-            # Store Persistables in an OutputArchive
-            output_archive = OutputArchive()
-            stamp_psf_ids = []
-            stamp_wcs_ids = []
-            for stamp in self._stamps:
-                stamp_psf_ids.append(output_archive.put(stamp.psf))
-                stamp_wcs_ids.append(output_archive.put(stamp.wcs))
-
-            # Write to the FITS file
-            fits_file.writeMetadata(metadata)
-            del metadata
-            output_archive.writeFits(fits_file)
-
-        # Add all pixel data to extension HDUs; note: EXTVER should be 1-based
-        for stamp_id, (stamp, stamp_psf_id, stamp_wcs_id) in enumerate(
-            zip(self._stamps, stamp_psf_ids, stamp_wcs_ids),
-            start=1,
-        ):
-            metadata = PropertyList()
-            metadata.update({"EXTVER": stamp_id, "EXTNAME": "IMAGE"})
-            if stamp_metadata := stamp._getMetadata():
-                metadata.update(stamp_metadata)
-            metadata["PSF"] = stamp_psf_id
-            metadata["WCS"] = stamp_wcs_id
-            stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode="a")
-
-            metadata = PropertyList()
-            metadata.update({"EXTVER": stamp_id, "EXTNAME": "MASK"})
-            stamp.stamp_im.getMask().writeFits(filename, metadata=metadata, mode="a")
-
-            metadata = PropertyList()
-            metadata.update({"EXTVER": stamp_id, "EXTNAME": "VARIANCE"})
-            stamp.stamp_im.getVariance().writeFits(filename, metadata=metadata, mode="a")
+        fits.write(self, filename)
