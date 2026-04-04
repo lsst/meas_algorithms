@@ -581,6 +581,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             ],
             loc="lower center",
         )
+        return figure
 
     def plot_shapelets(
         self,
@@ -653,6 +654,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             self._draw_ellipse(axes[f"r{star_id}"], star_ellipse, fill=False, edgecolor="blue", alpha=0.5)
         figure.colorbar(image_plot, cax=axes["image_cbar"], location="left")
         figure.colorbar(res_plot, cax=axes["res_cbar"], location="right")
+        return figure
 
     def _threshold_with_bounds(
         self,
@@ -691,7 +693,7 @@ class ComputeRoughPsfShapeletsTask(Task):
         indices
             Indices into ``values``.
         """
-        if min_count < len(values):
+        if min_count > len(values):
             raise NoStarsForShapeletsError(
                 f"Not enough sources ({len(values)}) for {name} cut that must yield at least {min_count}."
             )
