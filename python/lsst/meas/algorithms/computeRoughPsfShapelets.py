@@ -436,6 +436,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             shape_covariance=shape_dist.covariance_,
             radius_cut=radius_cut,
             radius_kde=radius_kde,
+            catalog=catalog,
         )
 
     def plot_selection(
