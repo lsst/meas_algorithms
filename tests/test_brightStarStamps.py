@@ -21,13 +21,13 @@
 
 import unittest
 from tempfile import NamedTemporaryFile
+from typing import cast
 
+import astropy.units as u
 import lsst.utils.tests
 import numpy as np
-from lsst.afw.image import MaskedImageF
-from lsst.daf.base import PropertyList
-from lsst.meas.algorithms import BrightStarStamp, BrightStarStamps
-from lsst.meas.algorithms.stamps import StampsBase
+from lsst.images import Image, Mask, MaskedImage, MaskSchema
+from lsst.meas.algorithms import BrightStarStamp, BrightStarStampInfo, BrightStarStamps
 
 
 class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
@@ -38,73 +38,100 @@ class BrightStarStampsTestCase(lsst.utils.tests.TestCase):
         stamp_size = (25, 25)
 
         # Generate simulated bright star stamps
-        brightStarStamps = []
-        self.metadatas = []
+        bright_star_stamps = []
+        self.stamp_infos = []
+        mask_schema = MaskSchema([])
+
         for i in range(3):
-            stamp = MaskedImageF(*stamp_size)
-            stamp_array = stamp.image.array
-            stamp_array += rng.random(stamp_size)
-            psf = None
-            wcs = None
-            metadata = PropertyList()
-            metadata.set("VISIT", i)
-            metadata.set("DETECTOR", i + 1)
-            metadata.set("REF_ID", f"ref{i}")
-            metadata.set("REF_MAG", float(i * 5))
-            metadata.set("POSITION_X", rng.random())
-            metadata.set("POSITION_Y", rng.random())
-            metadata.set("FOCAL_PLANE_RADIUS", rng.random())
-            metadata.set("FOCAL_PLANE_ANGLE_DEGREES", rng.random())
-            metadata.set("SCALE", rng.random())
-            metadata.set("SCALE_ERR", rng.random())
-            metadata.set("PEDESTAL", rng.random())
-            metadata.set("PEDESTAL_ERR", rng.random())
-            metadata.set("PEDESTAL_SCALE_COV", rng.random())
-            metadata.set("GRADIENT_X", rng.random())
-            metadata.set("GRADIENT_Y", rng.random())
-            metadata.set("CURVATURE_X", rng.random())
-            metadata.set("CURVATURE_Y", rng.random())
-            metadata.set("CURVATURE_XY", rng.random())
-            metadata.set("GLOBAL_REDUCED_CHI_SQUARED", rng.random())
-            metadata.set("GLOBAL_DEGREES_OF_FREEDOM", rng.integers(1, 100))
-            metadata.set("PSF_REDUCED_CHI_SQUARED", rng.random())
-            metadata.set("PSF_DEGREES_OF_FREEDOM", rng.integers(1, 100))
-            metadata.set("PSF_MASKED_FLUX_FRACTION", rng.random())
-            self.metadatas.append(metadata)
-            brightStarStamp = BrightStarStamp.factory(stamp, psf, wcs, metadata)
-            brightStarStamps.append(brightStarStamp)
-        self.primary_metadata = PropertyList()
-        self.primary_metadata.set("TEST_KEY", "TEST VALUE")
-        self.brightStarStamps = BrightStarStamps(brightStarStamps, self.primary_metadata)
+            stamp = MaskedImage(
+                image=Image(rng.random(stamp_size).astype(np.float32)),
+                mask=Mask(0, schema=mask_schema, shape=stamp_size),
+                variance=Image(rng.random(stamp_size).astype(np.float32)),
+            )
+
+            stamp_info = BrightStarStampInfo(
+                visit=100 + i,
+                detector=200 + i,
+                ref_id=1000 + i,
+                ref_mag=10.0 + i,
+                position_x=float(rng.random()),
+                position_y=float(rng.random()),
+                focal_plane_radius=float(rng.random()) * u.mm,
+                focal_plane_angle=float(rng.random()) * u.rad,
+            )
+            self.stamp_infos.append(stamp_info)
+
+            # Build a normalized 2-D Gaussian kernel image directly.
+            yy, xx = np.mgrid[: stamp_size[0], : stamp_size[1]]
+            cy = (stamp_size[0] - 1) / 2.0
+            cx = (stamp_size[1] - 1) / 2.0
+            sigma = 1.5
+            kernel_array = np.exp(-((yy - cy) ** 2 + (xx - cx) ** 2) / (2.0 * sigma**2))
+            kernel_array /= np.sum(kernel_array)
+            psf_kernel_image = Image(kernel_array.astype(np.float64))
+
+            bright_star_stamps.append(
+                BrightStarStamp(
+                    image=stamp.image,
+                    mask=stamp.mask,
+                    variance=stamp.variance,
+                    psf=psf_kernel_image,
+                    stamp_info=stamp_info,
+                )
+            )
+
+        self.global_metadata = {"TEST_KEY": "TEST VALUE"}
+        self.bright_star_stamps = BrightStarStamps(bright_star_stamps, self.global_metadata)
 
     def tearDown(self):
-        del self.brightStarStamps
-        del self.metadatas
-        del self.primary_metadata
+        del self.bright_star_stamps
+        del self.stamp_infos
+        del self.global_metadata
 
     def testBrightStarStamps(self):
         """Test that BrightStarStamps can be serialized and deserialized."""
 
         with NamedTemporaryFile() as file:
-            self.brightStarStamps.writeFits(file.name)
-            # Test StampsBase correctly bounces to BrightStarStamps readFits
-            brightStarStamps = StampsBase.readFits(file.name)
+            self.bright_star_stamps.writeFits(file.name)
+            bright_star_stamps = BrightStarStamps.readFits(file.name)
 
-        primary_metadata = brightStarStamps.metadata
-        self.assertEqual(self.primary_metadata["TEST_KEY"], primary_metadata["TEST_KEY"])
-        self.assertEqual(len(self.metadatas), primary_metadata["N_STAMPS"])
-        for input_metadata, input_stamp, output_stamp in zip(
-            self.metadatas, self.brightStarStamps, brightStarStamps
+        global_metadata = bright_star_stamps.metadata
+        self.assertEqual(self.global_metadata["TEST_KEY"], global_metadata["TEST_KEY"])
+        self.assertEqual(len(self.bright_star_stamps), len(bright_star_stamps))
+        for input_info, input_stamp, output_stamp in zip(
+            self.stamp_infos, self.bright_star_stamps, bright_star_stamps
         ):
-            output_metadata = output_stamp.metadata
-            for key in output_metadata.names():
-                input_value = input_metadata[key]
-                output_value = output_metadata[key]
-                if isinstance(input_value, float):
-                    self.assertAlmostEqual(input_value, output_value, places=10)
-                else:
-                    self.assertEqual(input_value, output_value)
-            self.assertMaskedImagesAlmostEqual(input_stamp.stamp_im, output_stamp.stamp_im)
+            self.assertEqual(input_stamp.metadata, {})
+            self.assertEqual(output_stamp.metadata, {})
+
+            output_info = output_stamp.stamp_info
+            self.assertEqual(input_info.visit, output_info.visit)
+            self.assertEqual(input_info.detector, output_info.detector)
+            self.assertEqual(input_info.ref_id, output_info.ref_id)
+            self.assertAlmostEqual(input_info.ref_mag, output_info.ref_mag, places=10)
+            self.assertAlmostEqual(input_info.position_x, output_info.position_x, places=10)
+            self.assertAlmostEqual(input_info.position_y, output_info.position_y, places=10)
+
+            self.assertIsNotNone(input_info.focal_plane_radius)
+            self.assertIsNotNone(output_info.focal_plane_radius)
+            input_radius = cast(u.Quantity, input_info.focal_plane_radius)
+            output_radius = cast(u.Quantity, output_info.focal_plane_radius)
+            self.assertAlmostEqual(input_radius.to_value(u.mm), output_radius.to_value(u.mm), places=10)
+
+            self.assertIsNotNone(input_info.focal_plane_angle)
+            self.assertIsNotNone(output_info.focal_plane_angle)
+            input_angle = cast(u.Quantity, input_info.focal_plane_angle)
+            output_angle = cast(u.Quantity, output_info.focal_plane_angle)
+            self.assertAlmostEqual(input_angle.to_value(u.rad), output_angle.to_value(u.rad), places=10)
+
+            np.testing.assert_allclose(
+                input_stamp.image.array, output_stamp.image.array, rtol=0.0, atol=1e-10
+            )
+            np.testing.assert_array_equal(input_stamp.mask.array, output_stamp.mask.array)
+            np.testing.assert_allclose(
+                input_stamp.variance.array, output_stamp.variance.array, rtol=0.0, atol=1e-10
+            )
+            np.testing.assert_allclose(input_stamp.psf.array, output_stamp.psf.array, rtol=0.0, atol=1e-10)
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
