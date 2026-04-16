@@ -193,7 +193,7 @@ class AdaptiveThresholdDetectionTask(Task):
         adaptiveDetectionConfig.reEstimateBackground = False
         adaptiveDetectionConfig.doTempWideBackground = True
         adaptiveDetectionConfig.tempWideBackground.binSize = 512
-        adaptiveDetectionConfig.thresholdPolarity = "both"
+        adaptiveDetectionConfig.thresholdPolarity = "positive"
         self.log.info("Using adaptive detection with thresholdValue = %.2f and multiplier = %.1f",
                       adaptiveDetectionConfig.thresholdValue,
                       adaptiveDetectionConfig.includeThresholdMultiplier)
