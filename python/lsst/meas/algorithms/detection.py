@@ -617,7 +617,7 @@ class SourceDetectionTask(pipeBase.Task):
                 self.config.minPixels
             )
             results.positive.setRegion(bbox)
-        if self.config.reEstimateBackground or self.config.thresholdPolarity != "positive":
+        if self.config.thresholdPolarity != "positive":
             results.negativeThreshold = self.makeThreshold(middle, "negative", factor=factorNeg)
             results.negative = afwDet.FootprintSet(
                 middle,
