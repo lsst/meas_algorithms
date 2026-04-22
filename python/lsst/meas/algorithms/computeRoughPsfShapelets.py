@@ -50,8 +50,8 @@ if TYPE_CHECKING:
 
 
 class NoStarsForShapeletsError(AlgorithmError):
-    """Exception raised when ComputeRawPsfMomentsTask fails to find any usable
-    stars.
+    """Exception raised when any of the methods involving selection fail to find any usable
+    stars (e.g. compute_raw_moments,  _threshold_with_bounds, _find_first_radius_mode).
     """
 
     @property
@@ -208,7 +208,11 @@ class ComputeRoughPsfShapeletsTask(Task):
     ):
         super().__init__(config=config, **kwargs)
         self.schema = schema
-        self._flux_key = schema.addField("RawPsfMoments_flux", type=float, doc="Unweighted zeroth moment.")
+        self._flux_key = schema.addField(
+            "RoughPsfShapelets_flux",
+            type=float,
+            doc="Unweighted zeroth moment.",
+        )
         self._flux_err_key = schema.addField(
             "RoughPsfShapelets_fluxErr",
             type=float,
@@ -375,9 +379,18 @@ class ComputeRoughPsfShapeletsTask(Task):
         """
         # Cut on flags and SNR first.
         indices = np.arange(len(catalog), dtype=int)[np.logical_not(catalog[self._flag_key])]
+        signalToNoise = []
+        for index in indices:
+            if (np.isfinite(catalog[self._flux_err_key][index])
+                and np.isfinite(catalog[self._flux_err_key][index])
+                and catalog[self._flux_err_key][index] != 0.0):
+                signalToNoise.append(catalog[self._flux_key][index] / catalog[self._flux_err_key][index])
+            else:
+                signalToNoise.append(np.nan)
+        signalToNoise = np.array(signalToNoise)
         indices = indices[
             self._threshold_with_bounds(
-                catalog[self._flux_key][indices] / catalog[self._flux_err_key][indices],
+                signalToNoise,
                 threshold=self.config.min_snr,
                 min_count=self.config.min_n_stars,
                 max_count=len(catalog),
