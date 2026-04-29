@@ -118,11 +118,14 @@ struct SpanSetMoments {
      * @param[in] order           Order of the shapelet expansion.
      * @param[in] scale           Factor to scale the moments ellipses by to
      *                            yield the ellipse for the shapelet fit.
+     * @param[in] circular        If true, use a circular basis with the trace
+     *                            radius of the moments, instead of an
+     *                            elliptical basis.
      */
     static shapelet::ShapeletFunction fit_shapelets(
             afw::image::MaskedImage<float> const& masked_image,
             std::vector<std::shared_ptr<SpanSetMoments>> const& moments,
-            int order, double scale);
+            int order, double scale, bool circular);
 };
 
 }  // namespace algorithms

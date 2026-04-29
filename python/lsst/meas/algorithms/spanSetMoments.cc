@@ -59,7 +59,7 @@ void wrapSpanSetMoments(lsst::cpputils::python::WrapperCollection& wrappers) {
                 cls.def_static("compute", &SpanSetMoments::compute, "spans"_a, "masked_image"_a,
                                "bad_bitmask"_a, "bad_pixel_max_fraction"_a, "bad_pixel_exclusion_radius"_a);
                 cls.def_static("fit_shapelets", &SpanSetMoments::fit_shapelets, "masked_image"_a, "moments"_a,
-                               "order"_a, "scale"_a);
+                               "order"_a, "scale"_a, "circular"_a);
             });
 }
 }  // namespace algorithms

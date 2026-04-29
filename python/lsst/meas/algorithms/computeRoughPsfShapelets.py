@@ -144,6 +144,11 @@ class ComputeRoughPsfShapeletsConfig(Config):
         dtype=float,
         default=1.0,
     )
+    shapelet_circular_basis = Field(
+        "Whether to use a circular shapelet basis with the same moments trace instead of an elliptical one.",
+        dtype=bool,
+        default=True,
+    )
 
     def validate(self) -> None:
         if self.min_n_stars > self.max_n_stars:
@@ -278,6 +283,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             star_moments,
             self.config.shapelet_order,
             self.config.shapelet_scale_factor,
+            self.config.shapelet_circular_basis,
         )
         result.shapelet.getEllipse().setCore(result.mean_shape)
         result.shapelet.changeBasisType(LAGUERRE)
