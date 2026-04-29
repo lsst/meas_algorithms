@@ -125,7 +125,8 @@ std::shared_ptr<SpanSetMoments> SpanSetMoments::compute(afw::geom::SpanSet const
 
 shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
         afw::image::MaskedImage<float> const& masked_image,
-        std::vector<std::shared_ptr<SpanSetMoments>> const& sources, int order, double scale) {
+        std::vector<std::shared_ptr<SpanSetMoments>> const& sources, int order, double scale,
+        bool circular) {
     std::size_t n_pixels = std::accumulate(sources.begin(), sources.end(), 0,
                                            [](std::size_t n, std::shared_ptr<SpanSetMoments> const& source) {
                                                return n + source->spans->getArea();
@@ -147,6 +148,10 @@ shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
         source->spans->flatten(source_data_array, masked_image.getImage()->getArray(), masked_image.getXY0());
         auto source_design_matrix = design_matrix[ndarray::view(start, stop)()].shallow();
         afw::geom::ellipses::Ellipse ellipse(source->shape, source->center);
+        if (circular) {
+            double radius = ellipse.getCore().getTraceRadius();
+            ellipse.setCore(afw::geom::ellipses::Axes(radius, radius, 0.0));
+        }
         ellipse.scale(scale);
         builder(source_design_matrix, ellipse);
         asEigenArray(source_design_matrix) *= source->flux;
@@ -155,7 +160,8 @@ shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
     shapelet::ShapeletFunction result(order, shapelet::HERMITE);
     asEigenMatrix(result.getCoefficients()) = asEigenMatrix(design_matrix)
                                                       .bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
-                                                      .solve(asEigenMatrix(data_array)).cast<double>();
+                                                      .solve(asEigenMatrix(data_array))
+                                                      .cast<double>();
     return result;
 }
 
