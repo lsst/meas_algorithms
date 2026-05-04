@@ -137,7 +137,7 @@ class ComputeRoughPsfShapeletsConfig(Config):
     shapelet_order = Field(
         "Order of the shapelet expansion fit to the stars.",
         dtype=int,
-        default=4,
+        default=6,
     )
     shapelet_scale_factor = Field(
         "Scale factor to apply to the moments ellipse when computing the ellipse for the shapelet basis.",
