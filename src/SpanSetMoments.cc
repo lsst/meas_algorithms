@@ -125,7 +125,8 @@ std::shared_ptr<SpanSetMoments> SpanSetMoments::compute(afw::geom::SpanSet const
 
 shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
         afw::image::MaskedImage<float> const& masked_image,
-        std::vector<std::shared_ptr<SpanSetMoments>> const& sources, int order, double scale) {
+        std::vector<std::shared_ptr<SpanSetMoments>> const& sources, int order, double scale,
+        bool circular) {
     std::size_t n_pixels = std::accumulate(sources.begin(), sources.end(), 0,
                                            [](std::size_t n, std::shared_ptr<SpanSetMoments> const& source) {
                                                return n + source->spans->getArea();
@@ -144,26 +145,23 @@ shapelet::ShapeletFunction SpanSetMoments::fit_shapelets(
         shapelet::MatrixBuilder<float> builder(source->get_x_array(), source->get_y_array(), order);
         std::size_t stop = start + builder.getDataSize();
         auto source_data_array = data_array[ndarray::view(start, stop)].shallow();
-        ndarray::Array<float, 1, 1> source_weight_array = ndarray::allocate(builder.getDataSize());
-        source->spans->applyFunctor(
-                [](geom::Point2I const& point, float& data, float& weight, float img, float var) {
-                    weight = 1.0 / std::sqrt(var);
-                    data = img * weight;
-                },
-                ndFlat(source_data_array), ndFlat(source_weight_array), *masked_image.getImage(),
-                *masked_image.getVariance());
+        source->spans->flatten(source_data_array, masked_image.getImage()->getArray(), masked_image.getXY0());
         auto source_design_matrix = design_matrix[ndarray::view(start, stop)()].shallow();
         afw::geom::ellipses::Ellipse ellipse(source->shape, source->center);
+        if (circular) {
+            double radius = ellipse.getCore().getTraceRadius();
+            ellipse.setCore(afw::geom::ellipses::Axes(radius, radius, 0.0));
+        }
         ellipse.scale(scale);
         builder(source_design_matrix, ellipse);
         asEigenArray(source_design_matrix) *= source->flux;
-        asEigenArray(source_design_matrix).colwise() *= asEigenArray(source_weight_array);
         start = stop;
     }
     shapelet::ShapeletFunction result(order, shapelet::HERMITE);
     asEigenMatrix(result.getCoefficients()) = asEigenMatrix(design_matrix)
                                                       .bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
-                                                      .solve(asEigenMatrix(data_array)).cast<double>();
+                                                      .solve(asEigenMatrix(data_array))
+                                                      .cast<double>();
     return result;
 }
 

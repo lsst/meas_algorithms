@@ -50,8 +50,9 @@ if TYPE_CHECKING:
 
 
 class NoStarsForShapeletsError(AlgorithmError):
-    """Exception raised when ComputeRawPsfMomentsTask fails to find any usable
-    stars.
+    """Exception raised when any of the methods involving selection fail to
+    find any usable stars (e.g. compute_raw_moments,  _threshold_with_bounds,
+    _find_first_radius_mode).
     """
 
     @property
@@ -136,12 +137,17 @@ class ComputeRoughPsfShapeletsConfig(Config):
     shapelet_order = Field(
         "Order of the shapelet expansion fit to the stars.",
         dtype=int,
-        default=4,
+        default=6,
     )
     shapelet_scale_factor = Field(
         "Scale factor to apply to the moments ellipse when computing the ellipse for the shapelet basis.",
         dtype=float,
         default=1.0,
+    )
+    shapelet_circular_basis = Field(
+        "Whether to use a circular shapelet basis with the same moments trace instead of an elliptical one.",
+        dtype=bool,
+        default=True,
     )
 
     def validate(self) -> None:
@@ -208,7 +214,11 @@ class ComputeRoughPsfShapeletsTask(Task):
     ):
         super().__init__(config=config, **kwargs)
         self.schema = schema
-        self._flux_key = schema.addField("RawPsfMoments_flux", type=float, doc="Unweighted zeroth moment.")
+        self._flux_key = schema.addField(
+            "RoughPsfShapelets_flux",
+            type=float,
+            doc="Unweighted zeroth moment.",
+        )
         self._flux_err_key = schema.addField(
             "RoughPsfShapelets_fluxErr",
             type=float,
@@ -273,6 +283,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             star_moments,
             self.config.shapelet_order,
             self.config.shapelet_scale_factor,
+            self.config.shapelet_circular_basis,
         )
         result.shapelet.getEllipse().setCore(result.mean_shape)
         result.shapelet.changeBasisType(LAGUERRE)
@@ -375,9 +386,18 @@ class ComputeRoughPsfShapeletsTask(Task):
         """
         # Cut on flags and SNR first.
         indices = np.arange(len(catalog), dtype=int)[np.logical_not(catalog[self._flag_key])]
+        signalToNoise = []
+        for index in indices:
+            if (np.isfinite(catalog[self._flux_err_key][index])
+               and np.isfinite(catalog[self._flux_err_key][index])
+               and catalog[self._flux_err_key][index] != 0.0):
+                signalToNoise.append(catalog[self._flux_key][index] / catalog[self._flux_err_key][index])
+            else:
+                signalToNoise.append(np.nan)
+        signalToNoise = np.array(signalToNoise)
         indices = indices[
             self._threshold_with_bounds(
-                catalog[self._flux_key][indices] / catalog[self._flux_err_key][indices],
+                signalToNoise,
                 threshold=self.config.min_snr,
                 min_count=self.config.min_n_stars,
                 max_count=len(catalog),
@@ -436,6 +456,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             shape_covariance=shape_dist.covariance_,
             radius_cut=radius_cut,
             radius_kde=radius_kde,
+            catalog=catalog,
         )
 
     def plot_selection(
