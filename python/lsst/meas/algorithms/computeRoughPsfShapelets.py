@@ -27,16 +27,17 @@ import itertools
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
+from logging import Logger
 import scipy.signal
 import scipy.stats
 from sklearn.covariance import MinCovDet
 from sklearn.neighbors import KernelDensity
 
 from lsst.afw.geom import ellipses
-from lsst.afw.image import ImageD, ImageF, MaskedImageF
+from lsst.afw.image import ImageD, ImageF, MaskedImageF, ExposureSummaryStats
 from lsst.afw.table import Point2DKey, QuadrupoleKey, Schema, SourceCatalog
 from lsst.geom import Box2D
-from lsst.pex.config import Config, Field, ListField
+from lsst.pex.config import Config, Field, ListField, FieldValidationError
 from lsst.pipe.base import AlgorithmError, Struct, Task
 from lsst.shapelet import LAGUERRE, ShapeletFunction, computeOffset
 
@@ -149,6 +150,12 @@ class ComputeRoughPsfShapeletsConfig(Config):
         dtype=bool,
         default=True,
     )
+    non_gaussian_non_atmosphere_index_list = ListField(
+        doc="Index list of non-Gaussian, non-atmospheric contributors in the list of shapelet "
+        "coefficients associated with shapelet_order (default accommodates an order of 6)",
+        dtype=int,
+        default=list(range(6, 10)) + list(range(15, 24)),
+    )
 
     def validate(self) -> None:
         if self.min_n_stars > self.max_n_stars:
@@ -159,6 +166,21 @@ class ComputeRoughPsfShapeletsConfig(Config):
             raise ValueError(f"shapelet order {self.shapelet_order} must be nonnegative.")
         if self.shapelet_scale_factor <= 0.0:
             raise ValueError(f"shapelet scale factor {self.shapelet_scale_factor} must be positive.")
+        # Check that the shapelet decomposition order results in at least as
+        # many decomposition coefficients as the maximum index identified in
+        # the non_gaussian_non_atmosphere_index_list config.
+        n_coeff = 0
+        for i_offset in range(self.shapelet_order + 1):
+            n_coeff += (i_offset + 1)
+        if max(self.non_gaussian_non_atmosphere_index_list) > n_coeff:
+            raise FieldValidationError(
+                ComputeRoughPsfShapeletsConfig,
+                self,
+                "The largest coefficient index defined in config.non_gaussian_non_atmosphere_index_list "
+                f"({len(self.non_gaussian_non_atmosphere_index_list)}) is larger than the number "
+                f"of coefficients expected ({n_coeff}) from the shapelet decomposition order "
+                f"({self.shapelet_order})."
+            )
 
 
 class ComputeRoughPsfShapeletsTask(Task):
@@ -214,34 +236,35 @@ class ComputeRoughPsfShapeletsTask(Task):
     ):
         super().__init__(config=config, **kwargs)
         self.schema = schema
+        self.shapelets_base_name = "RoughPsfShapelets"
         self._flux_key = schema.addField(
-            "RoughPsfShapelets_flux",
+            self.shapelets_base_name + "_flux",
             type=float,
             doc="Unweighted zeroth moment.",
         )
         self._flux_err_key = schema.addField(
-            "RoughPsfShapelets_fluxErr",
+            self.shapelets_base_name + "_fluxErr",
             type=float,
             doc="Uncertainty on the unweighted zeroth moment.",
         )
         self._center_key = Point2DKey.addFields(
-            schema, "RoughPsfShapelets", "Center from unweighted first moments.", "pixels"
+            schema, self.shapelets_base_name, "Center from unweighted first moments.", "pixels"
         )
         self._shape_key = QuadrupoleKey.addFields(
-            schema, "RoughPsfShapelets", "Shape from unweighted second moments."
+            schema, self.shapelets_base_name, "Shape from unweighted second moments."
         )
         self._flag_key = schema.addField(
-            "RoughPsfShapelets_flag",
+            self.shapelets_base_name + "_flag",
             type="Flag",
             doc="Flag set if the raw PSF moments were not computed.",
         )
         self._candidate_key = schema.addField(
-            "RoughPsfShapelets_candidate",
+            self.shapelets_base_name + "_candidate",
             type="Flag",
             doc="Flag set if this source passed the radius_fraction cut (see configuration).",
         )
         self._used_key = schema.addField(
-            "RoughPsfShapelets_used",
+            self.shapelets_base_name + "_used",
             type="Flag",
             doc=(
                 "Flag set if this source passed the radius_fraction and shape_distance cuts "
@@ -291,6 +314,7 @@ class ComputeRoughPsfShapeletsTask(Task):
             [computeOffset(i) for i in range(0, self.config.shapelet_order + 1, 2)]
         ]
         self.log.info("Rough PSF shapelet radial terms: %s.", result.radial)
+        result = self.compute_shapelets_only_iq_score(result)
         return result
 
     def compute_raw_moments(
@@ -459,6 +483,192 @@ class ComputeRoughPsfShapeletsTask(Task):
             catalog=catalog,
         )
 
+    def compute_shapelets_only_iq_score(self, results: Struct) -> Struct:
+        """Compute the image quality "score" that only includes the
+        non-atmospheric coefficents.
+
+        The "shapelet_only_iq_score" is a dimensionless image quality score
+        as determined from the shapelets decomposition that only includes
+        power from the non-atmospheric coefficents from the shapelet
+        decomposition. The score spans the range [0.0, 1.0] with lower
+        values indicating better image quality.
+
+        Parameters
+        ----------
+        results
+            Result struct returned by `run`. To be updated in-place.
+
+        Returns
+        -------
+        `lsst.pipe.base.Struct`
+            Additional results struct components include:
+            - ``shapelets_summary`` (`lsst.afw.image.ExposureSummaryStats`):
+              An ExposureSummaryStats object with the following parameters
+              initialized:
+               - ``shapeletsCoeffs`` (`list`[`float`]): The coefficients
+                 from the shapelet decomposition.
+               - ``nShapeletsStar`` (`int`): The number of sources used in the
+                 shapelet decomposition.
+               - ``shapeletsOnlyIqScore`` (`float`): The image quality score
+                 which only includes power from the non-atmospheric
+                 decomposition coefficients.
+               - ``shapeletsStarEMedian`` (`float`): The median ellipticity
+                 (sqrt(starE1**2.0 + starE2**2.0)) of the stars used in the
+                 shapelet decomposition.
+               - ``shapeletsStarUnNormalizedEMedian`` (`float`): The median
+                 un-normalized ellipticity
+                 (sqrt((starXX - starYY)**2.0 + (2.0*starXY)**2.0)) of the
+                 stars used in the shapelet decomposition.
+        """
+        shapelets_summary = ExposureSummaryStats()
+        results.non_gaussian_non_atmosphere_index_list = \
+            self.config.non_gaussian_non_atmosphere_index_list
+        shapelets_coeffs = results.shapelet.getCoefficients()
+        shapelets_coeffs_list = [float(coeff) for coeff in shapelets_coeffs]
+        shapelets_summary.shapeletsCoeffs = shapelets_coeffs_list
+        shapelets_used_cat = results.catalog[
+            (results.catalog[self.shapelets_base_name + "_used"])
+            & (~results.catalog[self.shapelets_base_name + "_flag"])].copy(deep=True)
+        shapelets_summary.nShapeletsStar = len(shapelets_used_cat)
+
+        shapelets_star_xx = shapelets_used_cat[self.shapelets_base_name + "_xx"]
+        shapelets_star_yy = shapelets_used_cat[self.shapelets_base_name + "_yy"]
+        shapelets_star_xy = shapelets_used_cat[self.shapelets_base_name + "_xy"]
+
+        # Compute a shapelets score based on the power in the
+        # non-atmospheric decomposition coefficients.
+        total_power = np.sum(shapelets_coeffs**2.0)
+        non_atm_power = np.sum(
+            shapelets_coeffs[self.config.non_gaussian_non_atmosphere_index_list]**2.0
+        )
+        shapelets_only_iq_score = np.where(total_power > 0, non_atm_power/total_power, 0.0)
+        shapelets_summary.shapeletsOnlyIqScore = float(shapelets_only_iq_score)
+
+        self.log.info("n_shapelets_star = %d; shapelets_only_iq_score = %.5f",
+                      len(shapelets_used_cat), shapelets_only_iq_score)
+        shapelets_star_e1 = (shapelets_star_xx - shapelets_star_yy)/(shapelets_star_xx + shapelets_star_yy)
+        shapelets_star_e2 = 2*shapelets_star_xy/(shapelets_star_xx + shapelets_star_yy)
+
+        shapelets_star_e = np.sqrt(shapelets_star_e1**2.0 + shapelets_star_e2**2.0)
+        shapelets_star_unnormalized_e = np.sqrt(
+            (shapelets_star_xx - shapelets_star_yy)**2.0 + (2.0*shapelets_star_xy)**2.0)
+        shapelets_star_e_median = np.median(shapelets_star_e)
+        shapelets_star_unnormalized_e_median = np.median(shapelets_star_unnormalized_e)
+        shapelets_summary.shapeletsStarEMedian = float(shapelets_star_e_median)
+        shapelets_summary.shapeletsStarUnNormalizedEMedian = float(shapelets_star_unnormalized_e_median)
+        results.shapelets_summary = shapelets_summary
+
+        return results
+
+    @staticmethod
+    def compute_shapelets_iq_score(shapelets_results: Struct, catalog: SourceCatalog,
+                                   centroid_offset_scale: float, shapelets_base_name: str,
+                                   log: Logger | None = None) -> Struct:
+        """Compute the image quality "score" that includes power from the
+        median centroid offset in addition to that of the non-atmospheric
+        coefficents.
+
+        The "shapelets_iq_score" is a dimensionless image quality score that
+        includes power from the median centroid offset between those used in
+        shapelet decomposition and those in the centroid slot of the provided
+        source catalog, in addition to the non-atmospheric coefficents from
+        the shapelet decomposition. The score spans the range [0.0, 1.0] with
+        lower values indicating better image quality.  When present (non-nan)
+        the shapelets_iq_score should be considered authoritative over the
+        shapelets_only_iq_score.
+
+        Parameters
+        ----------
+        shapelets_results
+            Results struct as returned by `run` method of
+            ComputeRoughPsfShapeletsTask. To be updated in-place.
+        catalog
+            Catalog of detections to extract footprints from and fill output
+            columns of.  Its schema must be a superset of ``self.schema``.
+            Must contain the columns added by ComputeRoughPsfShapeletsTask.
+        centroid_offset_scale
+            Value (in pixels) by which to scale the centroid offset to set
+            and appropriate amount by which the centroid offsets can
+            contribute to the computed power.
+        shapelets_base_name
+            Base name for the catalog columns added by
+            ComputeRoughPsfShapeletsTask.
+        log
+            Logger to write to.
+
+        Returns
+        -------
+        `lsst.pipe.base.Struct`
+            Additional results struct components include:
+            - ``shapelets_summary`` (`lsst.afw.image.ExposureSummaryStats`):
+              An ExposureSummaryStats object with the following parameters
+              initialized:
+               - ``shapeletsIqScore`` (`float`): the image quality score which
+                 includes power from the centroid shift in addition to the
+                 non-atmospheric decomposition coefficients.
+               - ``centroidDiffShapeletsVsSlotMedian`` (`float`): The median
+                 centroid difference
+                 (sqrt((slot_x - shapelet_x)**2 + (slot_y - shapelet_y)**2))
+                 for sources used in the shapelet decomposition (pixels).
+        """
+        if shapelets_base_name + "_used" not in catalog.schema.getNames():
+            raise RuntimeError("Catalog must contain columns added by ComputeRoughPsfShapeletsTask "
+                               f"(e.g.{shapelets_base_name}_used).")
+        shapelets_summary = shapelets_results.shapelets_summary
+        shapelets_coeffs = np.array(shapelets_summary.shapeletsCoeffs)
+        shapelets_used_cat = catalog[(catalog[shapelets_base_name + "_used"])
+                                     & (~catalog[shapelets_base_name + "_flag"])].copy(deep=True)
+        shapelets_used_finite_centroid_cat = shapelets_used_cat[(
+            (np.isfinite(shapelets_used_cat["slot_Centroid_x"]))
+            & (np.isfinite(shapelets_used_cat["slot_Centroid_y"])))]
+        min_finite_centroid_sources = 3
+        if len(shapelets_used_finite_centroid_cat) < min_finite_centroid_sources:
+            if log is not None:
+                log.warning("Not enough sources used in the shapelet decomposition have finite slot "
+                            "centroid measurements (%d < %d). Returning without setting shapelets_iq_score.",
+                            len(shapelets_used_finite_centroid_cat), min_finite_centroid_sources)
+            shapelets_results.shapelets_summary = shapelets_summary
+            return shapelets_results
+
+        centroid_diff_shapelets_vs_slot = np.sqrt(
+            (shapelets_used_finite_centroid_cat["slot_Centroid_x"]
+             - shapelets_used_finite_centroid_cat[shapelets_base_name + "_x"])**2.0
+            + (shapelets_used_finite_centroid_cat["slot_Centroid_y"]
+               - shapelets_used_finite_centroid_cat[shapelets_base_name + "_y"])**2.0
+        )
+        centroid_diff_shapelets_vs_slot_median = np.nanmedian(centroid_diff_shapelets_vs_slot)
+        shapelets_summary.centroidDiffShapeletsVsSlotMedian = float(centroid_diff_shapelets_vs_slot_median)
+
+        # Use a fixed number of pixels (one roughly estimated to be the
+        # largest shift possible considering the maximum footprint size
+        # imposed in ComputeRoughPsfShapeletsTask has been determined to
+        # work well), to scale the centroid offset between the slot value
+        # and that determined by ComputeRoughPsfShapeletsTask.
+        centroid_diff_scaled = centroid_diff_shapelets_vs_slot/centroid_offset_scale
+        centroid_diff_scaled_median = np.median(centroid_diff_scaled)
+
+        # Compute a shapelets score that includes power from the centroid shift
+        # in addition to the non-atmospheric decomposition coefficients.
+        total_power_plus_scaled = (np.sum(shapelets_coeffs**2.0)
+                                   + centroid_diff_scaled_median**2.0)
+        non_atm_power_plus_scaled = (
+            np.sum(shapelets_coeffs[shapelets_results.non_gaussian_non_atmosphere_index_list]**2.0)
+            + centroid_diff_scaled_median**2.0)
+
+        shapelets_iq_score = np.where(
+            total_power_plus_scaled > 0, non_atm_power_plus_scaled/total_power_plus_scaled, 0.0
+        )
+        shapelets_summary.shapeletsIqScore = float(shapelets_iq_score)
+
+        if log is not None:
+            log.info("shapelets_iq_score = %.5f; centroid_diff_shapelets_vs_slot_median = %.3f (pixels), "
+                     "centroid_diff_scaled_median (by %.1f pixels) = %.3f",
+                     shapelets_iq_score, centroid_diff_shapelets_vs_slot_median,
+                     centroid_offset_scale, centroid_diff_scaled_median)
+
+        shapelets_results.shapelets_summary = shapelets_summary
+        return shapelets_results
+
     def plot_selection(
         self, figure: matplotlib.figure.Figure, *, catalog: SourceCatalog, results: Struct
     ) -> None:
@@ -596,9 +806,11 @@ class ComputeRoughPsfShapeletsTask(Task):
                 Line2D([], [], color="gray", alpha=0.5),
             ],
             [
-                f"RoughPsfShapelets_used ({used_mask.sum()})",
-                f"RoughPsfShapelets_candidate & ~RoughPsfShapelets_used ({candidate_mask.sum()})",
-                f"~RoughPsfShapelets_flag & ~RoughPsfShapelets_candidate ({measured_mask.sum()})",
+                f"{self.shapelets_base_name}_used ({used_mask.sum()})",
+                f"{self.shapelets_base_name}_candidate & ~{self.shapelets_base_name}_used "
+                "({candidate_mask.sum()})",
+                f"~{self.shapelets_base_name}_flag & ~{self.shapelets_base_name}_candidate "
+                f"({measured_mask.sum()})",
             ],
             loc="lower center",
         )
