@@ -629,7 +629,13 @@ class SourceDetectionTask(pipeBase.Task):
 
         return results
 
-    def finalizeFootprints(self, mask, results, sigma, factor=1.0, factorNeg=None, growOverride=None):
+    def finalizeFootprints(
+        self, mask, results, sigma,
+        factor=1.0,
+        factorNeg=None,
+        growOverride=None,
+        sigmaNeg: float | None = None,
+    ):
         """Finalize the detected footprints.
 
         Grow the footprints, set the ``DETECTED`` and ``DETECTED_NEGATIVE``
@@ -648,7 +654,8 @@ class SourceDetectionTask(pipeBase.Task):
             Struct of detection results, including ``positive`` and
             ``negative`` entries; modified.
         sigma : `float`
-            Gaussian sigma of PSF.
+            Gaussian sigma of PSF, used to determine number of pixels to
+            grow footprints by.
         factor : `float`
             Multiplier for the configured threshold. Note that this is only
             used here for logging purposes.
@@ -659,18 +666,26 @@ class SourceDetectionTask(pipeBase.Task):
             used here for logging purposes.
         growOverride : `float` or `None`
             Logs a warning if set but seems to do nothing else.
+        sigmaNeg : `float` or `None`
+            sigma for negative polarity detection. Defaults to sigma if not set.
         """
         if growOverride is not None:
             self.log.warning("config.nSigmaToGrow is set to %.2f, but the caller has set "
                              "growOverride to %.2f, so the footprints will be grown by "
                              "%.2f sigma.", self.config.nSigmaToGrow, growOverride, growOverride)
+        if sigmaNeg is None:
+            sigmaNeg = sigma
+
         factorNeg = factor if factorNeg is None else factorNeg
-        for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
+        for polarity, maskName, sigma_pol in (
+            ("positive", "DETECTED", sigma),
+            ("negative", "DETECTED_NEGATIVE", sigmaNeg),
+        ):
             fpSet = getattr(results, polarity)
             if fpSet is None:
                 continue
             if self.config.nSigmaToGrow > 0:
-                nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
+                nGrow = int((self.config.nSigmaToGrow * sigma_pol) + 0.5)
                 self.metadata["nGrow"] = nGrow
                 if self.config.combinedGrow:
                     fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
