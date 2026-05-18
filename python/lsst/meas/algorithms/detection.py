@@ -657,6 +657,8 @@ class SourceDetectionTask(pipeBase.Task):
             If `None`, a factor equal to ``factor`` (i.e. equal to the one used
             for positive detection polarity) is assumed. Note that this is only
             used here for logging purposes.
+        growOverride : `float` or `None`
+            Logs a warning if set but seems to do nothing else.
         """
         if growOverride is not None:
             self.log.warning("config.nSigmaToGrow is set to %.2f, but the caller has set "
