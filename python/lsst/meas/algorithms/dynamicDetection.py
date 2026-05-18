@@ -714,7 +714,7 @@ class DynamicDetectionTask(SourceDetectionTask):
                                                factor=brightPosFactor, factorNeg=brightNegFactor)
             self.finalizeFootprints(
                 maskedImage.mask, prelimBright, convolveResults.sigma*self.config.brightGrowFactor,
-                factor=brightPosFactor, factorNeg=brightNegFactor
+                factor=brightPosFactor, factorNeg=brightNegFactor, sigmaNeg=convolveResults.sigma,
             )
             # Check that not too many pixels got masked.
             nPix = maskedImage.mask.array.size
