@@ -731,7 +731,8 @@ class SourceDetectionTask(pipeBase.Task):
             if self.config.adjustBackground:
                 self.log.warning("Fiddling the background by %g", self.config.adjustBackground)
                 bg += self.config.adjustBackground
-            self.log.info("Resubtracting the background after object detection")
+            self.log.info("Resubtracting the background after object detection (median background "
+                          "value = %.2f)", np.median(bg.getImageF().array))
             maskedImage -= bg.getImageF(self.background.config.algorithm,
                                         self.background.config.undersampleStyle)
 
