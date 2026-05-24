@@ -652,22 +652,28 @@ class SourceDetectionTask(pipeBase.Task):
         factor : `float`, optional
             Multiplier for the configured threshold. Note that this is only
             used here for logging purposes.
-        factorNeg : `float` or `None`
+        factorNeg : `float` or `None`, optional
             Multiplier used for the negative detection polarity threshold.
             If `None`, a factor equal to ``factor`` (i.e. equal to the one used
             for positive detection polarity) is assumed. Note that this is only
             used here for logging purposes.
+        growOverride : `float` or `None`, optional
+            Override to use for ``nSigmaToGrow``, regardless of the value set
+            in ``config.nSigmaToGrow``.
         """
         if growOverride is not None:
             self.log.warning("config.nSigmaToGrow is set to %.2f, but the caller has set "
                              "growOverride to %.2f, so the footprints will be grown by "
                              "%.2f sigma.", self.config.nSigmaToGrow, growOverride, growOverride)
+            nSigmaToGrow = growOverride
+        else:
+            nSigmaToGrow = self.config.nSigmaToGrow
         factorNeg = factor if factorNeg is None else factorNeg
         for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
             fpSet = getattr(results, polarity)
             if fpSet is None:
                 continue
-            if self.config.nSigmaToGrow > 0:
+            if nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
                 self.metadata["nGrow"] = nGrow
                 if self.config.combinedGrow:
