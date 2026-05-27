@@ -277,6 +277,22 @@ class MakePsfCandidatesTaskTest(lsst.utils.tests.TestCase):
             self.assertEqual(candidate.getPsfColorValue(), 0.42)
             self.assertEqual(candidate.getPsfColorType(), "g-r")
 
+    def testBackgroundPsfCandidates(self):
+        """Test set/get local background of PsfCandidates.
+        """
+        result = self.makePsfCandidates.run(self.catalog,
+                                            self.exposure,
+                                            psfCandidateField=self.psfCandidateField)
+        psfCandidates = result.psfCandidates
+        # Default background should be 0.0 when no `psf_background_value` is
+        # available in the input catalog.
+        for candidate in psfCandidates:
+            self.assertEqual(candidate.getPsfBackgroundValue(), 0.0)
+        for candidate in psfCandidates:
+            candidate.setPsfBackgroundValue(1.23)
+        for candidate in psfCandidates:
+            self.assertEqual(candidate.getPsfBackgroundValue(), 1.23)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass

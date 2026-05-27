@@ -79,7 +79,8 @@ public:
               _amplitude(0.0),
               _var(1.0),
               _psfColorValue(std::numeric_limits<double>::quiet_NaN()),
-              _psfColorType() {}
+              _psfColorType(),
+              _psfBackgroundValue(0.0) {}
 
     /**
      * Construct a PsfCandidate from a specified source, image and xyCenter.
@@ -98,7 +99,8 @@ public:
               _amplitude(0.0),
               _var(1.0),
               _psfColorValue(std::numeric_limits<double>::quiet_NaN()),
-              _psfColorType() {}
+              _psfColorType(),
+              _psfBackgroundValue(0.0) {}
 
     /// Destructor
     virtual ~PsfCandidate(){};
@@ -130,6 +132,12 @@ public:
 
     /// Return psf color type to use for PSF fit
     std::string getPsfColorType() const { return _psfColorType; }
+
+    /// Set psf local background value (electrons/pixel) to use for PSF fit
+    void setPsfBackgroundValue(double psfBackgroundValue) { _psfBackgroundValue = psfBackgroundValue; }
+
+    /// Return psf local background value (electrons/pixel) to use for PSF fit
+    double getPsfBackgroundValue() const { return _psfBackgroundValue; }
 
     /// Return the variance in use when fitting this object
     double getVar() const { return _var; }
@@ -180,6 +188,7 @@ private:
     double _var;         // variance to use when fitting this candidate
     double _psfColorValue;    // psf color value use when fitting this candidate
     std::string _psfColorType; // psf color type use when fitting this candidate
+    double _psfBackgroundValue; // psf local background value (electrons/pixel) when fitting this candidate
     static int _border;  // width of border of ignored pixels around _image
     geom::Point2D _xyCenter;
     static int _defaultWidth;
