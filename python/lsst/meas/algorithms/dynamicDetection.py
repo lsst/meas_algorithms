@@ -363,8 +363,10 @@ class DynamicDetectionTask(SourceDetectionTask):
             badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
             nGoodPix = np.sum(exposure.mask.array & badPixelMask == 0)
             if nGoodPix/nPix > 0.2:
-                detectedPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED", "DETECTED_NEGATIVE"])
-                nDetectedPix = np.sum((exposure.mask.array & detectedPixelMask != 0)
+                detectedPosPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED"])
+                detectedNegPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED_NEGATIVE"])
+                nDetectedPix = np.sum(((exposure.mask.array & detectedPosPixelMask != 0)
+                                      | (exposure.mask.array & detectedNegPixelMask != 0))
                                       & (exposure.mask.array & badPixelMask == 0))
                 msg += (" However, {} of {} ({:.3f}%) pixels are not marked NO_DATA or BAD, "
                         "so there should be sufficient area to locate suitable sky sources. "
@@ -484,10 +486,17 @@ class DynamicDetectionTask(SourceDetectionTask):
 
             if self.config.doThresholdScaling:
                 if self.config.doBrightPrelimDetection:
-                    brightDetectedMask = self._computeBrightDetectionMask(maskedImage, convolveResults)
+                    brightDetectedMask, brightFactorNeg = self._computeBrightDetectionMask(
+                        maskedImage, convolveResults)
+                    # Scale the factor for negative polarity detections based
+                    # on what was required in the bright detection pass to
+                    # avoid too many pixels marked as DETECTED_NEGATIVE (but
+                    # capping it at 20.0 as a guardrail).
+                    factorNeg = min(20.0, brightFactorNeg/self.config.brightNegFactor)
             else:
                 prelim = None
                 factor = 1.0
+                factorNeg = 1.0
 
             # seed needs to fit in a C++ 'int' so pybind doesn't choke on it
             seed = (expId if expId is not None else int(maskedImage.image.array.sum())) % (2**31 - 1)
@@ -495,13 +504,14 @@ class DynamicDetectionTask(SourceDetectionTask):
             middle = convolveResults.middle
             sigma = convolveResults.sigma
             if self.config.doThresholdScaling:
+                factorNeg *= self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
                 prelim = self.applyThreshold(
                     middle, maskedImage.getBBox(), factor=self.config.prelimThresholdFactor,
-                    factorNeg=self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
+                    factorNeg=factorNeg
                 )
                 self.finalizeFootprints(
                     maskedImage.mask, prelim, sigma, factor=self.config.prelimThresholdFactor,
-                    factorNeg=self.config.prelimNegMultiplier*self.config.prelimThresholdFactor
+                    factorNeg=factorNeg
                 )
                 if self.config.doBrightPrelimDetection:
                     # Combine prelim and bright detection masks for multiplier
@@ -526,6 +536,8 @@ class DynamicDetectionTask(SourceDetectionTask):
                     factor = self.config.maxThresholdScaleFactor
                 else:
                     factor = threshResults.multiplicative
+                # Also scale the factor for negative polarity detections
+                factorNeg *= factor
                 self.log.info("Modifying configured detection threshold by factor %.2f to %.2f",
                               factor, factor*self.config.thresholdValue)
 
@@ -539,12 +551,14 @@ class DynamicDetectionTask(SourceDetectionTask):
                     maskedImage.mask.array |= oldDetected
 
                 # Rinse and repeat thresholding with new calculated threshold
-                results = self.applyThreshold(middle, maskedImage.getBBox(), factor)
+                results = self.applyThreshold(
+                    middle, maskedImage.getBBox(), factor=factor, factorNeg=factorNeg
+                )
                 results.prelim = prelim
                 results.background = background if background is not None else lsst.afw.math.BackgroundList()
                 if self.config.doTempLocalBackground:
                     self.applyTempLocalBackground(exposure, middle, results)
-                self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor,
+                self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor, factorNeg=factorNeg,
                                         growOverride=growOverride)
                 if results.numPos == 0:
                     msg = "No footprints were detected, so further processing would be moot"
@@ -605,16 +619,34 @@ class DynamicDetectionTask(SourceDetectionTask):
             try:
                 self.clearMask(exposure.mask)
                 convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
-                tweakDetResults = self.applyThreshold(convolveResults.middle, maskedImage.getBBox(), factor)
-                self.finalizeFootprints(maskedImage.mask, tweakDetResults, sigma, factor=factor)
+                # Don't use factorNeg if the image has had its background
+                # subtracted after source detection.
+                tweakFactorNeg = None if self.config.reEstimateBackground else factorNeg
+                tweakDetResults = self.applyThreshold(convolveResults.middle, maskedImage.getBBox(),
+                                                      factor=factor, factorNeg=tweakFactorNeg)
+                self.finalizeFootprints(maskedImage.mask, tweakDetResults, sigma, factor=factor,
+                                        factorNeg=tweakFactorNeg)
                 bgLevel = self.calculateThreshold(exposure, seed, sigma=sigma, minFractionSourcesFactor=0.5,
                                                   isBgTweak=True).additive
-                if self.config.minBackgroundTweak and bgLevel < self.config.minBackgroundTweak:
-                    self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
-                                     "[%.2f, %.2f].  Setting tweak to lower limit: %.2f.", bgLevel,
-                                     self.config.minBackgroundTweak, self.config.maxBackgroundTweak,
-                                     self.config.minBackgroundTweak)
-                    bgLevel = self.config.minBackgroundTweak
+                if self.config.minBackgroundTweak:
+                    minBackgroundTweak = self.config.minBackgroundTweak
+                    # Increase the minimum bg tweak allowed if the factorNeg indicates image
+                    # was very oversubtracted.
+                    if factorNeg > 5*factor:
+                        if factorNeg > 8*factor:
+                            minBackgroundTweak *= 3.0
+                        else:
+                            minBackgroundTweak *= 2.0
+                        self.log.warning("All evidence suggests the image is very oversubtracted. "
+                                         "Allowing for a larger corection (%.2f), than that set in "
+                                         "config.minBackgroundTweak (%.2f).", minBackgroundTweak,
+                                         self.config.minBackgroundTweak)
+                    if bgLevel < minBackgroundTweak:
+                        self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
+                                         "[%.2f, %.2f].  Setting tweak to lower limit: %.2f.", bgLevel,
+                                         minBackgroundTweak, self.config.maxBackgroundTweak,
+                                         minBackgroundTweak)
+                        bgLevel = minBackgroundTweak
                 if self.config.maxBackgroundTweak and bgLevel > self.config.maxBackgroundTweak:
                     self.log.warning("Measured background tweak (%.2f) is outside [min, max] bounds "
                                      "[%.2f, %.2f].  Setting tweak to upper limit: %.2f.", bgLevel,
@@ -647,7 +679,7 @@ class DynamicDetectionTask(SourceDetectionTask):
             Constant background model.
         """
         if bgLevel != 0.0:
-            self.log.info("Tweaking background by %f to match sky photometry", bgLevel)
+            self.log.info("Tweaking background by %.3f to match sky photometry", bgLevel)
         exposure.image -= bgLevel
         bgStats = lsst.afw.image.MaskedImageF(1, 1)
         bgStats.set(bgLevel, 0, bgLevel)
@@ -691,16 +723,23 @@ class DynamicDetectionTask(SourceDetectionTask):
         brightDetectedMask : `numpy.ndarray`
             Boolean array representing the union of the bright detection pass
             DETECTED and DETECTED_NEGATIVE masks.
+        brightFactorNeg : `float`
+            Factor applied to the threshold for negative polarity detections.
+            This can get altered significantly in background over-subtracted
+            images and is useful to know for subsequent steps in the dynamic
+            detection.
         """
         # Initialize some parameters.
-        brightPosFactor = (
-            self.config.prelimThresholdFactor*self.config.brightMultiplier/self.config.bisectFactor
+        brightFactorPos = (
+            self.config.prelimThresholdFactor*self.config.brightMultiplier
         )
-        brightNegFactor = self.config.brightNegFactor/self.config.bisectFactor
-        nPix = 1
-        nPixDet = 1
-        nPixDetNeg = 1
+        brightFactorNeg = self.config.brightNegFactor
         brightMaskFractionMax = self.config.brightMaskFractionMax
+        # Set a lower max value tolerated for negative detection mask fraction.
+        brightMaskNegFractionMax = max(0.3, 0.75*brightMaskFractionMax)
+
+        badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
+        nGoodPix = np.sum(maskedImage.mask.array & badPixelMask == 0)
 
         # Loop until masked fraction is smaller than
         # brightMaskFractionMax, increasing the thresholds by
@@ -708,32 +747,52 @@ class DynamicDetectionTask(SourceDetectionTask):
         # for current defaults).
         for nIter in range(self.config.brightDetectionIterMax):
             self.clearMask(maskedImage.mask)
-            brightPosFactor *= self.config.bisectFactor
-            brightNegFactor *= self.config.bisectFactor
             prelimBright = self.applyThreshold(convolveResults.middle, maskedImage.getBBox(),
-                                               factor=brightPosFactor, factorNeg=brightNegFactor)
+                                               factor=brightFactorPos, factorNeg=brightFactorNeg)
             self.finalizeFootprints(
                 maskedImage.mask, prelimBright, convolveResults.sigma*self.config.brightGrowFactor,
-                factor=brightPosFactor, factorNeg=brightNegFactor
+                factor=brightFactorPos, factorNeg=brightFactorNeg
             )
             # Check that not too many pixels got masked.
-            nPix = maskedImage.mask.array.size
-            nPixDet = countMaskedPixels(maskedImage, "DETECTED")
+            detectedPosPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED"])
+            detectedNegPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["DETECTED_NEGATIVE"])
+            badPixelMask = lsst.afw.image.Mask.getPlaneBitMask(["NO_DATA", "BAD"])
+            nPixDetPos = np.sum((maskedImage.mask.array & detectedPosPixelMask != 0)
+                                & (maskedImage.mask.array & badPixelMask == 0))
+            nPixDetNeg = np.sum((maskedImage.mask.array & detectedNegPixelMask != 0)
+                                & (maskedImage.mask.array & badPixelMask == 0))
             self.log.info("Number (%) of bright DETECTED pix: {} ({:.1f}%)".
-                          format(nPixDet, 100*nPixDet/nPix))
-            nPixDetNeg = countMaskedPixels(maskedImage, "DETECTED_NEGATIVE")
+                          format(nPixDetPos, 100*nPixDetPos/nGoodPix))
             self.log.info("Number (%) of bright DETECTED_NEGATIVE pix: {} ({:.1f}%)".
-                          format(nPixDetNeg, 100*nPixDetNeg/nPix))
-            if nPixDetNeg/nPix > brightMaskFractionMax or nPixDet/nPix > brightMaskFractionMax:
-                self.log.warning("Too high a fraction (%.2f > %.2f) of pixels were masked with current "
-                                 "\"bright\" detection round thresholds (at nIter = %d). Increasing by "
-                                 "a factor of %.2f and trying again.", max(nPixDetNeg, nPixDet)/nPix,
-                                 brightMaskFractionMax, nIter, self.config.bisectFactor)
+                          format(nPixDetNeg, 100*nPixDetNeg/nGoodPix))
+
+            if nPixDetPos/nGoodPix > brightMaskFractionMax or nPixDetNeg/nGoodPix > brightMaskNegFractionMax:
                 if nIter == self.config.brightDetectionIterMax - 1:
                     self.log.warning("Reached maximum number of iterations and still have too high "
                                      "detected mask fractions in bright detection pass.  Image is "
                                      "likely mostly masked with BAD or NO_DATA or \"bad\" in some "
                                      "other respect (so expected to likely fail further downstream).")
+                    break
+                if nPixDetPos/nGoodPix > brightMaskFractionMax:
+                    brightFactorPos *= self.config.bisectFactor
+                    self.log.warning("Too high a fraction (%.2f > %.2f) of pixels were masked as "
+                                     "DETECTED with current \"bright\" detection round thresholds "
+                                     "(at nIter = %d). Increasing to a factor of %.2f and trying again.",
+                                     nPixDetPos/nGoodPix, brightMaskFractionMax, nIter, brightFactorPos)
+                if nPixDetNeg/nGoodPix > brightMaskNegFractionMax:
+                    extraFactorNeg = 1.2
+                    if nPixDetNeg/nGoodPix > min(0.98, 1.25*brightMaskNegFractionMax):
+                        if nIter == 0:
+                            extraFactorNeg = 3.0
+                        elif nPixDetNeg/nGoodPix > 0.9999:
+                            extraFactorNeg = 1.8
+                        else:
+                            extraFactorNeg = 1.5
+                    brightFactorNeg *= self.config.bisectFactor*extraFactorNeg
+                    self.log.warning("Too high a fraction (%.2f > %.2f) of pixels were masked as "
+                                     "DETECTED_NEGATIVE with current \"bright\" detection round thresholds "
+                                     "(at nIter = %d). Increasing to a factor of %.2f and trying again.",
+                                     nPixDetNeg/nGoodPix, brightMaskNegFractionMax, nIter, brightFactorNeg)
             else:
                 break
 
@@ -742,7 +801,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         brightDetectedMask = (maskedImage.mask.array
                               & maskedImage.mask.getPlaneBitMask(["DETECTED", "DETECTED_NEGATIVE"]))
         self.clearMask(maskedImage.mask)
-        return brightDetectedMask
+        return brightDetectedMask, brightFactorNeg
 
 
 def countMaskedPixels(maskedIm, maskPlane):
