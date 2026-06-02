@@ -92,6 +92,22 @@ class AccumulatorMeanStack:
         if self.compute_n_image:
             self.n_image = np.zeros(shape, dtype=np.int32)
 
+    def reset(self):
+        """Reset all accumulator arrays."""
+        self.sum_weight[...] = 0
+        self.sum_wdata[...] = 0
+        if self.calc_error_from_input_variance:
+            self.sum_w2var[...] = 0
+        else:
+            self.sum_weight2[...] = 0
+            self.sum_wdata2[...] = 0
+        self.or_mask[...] = 0
+        for bit in self.mask_threshold_dict:
+            self.rejected_weights_by_bit[bit][...] = 0
+        self.masked_pixels_mask[...] = 0
+        if self.compute_n_image:
+            self.n_image[...] = 0
+
     def add_masked_image(self, masked_image, weight=1.0):
         """Add a masked image to the stack.
 
