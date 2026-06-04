@@ -239,6 +239,23 @@ class AccumulatorMeanStackTestCase(lsst.utils.tests.TestCase):
                                           afw_masked_image.image.array[good_pixels],
                                           decimal=5)
 
+        # Reset the accumulator and do it all again.
+        stacker.reset()
+        for exposure, weight in zip(exposures, weights):
+            stacker.add_image(exposure.image, weight=weight)
+
+        stacker.fill_stacked_image(coadd_exposure.image)
+
+        online_image = coadd_exposure.image
+
+        # The unmasked coadd good pixels should match at the <1e-5 level
+        # The masked pixels will not be correct for straight image stacking.
+        good_pixels = np.where(afw_masked_image.mask.array == 0)
+
+        testing.assert_array_almost_equal(online_image.array[good_pixels],
+                                          afw_masked_image.image.array[good_pixels],
+                                          decimal=5)
+
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
     pass
