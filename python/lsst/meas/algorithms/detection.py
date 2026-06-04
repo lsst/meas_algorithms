@@ -674,7 +674,7 @@ class SourceDetectionTask(pipeBase.Task):
             if fpSet is None:
                 continue
             if nSigmaToGrow > 0:
-                nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
+                nGrow = int((nSigmaToGrow * sigma) + 0.5)
                 self.metadata["nGrow"] = nGrow
                 if self.config.combinedGrow:
                     fpSet = afwDet.FootprintSet(fpSet, nGrow, self.config.isotropicGrow)
