@@ -576,12 +576,12 @@ class SourceDetectionTask(pipeBase.Task):
             Convolved image to threshold.
         bbox : `lsst.geom.Box2I`
             Bounding box of unconvolved image.
-        factor : `float`
+        factor : `float`, optional
             Multiplier for the configured threshold.
-        factorNeg : `float` or `None`
-            Multiplier for the configured threshold for negative detection polarity.
-            If `None`, will be set equal to ``factor`` (i.e. equal to the factor used
-            for positive detection polarity).
+        factorNeg : `float` or `None`, optional
+            Multiplier for the configured threshold for negative detection
+            polarity. If `None`, will be set equal to ``factor`` (i.e. equal
+            to the factor used for positive detection polarity).
 
         Returns
         -------
@@ -595,16 +595,16 @@ class SourceDetectionTask(pipeBase.Task):
                 Negative detection footprints, if configured.
                 (`lsst.afw.detection.FootprintSet` or `None`)
             ``factor``
-                Multiplier for the configured threshold.
-                (`float`)
+                Multiplier for the configured threshold for positive detection
+                polarity. (`float`)
             ``factorNeg``
-                Multiplier for the configured threshold for negative detection polarity.
-                (`float`)
+                Multiplier for the configured threshold for negative detection
+                polarity. (`float`)
         """
         if factorNeg is None:
             factorNeg = factor
-            self.log.info("Setting factor for negative detections equal to that for positive "
-                          "detections: %f", factor)
+        self.log.info("Threshold scaling factor for positive detections is: %.3f. For negative "
+                      "detections it is: %.3f", factor, factorNeg)
         results = pipeBase.Struct(positive=None, negative=None, factor=factor, factorNeg=factorNeg,
                                   positiveThreshold=None, negativeThreshold=None)
         # Detect the Footprints (peaks may be replaced if doTempLocalBackground)
@@ -649,25 +649,31 @@ class SourceDetectionTask(pipeBase.Task):
             ``negative`` entries; modified.
         sigma : `float`
             Gaussian sigma of PSF.
-        factor : `float`
+        factor : `float`, optional
             Multiplier for the configured threshold. Note that this is only
             used here for logging purposes.
-        factorNeg : `float` or `None`
+        factorNeg : `float` or `None`, optional
             Multiplier used for the negative detection polarity threshold.
             If `None`, a factor equal to ``factor`` (i.e. equal to the one used
             for positive detection polarity) is assumed. Note that this is only
             used here for logging purposes.
+        growOverride : `float` or `None`, optional
+            Override to use for ``nSigmaToGrow``, regardless of the value set
+            in ``config.nSigmaToGrow``.
         """
         if growOverride is not None:
             self.log.warning("config.nSigmaToGrow is set to %.2f, but the caller has set "
                              "growOverride to %.2f, so the footprints will be grown by "
                              "%.2f sigma.", self.config.nSigmaToGrow, growOverride, growOverride)
+            nSigmaToGrow = growOverride
+        else:
+            nSigmaToGrow = self.config.nSigmaToGrow
         factorNeg = factor if factorNeg is None else factorNeg
         for polarity, maskName in (("positive", "DETECTED"), ("negative", "DETECTED_NEGATIVE")):
             fpSet = getattr(results, polarity)
             if fpSet is None:
                 continue
-            if self.config.nSigmaToGrow > 0:
+            if nSigmaToGrow > 0:
                 nGrow = int((self.config.nSigmaToGrow * sigma) + 0.5)
                 self.metadata["nGrow"] = nGrow
                 if self.config.combinedGrow:
@@ -731,7 +737,8 @@ class SourceDetectionTask(pipeBase.Task):
             if self.config.adjustBackground:
                 self.log.warning("Fiddling the background by %g", self.config.adjustBackground)
                 bg += self.config.adjustBackground
-            self.log.info("Resubtracting the background after object detection")
+            self.log.info("Resubtracting the background after object detection (median background "
+                          "value = %.2f)", np.median(bg.getImageF().array))
             maskedImage -= bg.getImageF(self.background.config.algorithm,
                                         self.background.config.undersampleStyle)
 
@@ -766,7 +773,7 @@ class SourceDetectionTask(pipeBase.Task):
 
     @timeMethod
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
-                         background=None, backgroundToPhotometricRatio=None):
+                         background=None, backgroundToPhotometricRatio=None, factor=1.0, factorNeg=None):
         """Detect footprints on an exposure.
 
         Parameters
@@ -796,6 +803,13 @@ class SourceDetectionTask(pipeBase.Task):
             Image to convert photometric-flattened image to
             background-flattened image if ``reEstimateBackground=True`` and
             exposure has been photometric-flattened.
+        factor : `float`, optional
+            Multiplier for the configured threshold for positive detection
+            polarity.
+        factorNeg : `float` or `None`, optional
+            Multiplier for the configured threshold for negative detection
+            polarity. If `None`, will be set equal to ``factor`` (i.e. equal
+            to the factor used for positive detection polarity).
 
         Returns
         -------
@@ -819,8 +833,11 @@ class SourceDetectionTask(pipeBase.Task):
                 if ``reEstimateBackground==False``.
                 (`lsst.afw.math.BackgroundList`)
             ``factor``
-                Multiplication factor applied to the configured detection
-                threshold. (`float`)
+                Multiplication factor applied to the configured threshold
+                for positive detection polarity. (`float`)
+            ``factorNeg``
+                Multiplication factor applied to the configured threshold
+                for negative detection polarity. (`float`)
         """
         maskedImage = exposure.maskedImage
 
@@ -834,12 +851,12 @@ class SourceDetectionTask(pipeBase.Task):
             sigma = convolveResults.sigma
             self.removeBadPixels(middle)
 
-            results = self.applyThreshold(middle, maskedImage.getBBox())
+            results = self.applyThreshold(middle, maskedImage.getBBox(), factor=factor, factorNeg=factorNeg)
             results.background = background if background is not None else afwMath.BackgroundList()
 
             if self.config.doTempLocalBackground:
                 self.applyTempLocalBackground(exposure, middle, results)
-            self.finalizeFootprints(maskedImage.mask, results, sigma)
+            self.finalizeFootprints(maskedImage.mask, results, sigma, factor=factor, factorNeg=factorNeg)
 
             # Compute the significance of peaks after the peaks have been
             # finalized and after local background correction/updatePeaks, so
