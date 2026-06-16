@@ -176,6 +176,20 @@ public:
     std::shared_ptr<afw::geom::polygon::Polygon const> getValidPolygon(int index) const;
 
     /**
+     * Get the tract ID of the component image at the given index.
+     *
+     * @throws lsst::pex::exceptions::NotFoundError  There is no tract column.
+     */
+    int getTract(int index) const;
+
+    /**
+     * Get the patch ID of the component image at the given index.
+     *
+     * @throws lsst::pex::exceptions::NotFoundError  There is no patch column.
+     */
+    int getPatch(int index) const;
+
+    /**
      *  @brief Return true if the CoaddPsf persistable (always true).
      *
      *  While it's actually possible to construct a CoaddPsf that isn't persistable (because its nested
@@ -209,6 +223,8 @@ private:
     afw::table::ExposureCatalog _catalog;
     std::shared_ptr<afw::geom::SkyWcs const> _coaddWcs;
     afw::table::Key<double> _weightKey;
+    afw::table::Key<int> _tractKey;
+    afw::table::Key<int> _patchKey;
     geom::Point2D _averagePosition;
     std::string _warpingKernelName;  // could be removed if we could get this from _warpingControl (#2949)
     std::shared_ptr<afw::math::WarpingControl const> _warpingControl;

@@ -175,9 +175,20 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog,
         : _catalog(catalog),
           _coaddWcs(coaddWcs),
           _weightKey(_catalog.getSchema()["weight"]),
+          _tractKey(),
+          _patchKey(),
           _averagePosition(averagePosition),
           _warpingKernelName(warpingKernelName),
-          _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize)) {}
+          _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize)) {
+    try {
+        _tractKey = _catalog.getSchema()["tract"];
+    } catch (pex::exceptions::NotFoundError &) {
+    }
+    try {
+        _patchKey = _catalog.getSchema()["patch"];
+    } catch (pex::exceptions::NotFoundError &) {
+    }
+}
 
 std::shared_ptr<afw::detection::Psf> CoaddPsf::clone() const { return std::make_shared<CoaddPsf>(*this); }
 
@@ -337,6 +348,26 @@ geom::Box2I CoaddPsf::getBBox(int index) const {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getBBox();
+}
+
+int CoaddPsf::getTract(int index) const {
+    if (index < 0 || index >= getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
+    }
+    if (!_tractKey.isValid()) {
+        throw LSST_EXCEPT(pex::exceptions::NotFoundError, "CoaddPsf has no tract column");
+    }
+    return _catalog[index][_tractKey];
+}
+
+int CoaddPsf::getPatch(int index) const {
+    if (index < 0 || index >= getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
+    }
+    if (!_patchKey.isValid()) {
+        throw LSST_EXCEPT(pex::exceptions::NotFoundError, "CoaddPsf has no patch column");
+    }
+    return _catalog[index][_patchKey];
 }
 
 // ---------- Persistence -----------------------------------------------------------------------------------
