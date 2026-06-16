@@ -72,6 +72,8 @@ void declareCoaddPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
         cls.def("getId", &CoaddPsf::getId);
         cls.def("getBBox", &CoaddPsf::getBBox);
         cls.def("getValidPolygon", &CoaddPsf::getValidPolygon);
+        cls.def("getTract", &CoaddPsf::getTract);
+        cls.def("getPatch", &CoaddPsf::getPatch);
         cls.def("isPersistable", &CoaddPsf::isPersistable);
     });
 
