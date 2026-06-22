@@ -33,7 +33,12 @@ class FindCosmicRaysConfig(pexConfig.Config):
     nCrPixelMax = pexConfig.Field(
         dtype=int,
         doc="maximum number of contaminated pixels",
-        default=1000000,
+        default=1_000_000,
+    )
+    nCrSpanMax = pexConfig.Field(
+        dtype=int,
+        doc="Maximum number of contaminated spans",
+        default=100_000,
     )
     minSigma = pexConfig.Field(
         dtype=float,
