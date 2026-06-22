@@ -331,6 +331,7 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
     int const niteration = ps.getAsInt("niteration");         // Number of times to look for contaminated
                                                               // pixels near CRs
     int const nCrPixelMax = ps.getAsInt("nCrPixelMax");       // maximum number of contaminated pixels
+    int const nCrSpanMax = ps.getAsInt("nCrSpanMax");         // maximum number of contaminated spans
                                                               /*
                                                                * thresholds for 3rd condition
                                                                *
@@ -493,6 +494,14 @@ std::vector<std::shared_ptr<afw::detection::Footprint>> findCosmicRays(
                 aliases[r1] = r2;
             }
         }
+    }
+
+    /*
+     * Check if number of spans is above threshold to fail fast
+     */
+    if (spans.size() > nCrSpanMax) {
+        throw LSST_EXCEPT(pex::exceptions::LengthError,
+                          (boost::format("Too many CR spans (max %d)") % nCrSpanMax).str());
     }
 
     /*
