@@ -26,6 +26,7 @@ __all__ = [
 
 import numpy as np
 
+import lsst.afw.detection as afwDet
 from lsst.pex.config import Field, Config, DictField, FieldValidationError
 from lsst.pipe.base import Struct, Task
 
@@ -99,7 +100,8 @@ class AdaptiveThresholdDetectionTask(Task):
     ConfigClass = AdaptiveThresholdDetectionConfig
     _DefaultName = "adaptiveThresholdDetection"
 
-    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0):
+    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0,
+            refCatSourceDensity=None):
         """Perform detection with an adaptive threshold detection scheme
         conditioned to maximize the likelihood of a successful PSF model fit
         for any given "scene".
@@ -116,11 +118,11 @@ class AdaptiveThresholdDetectionTask(Task):
         We first detect sources using the default threshold and multiplier.
         Then, cycling through a series of criteria based on the DETECTED mask
         planes (number of footprints, number of peaks, number of isolated
-        footprints, number of peaks-per-footrpint, etc.) conditioned to identify
-        a "Goldilocks Zone" where we have enough isolated peaks from which to
-        measure the PSF, we iterate while adjusting the detection thresholds
-        in the appropriate direction until all criteria are met (or the maximum
-        number of iterations is reached).
+        footprints, individual footprint pixel fraction, etc.) conditioned to
+        identify a "Goldilocks Zone" where we have enough isolated peaks from
+        which to measure the PSF, we iterate while adjusting the detection
+        thresholds in the appropriate direction until all criteria are met (or
+        the maximum number of iterations is reached).
 
         Parameters
         ----------
@@ -153,23 +155,23 @@ class AdaptiveThresholdDetectionTask(Task):
                     Negative polarity footprints
                     (`lsst.afw.detection.FootprintSet` or `None`).
                 ``numPos``
-                    Number of footprints in positive or 0 if detection polarity was
-                    negative (`int`).
+                    Number of footprints in positive or 0 if detection polarity
+                    was negative (`int`).
                 ``numNeg``
-                    Number of footprints in negative or 0 if detection polarity was
-                    positive (`int`).
+                    Number of footprints in negative or 0 if detection polarity
+                    was positive (`int`).
                 ``background``
                     Always `None`; provided for compatibility with
                     `SourceDetectionTask`.
                 ``factor``
                     Multiplication factor applied to the configured detection
-                    threshold. (`float`).
+                    threshold (`float`).
             ``thresholdValue``
                 The final threshold value used to the configure the final round
                 of detection (`float`).
             ``includeThresholdMultiplier``
-                The final multiplication factor applied to the configured detection
-                threshold. (`float`).
+                The final multiplication factor applied to the configured
+                detection threshold (`float`).
         """
         band = "fallback"
         if exposure.filter is not None:
@@ -179,14 +181,47 @@ class AdaptiveThresholdDetectionTask(Task):
             maxNumPeak = self.config.maxNumPeakPerBand[band]
         else:
             maxNumPeak = self.config.maxNumPeakPerBand["fallback"]
+        maskedImage = exposure.getMaskedImage()
 
         # Set up and configure the adaptive detection task on first iteration.
         thresholdFactor = 1.0
+        refCatThresholdFactor = 1.0
+        initThreshScale = 1.0
+        densityTransition = 10000
         if initialThreshold is None:
             maxSn = float(np.nanmax(exposure.image.array/np.sqrt(exposure.variance.array)))
             adaptiveDetThreshold = min(maxSn, 5.0)
         else:
             adaptiveDetThreshold = initialThreshold
+        if refCatSourceDensity is not None:
+            bbox = exposure.getBBox()
+            pixelScale = exposure.wcs.getPixelScale(bbox.getCenter()).asDegrees()
+            maxNumPeak = int(max(maxNumPeak, 2.0*refCatSourceDensity*(pixelScale**2.0*bbox.getArea())))
+            sufficientScaling = 7.0e-5*refCatSourceDensity + 0.16
+            sufficientIsolated = int(max(3, min(200, self.config.sufficientIsolated*sufficientScaling)))
+            if refCatSourceDensity > densityTransition:
+                refCatThresholdMultiplier = max(1.0, initialThresholdMultiplier/2.5)
+                initThreshScale = initialThresholdMultiplier/refCatThresholdMultiplier
+                initialThresholdMultiplier = refCatThresholdMultiplier
+            mDensity1 = 0.000008
+            bDensity1 = 0.9
+            mDensity2 = 0.00008
+            yTransition = mDensity1*densityTransition + bDensity1
+            bDensity2 = yTransition*initThreshScale - mDensity2*densityTransition
+            mDensity = mDensity2 if refCatSourceDensity >= densityTransition else mDensity1
+            bDensity = bDensity2 if refCatSourceDensity >= densityTransition else bDensity1
+            refCatThresholdFactor = min(1000.0, max(0.5, mDensity*refCatSourceDensity + bDensity))
+            adaptiveDetThreshold = min(500.0/initialThresholdMultiplier,
+                                       refCatThresholdFactor*adaptiveDetThreshold)
+        else:
+            sufficientIsolated = self.config.sufficientIsolated
+        if refCatSourceDensity is not None:
+            self.log.info("refCatSourceDensity: %.1f; initialAdaptiveThreshold: %.2f; "
+                          "initialThresholdMultiplier: %.2f", refCatSourceDensity, adaptiveDetThreshold,
+                          initialThresholdMultiplier)
+        else:
+            self.log.info("refCatSourceDensity is %s", refCatSourceDensity)
+
         adaptiveDetectionConfig = SourceDetectionConfig()
         adaptiveDetectionConfig.thresholdValue = adaptiveDetThreshold
         adaptiveDetectionConfig.includeThresholdMultiplier = initialThresholdMultiplier
@@ -208,16 +243,38 @@ class AdaptiveThresholdDetectionTask(Task):
             nPeak = 0
             nPosPeak = detRes.numPosPeaks
             nNegPeak = detRes.numNegPeaks  # Often detected in high nebulosity scenes.
-            maxNumNegPeak = max(15, int(0.025*nPosPeak))*maxNumNegFactor
+            if refCatSourceDensity is not None:
+                maxNumNegPeak = max(200, int(0.1*nPosPeak))*maxNumNegFactor
+            else:
+                maxNumNegPeak = max(15, int(0.025*nPosPeak))*maxNumNegFactor
             nIsolated = 0
-            nPeakPerSrcMax = 0
-            maxNumPeakPerSrcMax = 0.2*maxNumPeak
+            footprintAreaFractionMax = 0
+            maxFootprintAreaFractionMax = 0.14  # I.e. 14% of the detector
             for src in sourceCat:
-                nPeakSrc = len(src.getFootprint().getPeaks())
+                fp = src.getFootprint()
+                nPeakSrc = len(fp.getPeaks())
+                if not fp.isHeavy():
+                    heavyFp = afwDet.makeHeavyFootprint(fp, maskedImage)
+                else:
+                    heavyFp = fp
+                maskPlanesToAvoid = ["BAD", "NO_DATA", "VIGNETTED"]
+                maskBits = maskedImage.getMask().getPlaneBitMask(maskPlanesToAvoid)
+                logicalMask = (heavyFp.getMaskArray() & maskBits > 0)
+                fractionMasked = sum(logicalMask)/len(logicalMask)
+                maxFractionMasked = 0.5
+                if fractionMasked > maxFractionMasked:
+                    self.log.debug("Fraction of footprint masked as any of %s: %.3f (max is %.3f). "
+                                   "Skipping this footprint (nPeak: %d, area: %d).",
+                                   maskPlanesToAvoid, fractionMasked, maxFractionMasked,
+                                   nPeakSrc, fp.getArea())
+                    nFootprint -= 1
+                    continue
+                else:
+                    footprintAreaFraction = fp.getArea()/(exposure.getBBox().getArea() - sum(logicalMask))
+                    footprintAreaFractionMax = max(footprintAreaFractionMax, footprintAreaFraction)
                 if nPeakSrc == 1:
                     nIsolated += 1
                 nPeak += nPeakSrc
-                nPeakPerSrcMax = max(nPeakPerSrcMax, nPeakSrc)
             if nFootprint > 0.0:
                 fractionIsolated = nIsolated/nFootprint
                 avgPeakPerFoot = nPeak/nFootprint
@@ -226,20 +283,23 @@ class AdaptiveThresholdDetectionTask(Task):
                 avgPeakPerFoot = float("nan")
             self.log.info("In adaptive detection iter %d: nFootprints = %d, nPosPeak = %d (max is %d), "
                           "nNegPeak = %d (max is %d), nPeak/nFoot = %.1f (max is %.1f), "
-                          "nPeakPerkSrcMax = %d (max is %d), nIsolated = %d, fractionIsolated = %.2f",
+                          "footprintFractionMax = %.5f (max is %.2f), nIsolated = %d, "
+                          "fractionIsolated = %.2f",
                           nAdaptiveDetIter, nFootprint, nPeak, maxNumPeak, nNegPeak, maxNumNegPeak,
-                          avgPeakPerFoot, self.config.maxPeakToFootRatio, nPeakPerSrcMax,
-                          maxNumPeakPerSrcMax, nIsolated, fractionIsolated)
-            if (nIsolated > self.config.sufficientIsolated
+                          avgPeakPerFoot, self.config.maxPeakToFootRatio, footprintAreaFractionMax,
+                          maxFootprintAreaFractionMax, nIsolated, fractionIsolated)
+            if (nIsolated > sufficientIsolated
                     and fractionIsolated > self.config.sufficientFractionIsolated
-                    and (nAdaptiveDetIter > 1 or self.config.maxAdaptiveDetIter == 1)):
-                if ((nIsolated > 5.0*self.config.sufficientIsolated and nPeak < 2.5*maxNumPeak
-                    and nNegPeak < 100.0*maxNumNegPeak)
-                        or (nNegPeak < 5.0*maxNumNegPeak and nPeak < 1.2*maxNumPeak)):
+                    and (refCatSourceDensity is not None or nAdaptiveDetIter > 1
+                         or self.config.maxAdaptiveDetIter == 1)):
+                if (refCatSourceDensity is not None
+                    or ((nIsolated > 5.0*self.config.sufficientIsolated and nPeak < 2.5*maxNumPeak
+                         and nNegPeak < 100.0*maxNumNegPeak)
+                        or (nNegPeak < 5.0*maxNumNegPeak and nPeak < 1.2*maxNumPeak))):
                     self.log.info("Sufficient isolated footprints (%d > %d) and fraction of isolated "
-                                  "footprints (%.2f > %.2f) for PSF modeling.  Exiting adaptive detection "
+                                  "footprints (%.2f > %.2f) for PSF modeling. Exiting adaptive detection "
                                   "at iter: %d.",
-                                  nIsolated, self.config.sufficientIsolated, fractionIsolated,
+                                  nIsolated, sufficientIsolated, fractionIsolated,
                                   self.config.sufficientFractionIsolated, nAdaptiveDetIter)
                     break
 
@@ -275,28 +335,39 @@ class AdaptiveThresholdDetectionTask(Task):
                 adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
                 continue
 
-            if (nPeak > maxNumPeak or nPeakPerSrcMax > maxNumPeakPerSrcMax
-                    or nFootprint <= self.config.minFootprint):
+            if (nPeak > maxNumPeak or footprintAreaFractionMax > maxFootprintAreaFractionMax
+               or nFootprint <= self.config.minFootprint):
                 if nPeak > maxNumPeak or nPeakPerSrcMax > 0.25*maxNumPeak:
                     if nAdaptiveDetIter < 0.5*self.config.maxAdaptiveDetIter:
-                        if nPeak > 3*maxNumPeak or nPeakPerSrcMax > maxNumPeak:
+                        if (nPeak > 3*maxNumPeak or nPeakPerSrcMax > maxNumPeak
+                           or footprintAreaFractionMax > 3*maxFootprintAreaFractionMax):
                             thresholdFactor = 1.7
-                        elif nPeak > 2*maxNumPeak or nPeakPerSrcMax > 0.5*maxNumPeak:
+                        elif (nPeak > 2*maxNumPeak or nPeakPerSrcMax > 0.5*maxNumPeak
+                              or footprintAreaFractionMax > 1.5*maxFootprintAreaFractionMax):
                             thresholdFactor = 1.4
                         else:
                             thresholdFactor = 1.2
                     else:
                         thresholdFactor = 1.2
                     thresholdFactor *= adaptiveDetectionConfig.includeThresholdMultiplier
-                    newThresholdMultiplier = max(1.0, 0.5*adaptiveDetectionConfig.includeThresholdMultiplier)
+                    if refCatSourceDensity is not None:
+                        # Already started higher, so don't make as big a jump
+                        # per iteration.
+                        thresholdFactor = max(
+                            1.02, thresholdFactor/adaptiveDetectionConfig.includeThresholdMultiplier
+                        )
+                        newThresholdMultiplier = adaptiveDetectionConfig.includeThresholdMultiplier
+                    else:
+                        newThresholdMultiplier = max(
+                            1.0, 0.5*adaptiveDetectionConfig.includeThresholdMultiplier)
                     adaptiveDetectionConfig.includeThresholdMultiplier = newThresholdMultiplier
                     adaptiveDetectionConfig.thresholdValue = (
                         thresholdFactor*adaptiveDetectionConfig.thresholdValue)
                     self.log.warning("Adaptive detection iter %d catalog had nPeak = %d (max = %d) "
                                      "and nPeakPerSrcMax = %d (max = %d). Increasing threshold to %.2f "
                                      "and setting multiplier to %.1f and rerunning.",
-                                     nAdaptiveDetIter, nPeak, maxNumPeak, nPeakPerSrcMax, maxNumPeakPerSrcMax,
-                                     adaptiveDetectionConfig.thresholdValue,
+                                     nAdaptiveDetIter, nPeak, maxNumPeak, nPeakPerSrcMax,
+                                     maxNumPeakPerSrcMax, adaptiveDetectionConfig.thresholdValue,
                                      adaptiveDetectionConfig.includeThresholdMultiplier)
                     adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
                     continue
