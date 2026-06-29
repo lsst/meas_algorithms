@@ -99,7 +99,8 @@ class AdaptiveThresholdDetectionTask(Task):
     ConfigClass = AdaptiveThresholdDetectionConfig
     _DefaultName = "adaptiveThresholdDetection"
 
-    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0):
+    def run(self, table, exposure, initialThreshold=None, initialThresholdMultiplier=2.0,
+            refCatSourceDensity=None):
         """Perform detection with an adaptive threshold detection scheme
         conditioned to maximize the likelihood of a successful PSF model fit
         for any given "scene".
@@ -182,11 +183,41 @@ class AdaptiveThresholdDetectionTask(Task):
 
         # Set up and configure the adaptive detection task on first iteration.
         thresholdFactor = 1.0
+        refCatThresholdFactor = 1.0
+        initThreshScale = 1.0
+        densityTransition = 100000
         if initialThreshold is None:
             maxSn = float(np.nanmax(exposure.image.array/np.sqrt(exposure.variance.array)))
             adaptiveDetThreshold = min(maxSn, 5.0)
         else:
             adaptiveDetThreshold = initialThreshold
+        if refCatSourceDensity is not None:
+            sufficientScaling = 7.0e-5*refCatSourceDensity + 0.16
+            sufficientIsolated = int(max(3, min(200, self.config.sufficientIsolated*sufficientScaling)))
+            if refCatSourceDensity > densityTransition:
+                # refCatMultiplierFactor = 1.0/(1.5*(refCatSourceDensity/10000))
+                initThreshScale = initialThresholdMultiplier/2.5
+                initialThresholdMultiplier = 2.5
+            mDensity1 = 0.00001
+            bDensity1 = 0.8
+            mDensity2 = 0.00005
+            yTransition = mDensity1*densityTransition + bDensity1
+            bDensity2 = yTransition*initThreshScale - mDensity2*densityTransition
+            mDensity = mDensity2 if refCatSourceDensity >= densityTransition else mDensity1
+            bDensity = bDensity2 if refCatSourceDensity >= densityTransition else bDensity1
+            refCatThresholdFactor = min(1000.0, max(0.5, mDensity*refCatSourceDensity + bDensity))
+            adaptiveDetThreshold = min(800.0, refCatThresholdFactor*adaptiveDetThreshold)
+        else:
+            sufficientIsolated = self.config.sufficientIsolated
+        if refCatSourceDensity is not None:
+            self.log.warning("***** refCatSourceDensity: %.2f; sufficientIsolated: %d",
+                             refCatSourceDensity, sufficientIsolated)
+            self.log.warning("refCatSourceDensity: %.1f; initialAdaptiveThreshold: %.2f; "
+                             "initialThresholdMultiplier: %.2f", refCatSourceDensity, adaptiveDetThreshold,
+                             refCatThresholdFactor)
+        else:
+            self.log.warning("refCatSourceDensity is %s", refCatSourceDensity)
+
         adaptiveDetectionConfig = SourceDetectionConfig()
         adaptiveDetectionConfig.thresholdValue = adaptiveDetThreshold
         adaptiveDetectionConfig.includeThresholdMultiplier = initialThresholdMultiplier
@@ -208,7 +239,8 @@ class AdaptiveThresholdDetectionTask(Task):
             nPeak = 0
             nPosPeak = detRes.numPosPeaks
             nNegPeak = detRes.numNegPeaks  # Often detected in high nebulosity scenes.
-            maxNumNegPeak = max(15, int(0.025*nPosPeak))*maxNumNegFactor
+            # maxNumNegPeak = max(15, int(0.025*nPosPeak))*maxNumNegFactor
+            maxNumNegPeak = max(200, int(0.1*nPosPeak))*maxNumNegFactor
             nIsolated = 0
             nPeakPerSrcMax = 0
             maxNumPeakPerSrcMax = 0.2*maxNumPeak
@@ -230,16 +262,17 @@ class AdaptiveThresholdDetectionTask(Task):
                           nAdaptiveDetIter, nFootprint, nPeak, maxNumPeak, nNegPeak, maxNumNegPeak,
                           avgPeakPerFoot, self.config.maxPeakToFootRatio, nPeakPerSrcMax,
                           maxNumPeakPerSrcMax, nIsolated, fractionIsolated)
-            if (nIsolated > self.config.sufficientIsolated
+            # if (nIsolated > self.config.sufficientIsolated
+            if (nIsolated > sufficientIsolated
                     and fractionIsolated > self.config.sufficientFractionIsolated
                     and (nAdaptiveDetIter > 1 or self.config.maxAdaptiveDetIter == 1)):
-                if ((nIsolated > 5.0*self.config.sufficientIsolated and nPeak < 2.5*maxNumPeak
+                if ((nIsolated > 5.0*sufficientIsolated and nPeak < 2.5*maxNumPeak
                     and nNegPeak < 100.0*maxNumNegPeak)
                         or (nNegPeak < 5.0*maxNumNegPeak and nPeak < 1.2*maxNumPeak)):
                     self.log.info("Sufficient isolated footprints (%d > %d) and fraction of isolated "
                                   "footprints (%.2f > %.2f) for PSF modeling.  Exiting adaptive detection "
                                   "at iter: %d.",
-                                  nIsolated, self.config.sufficientIsolated, fractionIsolated,
+                                  nIsolated, sufficientIsolated, fractionIsolated,
                                   self.config.sufficientFractionIsolated, nAdaptiveDetIter)
                     break
 
@@ -288,6 +321,13 @@ class AdaptiveThresholdDetectionTask(Task):
                     else:
                         thresholdFactor = 1.2
                     thresholdFactor *= adaptiveDetectionConfig.includeThresholdMultiplier
+                    if refCatSourceDensity is not None:
+                        # if refCatSourceDensity > max(4000.0, 0.25*densityTransition):
+                        # Already started higher, so don't make as big a jump
+                        # per iteration.
+                        self.log.warning("HERE 1: thresholdFactor = %.2f", thresholdFactor)
+                        thresholdFactor = max(1.02, thresholdFactor*0.5)
+                        self.log.warning("HERE 2: thresholdFactor = %.2f", thresholdFactor)
                     newThresholdMultiplier = max(1.0, 0.5*adaptiveDetectionConfig.includeThresholdMultiplier)
                     adaptiveDetectionConfig.includeThresholdMultiplier = newThresholdMultiplier
                     adaptiveDetectionConfig.thresholdValue = (

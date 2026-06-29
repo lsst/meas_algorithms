@@ -40,14 +40,14 @@ class AdaptiveThresholdDetectionTest(lsst.utils.tests.TestCase):
         return exposure
 
     def tearDown(self):
-        # del self.exposure
         del self.config
 
-    def check(self, expectFactor, initialThreshold=None):
+    def check(self, expectFactor, initialThreshold=None, refCatSourceDensity=None):
         schema = SourceTable.makeMinimalSchema()
         table = SourceTable.make(schema)
         task = AdaptiveThresholdDetectionTask(config=self.config)
-        results = task.run(table, self.exposure, initialThreshold=initialThreshold)
+        results = task.run(table, self.exposure, initialThreshold=initialThreshold,
+                           refCatSourceDensity=refCatSourceDensity)
         self.assertFloatsAlmostEqual(results.thresholdValue, expectFactor, rtol=self.rtol)
 
     def testUncrowded(self):
@@ -68,6 +68,12 @@ class AdaptiveThresholdDetectionTest(lsst.utils.tests.TestCase):
         self.check(50.0, initialThreshold=50.0)
         self.exposure = self.makeMockExposure(numStars=25000)
         self.check(173.4, initialThreshold=20.0)
+
+    def testRefCatDensity(self):
+        """Test passing non-None refCatSourceDensity to the run method.
+        """
+        self.exposure = self.makeMockExposure(numStars=25000)
+        self.check(114.4, initialThreshold=10.0, refCatSourceDensity=300000)
 
 
 class TestMemory(lsst.utils.tests.MemoryTestCase):
