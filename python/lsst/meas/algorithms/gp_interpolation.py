@@ -24,9 +24,14 @@ from lsst.meas.algorithms import CloughTocher2DInterpolatorUtils as ctUtils
 from lsst.geom import Box2I, Point2I
 from lsst.afw.geom import SpanSet
 import copy
+import treecorr
 import treegp
 
 import logging
+
+# We need to explicitly turn off multiprocessing in treecorr which is used
+# by treegp.
+treecorr.set_max_omp_threads(1)
 
 __all__ = [
     "InterpolateOverDefectGaussianProcess",
