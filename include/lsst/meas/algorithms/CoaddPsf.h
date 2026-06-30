@@ -72,7 +72,8 @@ public:
      * @param[in] warpingKernelName Name of warping kernel
      * @param[in] cacheSize         Warping kernel cache size
      */
-    explicit CoaddPsf(afw::table::ExposureCatalog const& catalog, afw::geom::SkyWcs const& coaddWcs,
+    explicit CoaddPsf(afw::table::ExposureCatalog const& catalog,
+                      std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                       std::string const& weightFieldName = "weight",
                       std::string const& warpingKernelName = "lanczos3", int cacheSize = 10000);
 
@@ -90,12 +91,12 @@ public:
      * @param[in] weightFieldName   Field name that contains the weight of the exposure in the coadd;
      *                              defaults to "weight".
      */
-    CoaddPsf(afw::table::ExposureCatalog const& catalog, afw::geom::SkyWcs const& coaddWcs,
+    CoaddPsf(afw::table::ExposureCatalog const& catalog, std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
              CoaddPsfControl const& ctrl, std::string const& weightFieldName = "weight")
             : CoaddPsf(catalog, coaddWcs, weightFieldName, ctrl.warpingKernelName, ctrl.cacheSize) {}
 
     explicit CoaddPsf(afw::table::ExposureCatalog const& catalog,         ///< Unpersisted catalog
-                      afw::geom::SkyWcs const& coaddWcs,                  ///< WCS for the coadd
+                      std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,                  ///< WCS for the coadd
                       geom::Point2D const& averagePosition,               ///< Default position for accessors
                       std::string const& warpingKernelName = "lanczos3",  ///< Warping kernel name
                       int cacheSize = 10000                               ///< Kernel cache size
@@ -115,7 +116,7 @@ public:
     geom::Point2D getAveragePosition() const override { return _averagePosition; }
 
     /// Return the Wcs of the coadd (defines the coordinate system of the Psf).
-    afw::geom::SkyWcs getCoaddWcs() { return _coaddWcs; }
+    std::shared_ptr<afw::geom::SkyWcs const> getCoaddWcs() const { return _coaddWcs; }
 
     /// Return the number of component Psfs in this CoaddPsf
     int getComponentCount() const;
@@ -127,7 +128,7 @@ public:
      * @returns     Corresponding Psf.
      * @throws      RangeError  Index of component is out of range.
      */
-    std::shared_ptr<afw::detection::Psf const> getPsf(int index);
+    std::shared_ptr<afw::detection::Psf const> getPsf(int index) const;
 
     /**
      * Get the Wcs of the component image at index.
@@ -136,7 +137,7 @@ public:
      * @returns     Corresponding Wcs.
      * @throws      RangeError  Index of component is out of range.
      */
-    afw::geom::SkyWcs getWcs(int index);
+    std::shared_ptr<afw::geom::SkyWcs const> getWcs(int index) const;
 
     /**
      * Get the weight of the component image at index.
@@ -145,7 +146,7 @@ public:
      * @returns     Corresponding weight.
      * @throws      RangeError  Index of component is out of range.
      */
-    double getWeight(int index);
+    double getWeight(int index) const;
 
     /**
      * Get the exposure ID of the component image at index.
@@ -154,7 +155,7 @@ public:
      * @returns     Corresponding exposure ID.
      * @throws      RangeError  Index of component is out of range.
      */
-    afw::table::RecordId getId(int index);
+    afw::table::RecordId getId(int index) const;
 
     /**
      * Get the bounding box (in component image Pixel coordinates) of the component image at index.
@@ -163,7 +164,7 @@ public:
      * @returns     Corresponding bounding box.
      * @throws      RangeError  Index of component is out of range.
      */
-    geom::Box2I getBBox(int index);
+    geom::Box2I getBBox(int index) const;
 
     /**
      * Get the validPolygon (in component image Pixel coordinates) of the component image at index.
@@ -172,7 +173,21 @@ public:
      * @returns     Corresponding validPolygon.
      * @throws      RangeError  Index of component is out of range.
      */
-    std::shared_ptr<afw::geom::polygon::Polygon const> getValidPolygon(int index);
+    std::shared_ptr<afw::geom::polygon::Polygon const> getValidPolygon(int index) const;
+
+    /**
+     * Get the tract ID of the component image at the given index.
+     *
+     * @throws lsst::pex::exceptions::NotFoundError  There is no tract column.
+     */
+    int getTract(int index) const;
+
+    /**
+     * Get the patch ID of the component image at the given index.
+     *
+     * @throws lsst::pex::exceptions::NotFoundError  There is no patch column.
+     */
+    int getPatch(int index) const;
 
     /**
      *  @brief Return true if the CoaddPsf persistable (always true).
@@ -206,8 +221,10 @@ protected:
 
 private:
     afw::table::ExposureCatalog _catalog;
-    afw::geom::SkyWcs _coaddWcs;
+    std::shared_ptr<afw::geom::SkyWcs const> _coaddWcs;
     afw::table::Key<double> _weightKey;
+    afw::table::Key<int> _tractKey;
+    afw::table::Key<int> _patchKey;
     geom::Point2D _averagePosition;
     std::string _warpingKernelName;  // could be removed if we could get this from _warpingControl (#2949)
     std::shared_ptr<afw::math::WarpingControl const> _warpingControl;

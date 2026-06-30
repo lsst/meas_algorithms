@@ -49,15 +49,15 @@ void declareCoaddPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
 
     auto clsCoaddPsf = wrappers.wrapType(PyCoaddPsf(wrappers.module, "CoaddPsf"), [](auto &mod, auto &cls) {
         /* Constructors */
-        cls.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
+        cls.def(py::init<afw::table::ExposureCatalog const &, std::shared_ptr<afw::geom::SkyWcs>,
                                 std::string const &, std::string const &, int>(),
                         "catalog"_a, "coaddWcs"_a, "weightFieldName"_a = "weight",
                         "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
-        cls.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
+        cls.def(py::init<afw::table::ExposureCatalog const &, std::shared_ptr<afw::geom::SkyWcs>,
                                 geom::Point2D const &, std::string const &, int>(),
                         "catalog"_a, "coaddWcs"_a, "averagePosition"_a,
                         "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
-        cls.def(py::init<afw::table::ExposureCatalog const &, afw::geom::SkyWcs const &,
+        cls.def(py::init<afw::table::ExposureCatalog const &, std::shared_ptr<afw::geom::SkyWcs>,
                                 CoaddPsfControl const &, std::string const &>(),
                         "catalog"_a, "coaddWcs"_a, "ctrl"_a, "weightFieldName"_a = "weight");
 
@@ -72,6 +72,8 @@ void declareCoaddPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
         cls.def("getId", &CoaddPsf::getId);
         cls.def("getBBox", &CoaddPsf::getBBox);
         cls.def("getValidPolygon", &CoaddPsf::getValidPolygon);
+        cls.def("getTract", &CoaddPsf::getTract);
+        cls.def("getPatch", &CoaddPsf::getPatch);
         cls.def("isPersistable", &CoaddPsf::isPersistable);
     });
 
