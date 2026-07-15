@@ -139,7 +139,8 @@ geom::Point2D computeAveragePosition(afw::table::ExposureCatalog const &catalog,
 
 }  // namespace
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog, afw::geom::SkyWcs const &coaddWcs,
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog,
+                   std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                    std::string const &weightFieldName, std::string const &warpingKernelName, int cacheSize)
         : _coaddWcs(coaddWcs),
           _warpingKernelName(warpingKernelName),
@@ -165,17 +166,29 @@ CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog, afw::geom::SkyWcs
         record->assign(*i, mapper);
         _catalog.push_back(record);
     }
-    _averagePosition = computeAveragePosition(_catalog, _coaddWcs, _weightKey);
+    _averagePosition = computeAveragePosition(_catalog, *_coaddWcs, _weightKey);
 }
 
-CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog, afw::geom::SkyWcs const &coaddWcs,
+CoaddPsf::CoaddPsf(afw::table::ExposureCatalog const &catalog,
+                   std::shared_ptr<afw::geom::SkyWcs const> coaddWcs,
                    geom::Point2D const &averagePosition, std::string const &warpingKernelName, int cacheSize)
         : _catalog(catalog),
           _coaddWcs(coaddWcs),
           _weightKey(_catalog.getSchema()["weight"]),
+          _tractKey(),
+          _patchKey(),
           _averagePosition(averagePosition),
           _warpingKernelName(warpingKernelName),
-          _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize)) {}
+          _warpingControl(new afw::math::WarpingControl(warpingKernelName, "", cacheSize)) {
+    try {
+        _tractKey = _catalog.getSchema()["tract"];
+    } catch (pex::exceptions::NotFoundError &) {
+    }
+    try {
+        _patchKey = _catalog.getSchema()["patch"];
+    } catch (pex::exceptions::NotFoundError &) {
+    }
+}
 
 std::shared_ptr<afw::detection::Psf> CoaddPsf::clone() const { return std::make_shared<CoaddPsf>(*this); }
 
@@ -227,7 +240,7 @@ void addToImage(std::shared_ptr<afw::image::Image<double>> image,
 } // anonymous
 
 geom::Box2I CoaddPsf::doComputeBBox(geom::Point2D const &ccdXY, afw::image::Color const &color) const {
-    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
                 lsst::afw::detection::InvalidPsfError,
@@ -238,7 +251,7 @@ geom::Box2I CoaddPsf::doComputeBBox(geom::Point2D const &ccdXY, afw::image::Colo
     geom::Box2I ret;
     for (auto const &exposureRecord : subcat) {
         // compute transform from exposure pixels to coadd pixels
-        auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), _coaddWcs);
+        auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), *_coaddWcs);
         WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), exposureToCoadd, _warpingControl);
         geom::Box2I componentBBox = warpedPsf.computeBBox(ccdXY, color);
         ret.include(componentBBox);
@@ -250,7 +263,7 @@ geom::Box2I CoaddPsf::doComputeBBox(geom::Point2D const &ccdXY, afw::image::Colo
 std::shared_ptr<afw::detection::Psf::Image>
 CoaddPsf::doComputeKernelImage(geom::Point2D const &ccdXY, afw::image::Color const &color) const {
     // Get the subset of exposures which contain our coordinate within their validPolygons.
-    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, _coaddWcs, true);
+    afw::table::ExposureCatalog subcat = _catalog.subsetContaining(ccdXY, *_coaddWcs, true);
     if (subcat.empty()) {
         throw LSST_EXCEPT(
                 lsst::afw::detection::InvalidPsfError,
@@ -267,7 +280,7 @@ CoaddPsf::doComputeKernelImage(geom::Point2D const &ccdXY, afw::image::Color con
 
     for (auto const &exposureRecord : subcat) {
         // compute transform from exposure pixels to coadd pixels
-        auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), _coaddWcs);
+        auto exposureToCoadd = afw::geom::makeWcsPairTransform(*exposureRecord.getWcs(), *_coaddWcs);
         std::shared_ptr<afw::image::Image<double>> componentImg;
         try {
             WarpedPsf warpedPsf = WarpedPsf(exposureRecord.getPsf(), exposureToCoadd, _warpingControl);
@@ -295,46 +308,66 @@ CoaddPsf::doComputeKernelImage(geom::Point2D const &ccdXY, afw::image::Color con
 
 int CoaddPsf::getComponentCount() const { return _catalog.size(); }
 
-std::shared_ptr<afw::detection::Psf const> CoaddPsf::getPsf(int index) {
+std::shared_ptr<afw::detection::Psf const> CoaddPsf::getPsf(int index) const {
     if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getPsf();
 }
 
-afw::geom::SkyWcs CoaddPsf::getWcs(int index) {
+std::shared_ptr<afw::geom::SkyWcs const> CoaddPsf::getWcs(int index) const {
     if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
-    return *_catalog[index].getWcs();
+    return _catalog[index].getWcs();
 }
 
-std::shared_ptr<afw::geom::polygon::Polygon const> CoaddPsf::getValidPolygon(int index) {
+std::shared_ptr<afw::geom::polygon::Polygon const> CoaddPsf::getValidPolygon(int index) const {
     if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getValidPolygon();
 }
 
-double CoaddPsf::getWeight(int index) {
+double CoaddPsf::getWeight(int index) const {
     if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].get(_weightKey);
 }
 
-afw::table::RecordId CoaddPsf::getId(int index) {
+afw::table::RecordId CoaddPsf::getId(int index) const {
     if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getId();
 }
 
-geom::Box2I CoaddPsf::getBBox(int index) {
+geom::Box2I CoaddPsf::getBBox(int index) const {
     if (index < 0 || index >= getComponentCount()) {
         throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
     }
     return _catalog[index].getBBox();
+}
+
+int CoaddPsf::getTract(int index) const {
+    if (index < 0 || index >= getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
+    }
+    if (!_tractKey.isValid()) {
+        throw LSST_EXCEPT(pex::exceptions::NotFoundError, "CoaddPsf has no tract column");
+    }
+    return _catalog[index][_tractKey];
+}
+
+int CoaddPsf::getPatch(int index) const {
+    if (index < 0 || index >= getComponentCount()) {
+        throw LSST_EXCEPT(pex::exceptions::RangeError, "index of CoaddPsf component out of range");
+    }
+    if (!_patchKey.isValid()) {
+        throw LSST_EXCEPT(pex::exceptions::NotFoundError, "CoaddPsf has no patch column");
+    }
+    return _catalog[index][_patchKey];
 }
 
 // ---------- Persistence -----------------------------------------------------------------------------------
@@ -388,7 +421,7 @@ public:
         afw::table::BaseRecord const &record1 = catalogs.front().front();
         return std::shared_ptr<CoaddPsf>(
                 new CoaddPsf(afw::table::ExposureCatalog::readFromArchive(archive, catalogs.back()),
-                             *archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
+                             archive.get<afw::geom::SkyWcs>(record1.get(keys1.coaddWcs)),
                              record1.get(keys1.averagePosition), record1.get(keys1.warpingKernelName),
                              record1.get(keys1.cacheSize)));
     }
@@ -413,7 +446,7 @@ public:
         } catch (pex::exceptions::NotFoundError &) {
         }
         auto averagePos = computeAveragePosition(internalCat, *coaddWcs, weightKey);
-        return std::shared_ptr<CoaddPsf>(new CoaddPsf(internalCat, *coaddWcs, averagePos));
+        return std::shared_ptr<CoaddPsf>(new CoaddPsf(internalCat, coaddWcs, averagePos));
     }
 
     Factory(std::string const &name) : afw::table::io::PersistableFactory(name) {}
@@ -435,8 +468,7 @@ void CoaddPsf::write(OutputArchiveHandle &handle) const {
     CoaddPsfPersistenceHelper const &keys1 = CoaddPsfPersistenceHelper::get();
     afw::table::BaseCatalog cat1 = handle.makeCatalog(keys1.schema);
     std::shared_ptr<afw::table::BaseRecord> record1 = cat1.addNew();
-    auto coaddWcsPtr = std::make_shared<afw::geom::SkyWcs>(_coaddWcs);
-    record1->set(keys1.coaddWcs, handle.put(coaddWcsPtr));
+    record1->set(keys1.coaddWcs, handle.put(_coaddWcs));
     record1->set(keys1.cacheSize, _warpingControl->getCacheSize());
     record1->set(keys1.averagePosition, _averagePosition);
     record1->set(keys1.warpingKernelName, _warpingKernelName);
