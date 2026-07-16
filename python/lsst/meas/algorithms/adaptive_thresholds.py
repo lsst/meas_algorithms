@@ -337,40 +337,38 @@ class AdaptiveThresholdDetectionTask(Task):
 
             if (nPeak > maxNumPeak or footprintAreaFractionMax > maxFootprintAreaFractionMax
                or nFootprint <= self.config.minFootprint):
-                if nPeak > maxNumPeak or nPeakPerSrcMax > 0.25*maxNumPeak:
+                if nPeak > maxNumPeak:
                     if nAdaptiveDetIter < 0.5*self.config.maxAdaptiveDetIter:
-                        if (nPeak > 3*maxNumPeak or nPeakPerSrcMax > maxNumPeak
+                        if (nPeak > 3*maxNumPeak
                            or footprintAreaFractionMax > 3*maxFootprintAreaFractionMax):
                             thresholdFactor = 1.7
-                        elif (nPeak > 2*maxNumPeak or nPeakPerSrcMax > 0.5*maxNumPeak
+                        elif (nPeak > 2*maxNumPeak
                               or footprintAreaFractionMax > 1.5*maxFootprintAreaFractionMax):
                             thresholdFactor = 1.4
                         else:
                             thresholdFactor = 1.2
-                    else:
-                        thresholdFactor = 1.2
-                    thresholdFactor *= adaptiveDetectionConfig.includeThresholdMultiplier
-                    if refCatSourceDensity is not None:
-                        # Already started higher, so don't make as big a jump
-                        # per iteration.
-                        thresholdFactor = max(
-                            1.02, thresholdFactor/adaptiveDetectionConfig.includeThresholdMultiplier
-                        )
-                        newThresholdMultiplier = adaptiveDetectionConfig.includeThresholdMultiplier
-                    else:
-                        newThresholdMultiplier = max(
-                            1.0, 0.5*adaptiveDetectionConfig.includeThresholdMultiplier)
-                    adaptiveDetectionConfig.includeThresholdMultiplier = newThresholdMultiplier
-                    adaptiveDetectionConfig.thresholdValue = (
-                        thresholdFactor*adaptiveDetectionConfig.thresholdValue)
-                    self.log.warning("Adaptive detection iter %d catalog had nPeak = %d (max = %d) "
-                                     "and nPeakPerSrcMax = %d (max = %d). Increasing threshold to %.2f "
-                                     "and setting multiplier to %.1f and rerunning.",
-                                     nAdaptiveDetIter, nPeak, maxNumPeak, nPeakPerSrcMax,
-                                     maxNumPeakPerSrcMax, adaptiveDetectionConfig.thresholdValue,
-                                     adaptiveDetectionConfig.includeThresholdMultiplier)
-                    adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
-                    continue
+                else:
+                    thresholdFactor = 1.2
+                thresholdFactor *= adaptiveDetectionConfig.includeThresholdMultiplier
+                if refCatSourceDensity is not None:
+                    # Already started higher, so don't make as big a jump
+                    # per iteration.
+                    thresholdFactor = max(
+                        1.02, thresholdFactor/adaptiveDetectionConfig.includeThresholdMultiplier
+                    )
+                    newThresholdMultiplier = adaptiveDetectionConfig.includeThresholdMultiplier
+                else:
+                    newThresholdMultiplier = max(
+                        1.0, 0.5*adaptiveDetectionConfig.includeThresholdMultiplier)
+                adaptiveDetectionConfig.includeThresholdMultiplier = newThresholdMultiplier
+                adaptiveDetectionConfig.thresholdValue = (
+                    thresholdFactor*adaptiveDetectionConfig.thresholdValue)
+                self.log.warning("Adaptive detection iter %d catalog had nPeak = %d (max = %d). Increasing "
+                                 "threshold to %.2f and setting multiplier to %.1f and rerunning.",
+                                 nAdaptiveDetIter, nPeak, maxNumPeak, adaptiveDetectionConfig.thresholdValue,
+                                 adaptiveDetectionConfig.includeThresholdMultiplier)
+                adaptiveDetectionTask = SourceDetectionTask(config=adaptiveDetectionConfig)
+                continue
 
                 if nFootprint <= self.config.minFootprint:
                     maxNumNegFactor *= 10  # Allow more -ve detections at this point.
