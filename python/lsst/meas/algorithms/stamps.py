@@ -24,7 +24,7 @@
 __all__ = ["Stamp", "Stamps", "StampsBase", "writeFits", "readFitsWithOptions"]
 
 import abc
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import copy
 from dataclasses import dataclass, field, fields
 
@@ -32,10 +32,81 @@ import numpy as np
 from lsst.afw.fits import Fits, readMetadata
 from lsst.afw.image import ImageFitsReader, MaskedImage, MaskedImageF, MaskFitsReader
 from lsst.afw.table.io import InputArchive, OutputArchive, Persistable
-from lsst.daf.base import PropertyList
+from lsst.daf.base import PropertyList, PropertySet
 from lsst.geom import Angle, Box2I, Extent2I, Point2I, SpherePoint, degrees
 from lsst.utils import doImport
 from lsst.utils.introspection import get_full_type_name
+
+_WRITER_GENERATED_KEYS = frozenset(
+    {
+        "EXTNAME", "EXTVER", "EXTTYPE", "INHERIT",
+        "CRPIX1A", "CRPIX2A", "CRVAL1A", "CRVAL2A",
+        "CTYPE1A", "CTYPE2A", "CUNIT1A", "CUNIT2A",
+    }
+)
+
+
+def _stamp_hdu_metadata(stamp_metadata, shared_metadata):
+    """Build the header to write for the image HDU of a single stamp.
+
+    Parameters
+    ----------
+    stamp_metadata : `~lsst.daf.base.PropertySet` or \
+            `~collections.abc.Mapping` or `None`
+        The metadata attached to this stamp. `Stamp` normalises its own
+        metadata to a `~lsst.daf.base.PropertyList`, but `writeFits` is public
+        API and is given stamp classes that do not inherit that behaviour, so a
+        plain mapping is accepted here as well.
+    shared_metadata : `PropertyList`
+        The metadata written to the primary header, and so already available
+        to readers of every stamp.
+
+    Returns
+    -------
+    hduMetadata : `PropertyList`
+        The metadata to attach to the image HDU of this stamp; empty if the
+        stamp holds nothing of its own.
+
+    Notes
+    -----
+    A key holding the same value as ``shared_metadata`` is dropped, since
+    readers merge the primary header into the per-stamp metadata and so recover
+    it from there anyway; without this, a stamp read back from disk would write
+    the whole primary header into its own extension again on every write. A
+    scalar whose value *differs* is kept, because that is the stamp overriding
+    the shared value, and the reader applies the extension header last.
+
+    A shared key holding several values is never overridden: those are the
+    lists carrying one entry per stamp that factories index by stamp number,
+    and replacing the list with a single stamp's stale copy would misalign
+    every other stamp. Keys the writer regenerates for itself
+    (`_WRITER_GENERATED_KEYS`) are always dropped, as re-writing those appends
+    a duplicate card each time.
+
+    The metadata is copied with `~lsst.daf.base.PropertyList.update` rather
+    than key by key, so keys carrying several values (an array, or repeated
+    header cards such as ``HISTORY``) keep all of them, and comments are
+    retained. Iterating over ``items()`` would silently keep only the last
+    value of each key.
+    """
+    hdu_metadata = PropertyList()
+    if stamp_metadata is None:
+        return hdu_metadata
+    hdu_metadata.update(stamp_metadata)
+    # names() returns a new list, so removing as we go over it is safe.
+    for key in hdu_metadata.names():
+        if key in _WRITER_GENERATED_KEYS:
+            hdu_metadata.remove(key)
+        elif key in shared_metadata:
+            shared_value = shared_metadata.getArray(key)
+            # A shared key holding several values is a list with one entry per
+            # stamp, which factories index by stamp number (``RA_DEG`` and
+            # ``DEC_DEG`` for `Stamp`). Letting a stamp override one of those
+            # would replace the whole list with a stale copy, so only a scalar
+            # may be overridden.
+            if len(shared_value) > 1 or hdu_metadata.getArray(key) == shared_value:
+                hdu_metadata.remove(key)
+    return hdu_metadata
 
 
 def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance, write_archive=False):
@@ -59,6 +130,14 @@ def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance,
     write_archive : `bool`, optional
         Write an archive to store Persistables along with each stamp?
         Default: ``False``.
+
+    Notes
+    -----
+    ``metadata`` holds the values shared by every stamp and goes in the primary
+    header. Values held by an individual stamp, in its ``metadata`` attribute,
+    are written to the header of that stamp's own image HDU, and are recovered
+    by `readFitsWithOptions`. Since they become FITS header keywords, such keys
+    are upper-cased on write.
     """
     metadata["HAS_MASK"] = write_mask
     metadata["HAS_VARIANCE"] = write_variance
@@ -82,18 +161,20 @@ def writeFits(filename, stamps, metadata, type_name, write_mask, write_variance,
     fitsFile.closeFile()
     # add all pixel data optionally writing mask and variance information
     for i, stamp in enumerate(stamps):
-        metadata = PropertyList()
+        # Metadata belonging to this stamp alone is written to its image HDU,
+        # which is the extension the reader recovers it from.
+        hdu_metadata = _stamp_hdu_metadata(getattr(stamp, "metadata", None), metadata)
         # EXTVER should be 1-based, the index from enumerate is 0-based
-        metadata.update({"EXTVER": i + 1, "EXTNAME": "IMAGE"})
-        stamp.stamp_im.getImage().writeFits(filename, metadata=metadata, mode="a")
+        hdu_metadata.update({"EXTVER": i + 1, "EXTNAME": "IMAGE"})
+        stamp.stamp_im.getImage().writeFits(filename, metadata=hdu_metadata, mode="a")
         if write_mask:
-            metadata = PropertyList()
-            metadata.update({"EXTVER": i + 1, "EXTNAME": "MASK"})
-            stamp.stamp_im.getMask().writeFits(filename, metadata=metadata, mode="a")
+            hdu_metadata = PropertyList()
+            hdu_metadata.update({"EXTVER": i + 1, "EXTNAME": "MASK"})
+            stamp.stamp_im.getMask().writeFits(filename, metadata=hdu_metadata, mode="a")
         if write_variance:
-            metadata = PropertyList()
-            metadata.update({"EXTVER": i + 1, "EXTNAME": "VARIANCE"})
-            stamp.stamp_im.getVariance().writeFits(filename, metadata=metadata, mode="a")
+            hdu_metadata = PropertyList()
+            hdu_metadata.update({"EXTVER": i + 1, "EXTNAME": "VARIANCE"})
+            stamp.stamp_im.getVariance().writeFits(filename, metadata=hdu_metadata, mode="a")
     return None
 
 
@@ -166,13 +247,12 @@ def readFitsWithOptions(filename, stamp_factory, options):
         variance_dtype = np.dtype(np.float32)  # Variance is always the same type.
 
         # We need to be careful because nExtensions includes the primary HDU.
-        stamp_metadata = []
+        # Keyed on EXTVER rather than a flat list, because the extensions of
+        # one stamp are interleaved with those of the others.
+        stamp_metadata = {}
         for idx in range(nExtensions - 1):
             dtype = None
-            _metadata = copy.copy(metadata)
             md = readMetadata(filename, hdu=idx + 1)
-            _metadata.update(md)
-            stamp_metadata.append(_metadata)
             # Skip binary tables that aren't images or archives.
             if md["XTENSION"] == "BINTABLE" and not ("ZIMAGE" in md and md["ZIMAGE"]):
                 if md["EXTNAME"] != "ARCHIVE_INDEX":
@@ -183,6 +263,14 @@ def readFitsWithOptions(filename, stamp_factory, options):
                     dtype = variance_dtype
                 else:
                     dtype = default_dtype
+                    # A stamp's own metadata lives in its image HDU; combine it
+                    # with the metadata shared by all the stamps. Only the
+                    # image extension is used: the mask and variance ones
+                    # repeat the same EXTVER, and the archive extensions carry
+                    # no EXTVER at all.
+                    _metadata = copy.copy(metadata)
+                    _metadata.update(md)
+                    stamp_metadata[md["EXTVER"]] = _metadata
             elif md["EXTNAME"] == "MASK":
                 reader = MaskFitsReader(filename, hdu=idx + 1)
             elif md["EXTNAME"] == "ARCHIVE_INDEX":
@@ -206,7 +294,7 @@ def readFitsWithOptions(filename, stamp_factory, options):
         # Need to increment by one since EXTVER starts at 1
         maskedImage = masked_image_cls(**stamp_parts[k + 1])
         archive_element = archive.get(archive_ids[k]) if has_archive else None
-        stamps.append(stamp_factory(maskedImage, stamp_metadata[k], k, archive_element))
+        stamps.append(stamp_factory(maskedImage, stamp_metadata[k + 1], k, archive_element))
 
     return stamps, metadata
 
@@ -267,12 +355,42 @@ class Stamp(AbstractStamp):
     position : `~lsst.geom.SpherePoint` or `None`, optional
         Position of the center of the stamp. Note the user must keep track of
         the coordinate system.
+    metadata : `~lsst.daf.base.PropertyList` or `~collections.abc.Mapping` \
+            or `None`, optional
+        Metadata describing this stamp alone, written to the header of its own
+        HDU. A mapping is converted to a `~lsst.daf.base.PropertyList`, so the
+        attribute is always one of those. Note that the keys become FITS header
+        keywords, and so are upper-cased on write.
+
+    Raises
+    ------
+    TypeError
+        Raised if ``metadata`` is neither a mapping nor a
+        `~lsst.daf.base.PropertySet`.
     """
 
     stamp_im: MaskedImageF
     archive_element: Persistable | None = None
     position: SpherePoint | None = field(default_factory=_default_position)
-    metadata: PropertyList | None = None
+    # Declared as the union that the constructor accepts, since for a dataclass
+    # this annotation is the signature of __init__. After __post_init__ the
+    # attribute is always a PropertyList or None.
+    metadata: PropertyList | Mapping | None = None
+
+    def __post_init__(self):
+        # It is convenient to pass a plain dict at the call site, but the FITS
+        # writer needs a PropertySet, so normalise it here rather than let it
+        # fail deep inside the write.
+        if self.metadata is None or isinstance(self.metadata, PropertyList):
+            return
+        if not isinstance(self.metadata, (PropertySet, Mapping)):
+            raise TypeError(
+                "metadata must be a PropertyList, a PropertySet or a mapping; "
+                f"got {type(self.metadata).__name__}."
+            )
+        metadata = PropertyList()
+        metadata.update(self.metadata)
+        self.metadata = metadata
 
     @classmethod
     def factory(cls, stamp_im, metadata, index, archive_element=None):
