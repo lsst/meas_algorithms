@@ -220,47 +220,54 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         # self.noise.image.array[:, :] = rng.normal(size=self.noise.image.array.shape)
 
     def test_interpolation(self):
-        """Test that the interpolation is done correctly."""
+        """Test that the interpolation is done correctly, with both
+        correlation function estimators."""
+        for two_pcf_method in ("treecorr", "fft"):
+            with self.subTest(two_pcf_method=two_pcf_method):
+                maskedimage = self.maskedimage.clone()
+                gp = InterpolateOverDefectGaussianProcess(
+                    maskedimage,
+                    defects=["BAD", "SAT", "CR", "EDGE"],
+                    fwhm=self.correlation_length,
+                    kernel_half_width=20,
+                    fwhm_factor=3,
+                    two_pcf_method=two_pcf_method,
+                    log=None,
+                )
+                # The kernel half width is at least fwhm_factor * fwhm.
+                self.assertEqual(gp.max_sep, 30)
 
-        gp = InterpolateOverDefectGaussianProcess(
-            self.maskedimage,
-            defects=["BAD", "SAT", "CR", "EDGE"],
-            fwhm=self.correlation_length,
-            kernel_half_width=20,
-            fwhm_factor=3,
-            log=None,
-        )
-        # The kernel half width is at least fwhm_factor * fwhm.
-        self.assertEqual(gp.max_sep, 30)
+                gp.run()
 
-        gp.run()
+                # One Gaussian Process per connected defect, each either
+                # solved or filled with the local median.
+                self.assertGreater(gp.n_areas, 0)
+                self.assertEqual(len(gp.n_iterations) + gp.n_fallback, gp.n_areas)
+                if gp.n_fallback < gp.n_areas:
+                    pixel_size = gp.two_pcf_pixel_size if two_pcf_method == "treecorr" else 1
+                    npix = 2 * int(np.ceil(gp.max_sep / pixel_size))
+                    self.assertEqual(gp.last_xi.shape, (npix, npix))
+                    self.assertEqual(gp.last_xi_clean.shape, (npix, npix))
+                    self.assertGreater(gp.last_xi_clean[npix // 2, npix // 2], 0.0)
 
-        # The kernel was measured on the whole image and cleaned.
-        npix = 2 * gp.max_sep
-        self.assertEqual(gp.xi.shape, (npix, npix))
-        self.assertEqual(gp.xi_clean.shape, (npix, npix))
-        self.assertGreater(gp.xi_clean[gp.max_sep, gp.max_sep], 0.0)
-        # One conjugate gradient solve per connected defect.
-        self.assertGreater(len(gp.n_iterations), 0)
+                # Assert that the mask and the variance planes remain unchanged.
+                self.assertImagesEqual(maskedimage.variance, self.reference.variance)
 
-        # Assert that the mask and the variance planes remain unchanged.
-        self.assertImagesEqual(self.maskedimage.variance, self.reference.variance)
+                # The interpolated pixels are flagged as such, and only them.
+                interpBit = maskedimage.mask.getPlaneBitMask("INTRP")
+                badBits = maskedimage.mask.getPlaneBitMask(["BAD", "SAT", "CR", "EDGE"])
+                isInterp = (maskedimage.mask.array & interpBit) != 0
+                isBad = (self.reference.mask.array & badBits) != 0
+                np.testing.assert_array_equal(isInterp, isBad)
 
-        # The interpolated pixels are flagged as such, and only them.
-        interpBit = self.maskedimage.mask.getPlaneBitMask("INTRP")
-        badBits = self.maskedimage.mask.getPlaneBitMask(["BAD", "SAT", "CR", "EDGE"])
-        isInterp = (self.maskedimage.mask.array & interpBit) != 0
-        isBad = (self.reference.mask.array & badBits) != 0
-        np.testing.assert_array_equal(isInterp, isBad)
-
-        # Check that interpolated pixels are close to the reference (original),
-        # and that none of them is still NaN.
-        self.assertTrue(np.isfinite(self.maskedimage.image.array).all())
-        self.assertImagesAlmostEqual(
-            self.maskedimage.image[1:, :],
-            self.reference.image[1:, :],
-            atol=5,
-        )
+                # Check that interpolated pixels are close to the reference
+                # (original), and that none of them is still NaN.
+                self.assertTrue(np.isfinite(maskedimage.image.array).all())
+                self.assertImagesAlmostEqual(
+                    maskedimage.image[1:, :],
+                    self.reference.image[1:, :],
+                    atol=5,
+                )
 
     def test_legacy_kwargs(self):
         """The kwargs of the former dense solver, still passed by ip_isr,

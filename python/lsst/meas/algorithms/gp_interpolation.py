@@ -21,21 +21,25 @@
 
 """Gaussian Process interpolation over image defects.
 
-The interpolation follows TURBO-GP (TUrbulence Removal By fourier-Optimized
-Gaussian Process, RTN-129), the treegp implementation of the Gomes et al.
-(2025, AJ 170:361) empirical kernel: the measured 2D 2-point correlation
-function of the good pixels, cleaned by apodization and thresholding of its
-Fourier power spectrum, is used directly as the kernel, so there are no
-hyperparameters to set or fit. The linear algebra is done by
-`treegp.GridConvolutionGP`: the covariance is never built, the solve is a
-preconditioned conjugate gradient whose iterations cost one FFT pair on a
-grid the size of the defect area, the kernel is positive semi-definite by
-construction, and the prediction is a bilinear read-off of the posterior mean
-field.
+Each connected defect is interpolated with its own Gaussian Process, trained on
+the good pixels within the kernel half width of the defect, following TURBO-GP
+(TUrbulence Removal By fourier-Optimized Gaussian Process, RTN-129), the treegp
+implementation of the Gomes et al. (2025, AJ 170:361) empirical kernel: the 2D
+2-point correlation function of the good pixels of the area, cleaned by
+apodization and thresholding of its Fourier power spectrum, is used directly as
+the kernel, so there are no hyperparameters to set or fit. The linear algebra is
+done by `treegp.GridConvolutionGP`: the covariance is never built, the solve is
+a preconditioned conjugate gradient whose iterations cost one FFT pair on a grid
+the size of the area, the kernel is positive semi-definite by construction, and
+the prediction is a bilinear read-off of the posterior mean field.
 
-The 2-point correlation function is measured once per image on all the good
-pixels (see `measure_2pcf_grid`), and the resulting kernel is shared by the
-local solves done around each connected defect.
+The correlation function of an area can be measured with treecorr, through
+`treegp.GPInterpolation`, or with the FFT pair-count estimator
+`measure_2pcf_grid`. Both are the same estimator on gridded data, with one
+difference: treecorr rejects pairs at zero separation, and on a pixel lattice no
+two distinct pixels coincide, so its central bin is empty and, with a
+correlation function pixel of 2 image pixels, the zero lag comes out at least 25%
+below the neighbouring lags; the FFT estimator includes the zero lag exactly.
 """
 
 import logging
@@ -257,18 +261,19 @@ class GaussianProcessTreegp:
 
 
 class InterpolateOverDefectGaussianProcess:
-    """Interpolate over the defects of an image with a Gaussian Process whose
-    kernel is the measured 2-point correlation function of the image
+    """Interpolate over the defects of an image, one Gaussian Process per
+    connected defect, with a kernel measured on the pixels around the defect
     (TURBO-GP, RTN-129; Gomes et al. 2025, AJ 170:361).
 
-    The kernel is measured once, on all the good pixels of the image
-    (`measure_2pcf_grid`), and cleaned with `treegp.empirical_2pcf.clean`
-    (apodization, thresholding of the Fourier power spectrum). Each
-    connected defect is then interpolated from the good pixels within
-    ``max_sep`` of it, with its own local mean (clipped median) and per-pixel
-    noise (variance plane), using `treegp.GridConvolutionGP`: a matrix-free
-    conjugate gradient solve on an FFT grid the size of the defect area, and
-    a prediction that is a read-off of the posterior mean field.
+    For each connected defect, the good pixels within ``max_sep`` of it are the
+    training sample. Their 2-point correlation function, measured either with
+    treecorr (through `treegp.GPInterpolation`) or with the FFT estimator
+    `measure_2pcf_grid`, is cleaned with treegp (apodization, thresholding of
+    the Fourier power spectrum) and used as the kernel; the local clipped
+    median is the mean and the variance plane the per-pixel noise. The solve
+    and the prediction are done by `treegp.GridConvolutionGP` (conjugate
+    gradient on an FFT grid the size of the area). Areas where no significant
+    correlation is found are filled with the local median.
 
     Parameters
     ----------
@@ -286,6 +291,15 @@ class InterpolateOverDefectGaussianProcess:
         arcsec/pixel, about 3 times the FWHM of the worst expected PSF).
     fwhm_factor : `float`, optional
         The kernel half width is at least ``fwhm_factor * fwhm``. Default is 3.
+    two_pcf_method : `str`, optional
+        How the 2-point correlation function of an area is measured:
+        "treecorr" (pair counting through `treegp.GPInterpolation`) or "fft"
+        (`measure_2pcf_grid`). Default is "treecorr".
+    two_pcf_pixel_size : `float`, optional
+        Pixel size, in image pixels, of the correlation function grid for
+        ``two_pcf_method="treecorr"``. Must be at least 2 on a pixel lattice
+        (see the module documentation); the "fft" method always uses 1.
+        Default is 2.
     power_threshold : `float`, optional
         Signal-to-noise threshold below which the Fourier modes of the
         measured correlation function are set to zero. Default is 2.5.
@@ -316,12 +330,12 @@ class InterpolateOverDefectGaussianProcess:
     Notes
     -----
     After `run`, the following diagnostics are available: ``max_sep`` (the
-    kernel half width actually used, in pixels), ``mean_global`` (the clipped
-    median subtracted before measuring the correlation function), ``xi`` and
-    ``xi_clean`` (the measured and cleaned correlation functions, shape
-    ``(2 * max_sep, 2 * max_sep)``, zero lag at pixel ``max_sep``), and
-    ``n_iterations`` (the number of conjugate gradient iterations of each
-    defect area).
+    kernel half width, in pixels), ``n_areas`` (number of connected defects
+    processed), ``n_fallback`` (areas filled with the local median because no
+    significant correlation was found), ``n_iterations`` (conjugate gradient
+    iterations of each solved area), and ``last_xi`` / ``last_xi_clean`` (the
+    measured and cleaned correlation functions of the last solved area, zero
+    lag at the central pixel).
     """
 
     def __init__(
@@ -331,6 +345,8 @@ class InterpolateOverDefectGaussianProcess:
         fwhm=5,
         kernel_half_width=30,
         fwhm_factor=3,
+        two_pcf_method="treecorr",
+        two_pcf_pixel_size=2,
         power_threshold=2.5,
         apod_window="hann",
         apod_radius=None,
@@ -359,11 +375,20 @@ class InterpolateOverDefectGaussianProcess:
                 stacklevel=2,
             )
 
+        if two_pcf_method not in ("treecorr", "fft"):
+            raise ValueError(
+                f"two_pcf_method must be 'treecorr' or 'fft'. Current value: {two_pcf_method!r}."
+            )
+        if two_pcf_pixel_size <= 0:
+            raise ValueError(f"two_pcf_pixel_size must be positive. Current value: {two_pcf_pixel_size}.")
+
         self.masked_image = masked_image
         self.defects = defects
         self.fwhm = fwhm
         self.kernel_half_width = kernel_half_width
         self.fwhm_factor = fwhm_factor
+        self.two_pcf_method = two_pcf_method
+        self.two_pcf_pixel_size = two_pcf_pixel_size
         self.power_threshold = power_threshold
         self.apod_window = apod_window
         self.apod_radius = apod_radius
@@ -376,21 +401,22 @@ class InterpolateOverDefectGaussianProcess:
         # for the interpolation: pixels farther away have zero covariance with
         # every bad pixel.
         self.max_sep = int(np.ceil(max(kernel_half_width, fwhm_factor * fwhm)))
-        if self.max_sep < 2:
+        pixel_size = two_pcf_pixel_size if two_pcf_method == "treecorr" else 1.0
+        if self.max_sep / pixel_size < 2:
             raise ValueError(
-                "The kernel half width must span at least 2 pixels. "
-                f"Current value: {self.max_sep} (kernel_half_width={kernel_half_width}, "
-                f"fwhm_factor={fwhm_factor}, fwhm={fwhm})."
+                "The kernel half width must span at least 2 correlation function pixels. "
+                f"Current values: max_sep={self.max_sep} (kernel_half_width={kernel_half_width}, "
+                f"fwhm_factor={fwhm_factor}, fwhm={fwhm}), pixel size {pixel_size}."
             )
 
         self.interpBit = self.masked_image.mask.getPlaneBitMask("INTRP")
 
         # Diagnostics, filled by run().
-        self.mean_global = None
-        self.xi = None
-        self.xi_clean = None
+        self.n_areas = 0
+        self.n_fallback = 0
         self.n_iterations = []
-        self._engine = None
+        self.last_xi = None
+        self.last_xi_clean = None
 
     def run(self):
         """
@@ -408,9 +434,6 @@ class InterpolateOverDefectGaussianProcess:
             self.log.info("No bad pixels found. No interpolation performed.")
             return
 
-        # Kernel measured once on the whole image, shared by all defects.
-        engine = self._build_kernel(bad_pixel_mask)
-
         bad_mask_span_set = SpanSet.fromMask(mask, bad_pixel_mask).split()
         global_bbox = self.masked_image.getBBox()
 
@@ -421,87 +444,8 @@ class InterpolateOverDefectGaussianProcess:
             localBox.clip(global_bbox)
             masked_sub_image = self.masked_image[localBox]
 
-            masked_sub_image = self.interpolate_masked_sub_image(masked_sub_image, engine)
+            masked_sub_image = self.interpolate_masked_sub_image(masked_sub_image)
             self.masked_image[localBox] = masked_sub_image
-
-    def _build_kernel(self, bad_pixel_mask):
-        """Measure and clean the 2-point correlation function of the good
-        pixels of the whole image, and build the solve/predict engine.
-
-        Parameters
-        ----------
-        bad_pixel_mask : `int`
-            Bit mask of the defect planes.
-
-        Returns
-        -------
-        engine : `treegp.GridConvolutionGP` or `None`
-            The Gaussian Process engine holding the cleaned kernel, or `None`
-            if no significant correlation was found (the defects are then
-            filled with the local clipped median).
-        """
-        image = self.masked_image.image.array
-        good = np.isfinite(image) & ((self.masked_image.mask.array & bad_pixel_mask) == 0)
-        n_good = np.count_nonzero(good)
-        if n_good == 0:
-            self.log.warning("No good pixel in the image: the defects are filled with the local median.")
-            return None
-
-        self.mean_global = median_with_mad_clipping(image[good])
-        self.xi = measure_2pcf_grid(image - self.mean_global, good, self.max_sep)
-
-        # The treegp cleaning (apodization, Fourier thresholding) lives on the
-        # empirical_2pcf solver. Its X, y, y_err arguments are only used by
-        # the treecorr measurement, which is not done here (measure_2pcf_grid
-        # is the exact equivalent on gridded data), so a minimal 2D field is
-        # enough to set the kernel grid geometry.
-        ny, nx = image.shape
-        dummy_coords = np.array([[0.0, 0.0], [float(nx), float(ny)]])
-        dummy_values = np.zeros(2)
-        solver = treegp.empirical_2pcf(
-            dummy_coords,
-            dummy_values,
-            dummy_values,
-            max_sep=float(self.max_sep),
-            pixel_size=1.0,
-            power_threshold=self.power_threshold,
-            apodize=True,
-            apod_window=self.apod_window,
-            apod_radius=self.apod_radius,
-            apod_anisotropy=None,
-        )
-        if solver.npix != self.xi.shape[0]:
-            raise RuntimeError(
-                f"Inconsistent kernel grid: treegp expects {solver.npix} pixels, "
-                f"the measured correlation function has {self.xi.shape[0]}."
-            )
-        try:
-            self.xi_clean = solver.clean(self.xi)
-        except RuntimeError as e:
-            self.log.warning(
-                "No significant correlation found in the image (%s): "
-                "the defects are filled with the local median.",
-                e,
-            )
-            self.xi_clean = None
-            return None
-
-        self.log.debug(
-            "Empirical kernel measured on %d good pixels: half width %d pixels, "
-            "variance %.3g (%.3g after cleaning).",
-            n_good,
-            self.max_sep,
-            self.xi[self.max_sep, self.max_sep],
-            self.xi_clean[self.max_sep, self.max_sep],
-        )
-        self._engine = treegp.GridConvolutionGP(
-            self.xi_clean,
-            pixel_size=1.0,
-            upsample=1,
-            cg_rtol=self.cg_rtol,
-            cg_maxiter=self.cg_maxiter,
-        )
-        return self._engine
 
     def _pixel_errors(self, masked_sub_image, good_pixel):
         """Return the error of the given good pixels from the variance plane.
@@ -536,7 +480,125 @@ class InterpolateOverDefectGaussianProcess:
         variance = variance + self.white_noise**2
         return np.sqrt(variance)
 
-    def interpolate_masked_sub_image(self, masked_sub_image, engine):
+    def _predict_treecorr(self, x_good, y_centered, y_err, x_bad):
+        """Gaussian Process prediction with the kernel measured by treecorr
+        on the training pixels, through `treegp.GPInterpolation`.
+
+        Parameters
+        ----------
+        x_good : `numpy.ndarray`
+            Coordinates of the training pixels, shape (n, 2).
+        y_centered : `numpy.ndarray`
+            Values of the training pixels minus the local mean, shape (n,).
+        y_err : `numpy.ndarray`
+            Errors of the training pixels, shape (n,).
+        x_bad : `numpy.ndarray`
+            Coordinates of the pixels to predict, shape (m, 2).
+
+        Returns
+        -------
+        prediction : `numpy.ndarray`
+            Predicted values minus the local mean, shape (m,).
+        n_iterations : `int`
+            Number of conjugate gradient iterations.
+
+        Raises
+        ------
+        RuntimeError
+            If no Fourier mode of the measured correlation function is above
+            ``power_threshold`` (raised by treegp).
+        """
+        gp = treegp.GPInterpolation(
+            optimizer="empirical-2pcf",
+            normalize=False,
+            white_noise=0.0,
+            max_sep=float(self.max_sep),
+            pixel_size=float(self.two_pcf_pixel_size),
+            power_threshold=self.power_threshold,
+            apodize=True,
+            apod_window=self.apod_window,
+            apod_radius=self.apod_radius,
+            apod_anisotropy=None,
+            solve_method="spectral",
+            cg_rtol=self.cg_rtol,
+            cg_maxiter=self.cg_maxiter,
+        )
+        gp.initialize(x_good, y_centered, y_err=y_err)
+        gp.solve()
+        # The conjugate gradient solve happens at the first predict call.
+        prediction = gp.predict(x_bad)
+        self.last_xi, self.last_xi_clean, _, _ = gp.return_empirical_2pcf()
+        return prediction, gp._engine.n_iterations
+
+    def _predict_fft(self, masked_sub_image, local_mean, x_good, y_centered, y_err, x_bad):
+        """Gaussian Process prediction with the kernel measured by the FFT
+        estimator `measure_2pcf_grid` on the good pixels of the sub-image.
+
+        Parameters
+        ----------
+        masked_sub_image : `lsst.afw.image.MaskedImage`
+            The sub-image around the defect.
+        local_mean : `float`
+            Mean subtracted from the pixel values.
+        x_good, y_centered, y_err, x_bad
+            As in `_predict_treecorr`.
+
+        Returns
+        -------
+        prediction : `numpy.ndarray`
+            Predicted values minus the local mean, shape (m,).
+        n_iterations : `int`
+            Number of conjugate gradient iterations.
+
+        Raises
+        ------
+        RuntimeError
+            If no Fourier mode of the measured correlation function is above
+            ``power_threshold`` (raised by treegp).
+        """
+        image = masked_sub_image.image.array
+        bad_pixel_mask = masked_sub_image.mask.getPlaneBitMask(self.defects)
+        good = np.isfinite(image) & ((masked_sub_image.mask.array & bad_pixel_mask) == 0)
+        xi = measure_2pcf_grid(image - local_mean, good, self.max_sep)
+
+        # The treegp cleaning (apodization, Fourier thresholding) lives on the
+        # empirical_2pcf solver. Its X, y, y_err arguments are only used by
+        # the treecorr measurement, which is not done here, so a minimal 2D
+        # field is enough to set the kernel grid geometry.
+        ny, nx = image.shape
+        dummy_coords = np.array([[0.0, 0.0], [float(nx), float(ny)]])
+        dummy_values = np.zeros(2)
+        solver = treegp.empirical_2pcf(
+            dummy_coords,
+            dummy_values,
+            dummy_values,
+            max_sep=float(self.max_sep),
+            pixel_size=1.0,
+            power_threshold=self.power_threshold,
+            apodize=True,
+            apod_window=self.apod_window,
+            apod_radius=self.apod_radius,
+            apod_anisotropy=None,
+        )
+        if solver.npix != xi.shape[0]:
+            raise RuntimeError(
+                f"Inconsistent kernel grid: treegp expects {solver.npix} pixels, "
+                f"the measured correlation function has {xi.shape[0]}."
+            )
+        xi_clean = solver.clean(xi)
+        self.last_xi, self.last_xi_clean = xi, xi_clean
+
+        engine = treegp.GridConvolutionGP(
+            xi_clean,
+            pixel_size=1.0,
+            upsample=1,
+            cg_rtol=self.cg_rtol,
+            cg_maxiter=self.cg_maxiter,
+        )
+        engine.solve(x_good, y_centered, y_err)
+        return engine.predict(x_bad), engine.n_iterations
+
+    def interpolate_masked_sub_image(self, masked_sub_image):
         """
         Interpolate the masked sub-image.
 
@@ -544,9 +606,6 @@ class InterpolateOverDefectGaussianProcess:
         ----------
         masked_sub_image : `lsst.afw.image.MaskedImage`
             The sub-masked image to be interpolated.
-        engine : `treegp.GridConvolutionGP` or `None`
-            The Gaussian Process engine built by `_build_kernel`. If `None`,
-            the bad pixels are filled with the local clipped median.
 
         Returns
         -------
@@ -568,20 +627,36 @@ class InterpolateOverDefectGaussianProcess:
                 self.log.info("No finite good pixels found. No interpolation performed.")
                 return masked_sub_image
 
+        self.n_areas += 1
         # Local mean: sky level around the defect.
         local_mean = median_with_mad_clipping(good_pixel[:, 2])
+        x_good = good_pixel[:, :2].astype(float)
+        y_centered = good_pixel[:, 2].astype(float) - local_mean
+        y_err = self._pixel_errors(masked_sub_image, good_pixel)
+        x_bad = bad_pixel[:, :2].astype(float)
 
-        if engine is None:
-            bad_pixel[:, 2] = local_mean
-        else:
-            y_err = self._pixel_errors(masked_sub_image, good_pixel)
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                engine.solve(good_pixel[:, :2], good_pixel[:, 2] - local_mean, y_err)
-            for w in caught:
-                self.log.warning("Gaussian Process solve around %s: %s", bad_pixel[0, :2], w.message)
-            self.n_iterations.append(engine.n_iterations)
-            bad_pixel[:, 2] = engine.predict(bad_pixel[:, :2]) + local_mean
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
+                if self.two_pcf_method == "treecorr":
+                    prediction, n_iterations = self._predict_treecorr(x_good, y_centered, y_err, x_bad)
+                else:
+                    prediction, n_iterations = self._predict_fft(
+                        masked_sub_image, local_mean, x_good, y_centered, y_err, x_bad
+                    )
+            except RuntimeError as e:
+                # No significant correlation in the area (e.g. a cosmic ray
+                # in blank sky): the Gaussian Process prediction is the mean.
+                self.log.debug("Defect around %s filled with the local median: %s", x_bad[0], e)
+                self.n_fallback += 1
+                prediction = 0.0
+                n_iterations = None
+        for w in caught:
+            self.log.warning("Gaussian Process solve around %s: %s", x_bad[0], w.message)
+        if n_iterations is not None:
+            self.n_iterations.append(n_iterations)
+
+        bad_pixel[:, 2] = prediction + local_mean
 
         # Update values
         ctUtils.updateImageFromArray(masked_sub_image.image, bad_pixel)
