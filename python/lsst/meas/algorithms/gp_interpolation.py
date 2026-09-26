@@ -19,15 +19,35 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import numpy as np
-from lsst.meas.algorithms import CloughTocher2DInterpolatorUtils as ctUtils
-from lsst.geom import Box2I, Point2I
-from lsst.afw.geom import SpanSet
-import copy
-import treecorr
-import treegp
+"""Gaussian Process interpolation over image defects.
+
+The interpolation follows TURBO-GP (TUrbulence Removal By fourier-Optimized
+Gaussian Process, RTN-129), the treegp implementation of the Gomes et al.
+(2025, AJ 170:361) empirical kernel: the measured 2D 2-point correlation
+function of the good pixels, cleaned by apodization and thresholding of its
+Fourier power spectrum, is used directly as the kernel, so there are no
+hyperparameters to set or fit. The linear algebra is done by
+`treegp.GridConvolutionGP`: the covariance is never built, the solve is a
+preconditioned conjugate gradient whose iterations cost one FFT pair on a
+grid the size of the defect area, the kernel is positive semi-definite by
+construction, and the prediction is a bilinear read-off of the posterior mean
+field.
+
+The 2-point correlation function is measured once per image on all the good
+pixels (see `measure_2pcf_grid`), and the resulting kernel is shared by the
+local solves done around each connected defect.
+"""
 
 import logging
+import warnings
+
+import numpy as np
+import treecorr
+import treegp
+from scipy import fft
+
+from lsst.afw.geom import SpanSet
+from lsst.meas.algorithms import CloughTocher2DInterpolatorUtils as ctUtils
 
 # We need to explicitly turn off multiprocessing in treecorr which is used
 # by treegp.
@@ -36,30 +56,26 @@ treecorr.set_max_omp_threads(1)
 __all__ = [
     "InterpolateOverDefectGaussianProcess",
     "GaussianProcessTreegp",
+    "measure_2pcf_grid",
 ]
 
 
 def updateMaskFromArray(mask, bad_pixel, interpBit):
-    """
-    Update the mask array with the given bad pixels.
+    """Set a mask bit at the given pixel positions.
 
     Parameters
     ----------
-    mask : `lsst.afw.image.MaskedImage`
-        The mask image to update.
-    bad_pixel : `np.array`
-        An array-like object containing the coordinates of the bad pixels.
-        Each row should contain the x and y coordinates of a bad pixel.
+    mask : `lsst.afw.image.Mask`
+        The mask to update.
+    bad_pixel : `numpy.ndarray`
+        Array of shape (n, 3) whose first two columns are the x and y
+        coordinates of the pixels (parent coordinates).
     interpBit : `int`
-        The bit value to set for the bad pixels in the mask.
+        The bit value to set for the given pixels.
     """
-    x0 = mask.getX0()
-    y0 = mask.getY0()
-    for row in bad_pixel:
-        x = int(row[0] - x0)
-        y = int(row[1] - y0)
-        mask.array[y, x] |= interpBit
-    # TO DO --> might be better: mask.array[int(bad_pixel[:,1]-y0), int(bad_pixel[:,0]-x)] |= interpBit
+    x = np.rint(bad_pixel[:, 0]).astype(int) - mask.getX0()
+    y = np.rint(bad_pixel[:, 1]).astype(int) - mask.getY0()
+    mask.array[y, x] |= interpBit
 
 
 def median_with_mad_clipping(data, mad_multiplier=2.0):
@@ -95,6 +111,76 @@ def median_with_mad_clipping(data, mad_multiplier=2.0):
     clipped_data = np.clip(data, median - clipping_range, median + clipping_range)
     median_clipped = np.median(clipped_data)
     return median_clipped
+
+
+def measure_2pcf_grid(image, good, max_sep):
+    """Measure the 2D 2-point correlation function of a gridded image with
+    gaps, by FFT.
+
+    This is the pair-count estimator
+
+        xi(dx, dy) = sum_{good pairs} z(x, y) z(x + dx, y + dy) / N_pairs(dx, dy)
+
+    with unit weights, computed exactly at every integer lag as the ratio of
+    the autocorrelation of the (zero-filled) image to the autocorrelation of
+    the good-pixel mask, both evaluated by zero-padded FFTs. It includes the
+    zero lag (the variance of the good pixels), which a pair counter such as
+    treecorr excludes on gridded data since distinct pixels never coincide.
+    The cost is O(N log N) in the number of pixels, independent of ``max_sep``.
+
+    Parameters
+    ----------
+    image : `numpy.ndarray`
+        Image array of shape (ny, nx), already mean-subtracted. Values at
+        pixels that are not ``good`` are ignored (they may be NaN).
+    good : `numpy.ndarray`
+        Boolean array of shape (ny, nx), `True` for the pixels to use.
+    max_sep : `int`
+        Half width of the lag grid, in pixels.
+
+    Returns
+    -------
+    xi : `numpy.ndarray`
+        Correlation function on a (2 * max_sep, 2 * max_sep) grid of lags
+        ``-max_sep .. max_sep - 1`` in each axis, indexed ``[iy, ix]`` with the
+        zero lag at pixel ``max_sep`` (the treegp / treecorr TwoD layout, ready
+        for `treegp.empirical_2pcf.clean` and `treegp.GridConvolutionGP`).
+        Lags with no pair are set to zero.
+    """
+    image = np.asarray(image, dtype=float)
+    good = np.asarray(good, dtype=bool)
+    if image.ndim != 2 or image.shape != good.shape:
+        raise ValueError(
+            "image and good must be 2D arrays of the same shape. "
+            f"Current shapes: {image.shape}, {good.shape}."
+        )
+    max_sep = int(max_sep)
+    if max_sep < 1:
+        raise ValueError(f"max_sep must be at least 1 pixel. Current value: {max_sep}.")
+
+    z = np.where(good, image, 0.0)
+    m = good.astype(float)
+    ny, nx = image.shape
+    # Pad by max_sep so that the circular autocorrelation equals the linear
+    # one for every lag kept below.
+    shape = (fft.next_fast_len(ny + max_sep, real=True), fft.next_fast_len(nx + max_sep, real=True))
+    fz = fft.rfft2(z, s=shape)
+    fm = fft.rfft2(m, s=shape)
+    num = fft.irfft2(fz * np.conj(fz), s=shape)
+    den = fft.irfft2(fm * np.conj(fm), s=shape)
+
+    # Negative lags wrap around the end of the padded arrays.
+    lags = np.arange(-max_sep, max_sep)
+    rows = lags % shape[0]
+    cols = lags % shape[1]
+    num = num[np.ix_(rows, cols)]
+    den = den[np.ix_(rows, cols)]
+
+    xi = np.zeros_like(num)
+    # den holds pair counts (integers up to FFT round-off).
+    has_pairs = den > 0.5
+    xi[has_pairs] = num[has_pairs] / den[has_pairs]
+    return xi
 
 
 class GaussianProcessTreegp:
@@ -171,29 +257,66 @@ class GaussianProcessTreegp:
 
 
 class InterpolateOverDefectGaussianProcess:
-    """
-    InterpolateOverDefectGaussianProcess class performs Gaussian Process
-    (GP) interpolation over defects in an image.
+    """Interpolate over the defects of an image with a Gaussian Process whose
+    kernel is the measured 2-point correlation function of the image
+    (TURBO-GP, RTN-129; Gomes et al. 2025, AJ 170:361).
 
-    Parameters:
-    -----------
+    The kernel is measured once, on all the good pixels of the image
+    (`measure_2pcf_grid`), and cleaned with `treegp.empirical_2pcf.clean`
+    (apodization, thresholding of the Fourier power spectrum). Each
+    connected defect is then interpolated from the good pixels within
+    ``max_sep`` of it, with its own local mean (clipped median) and per-pixel
+    noise (variance plane), using `treegp.GridConvolutionGP`: a matrix-free
+    conjugate gradient solve on an FFT grid the size of the defect area, and
+    a prediction that is a read-off of the posterior mean field.
+
+    Parameters
+    ----------
     masked_image : `lsst.afw.image.MaskedImage`
-        The masked image containing the defects to be interpolated.
-    defects : `list`[`str`], optional
-        The types of defects to be interpolated. Default is ["SAT"].
+        The masked image containing the defects to be interpolated. Modified
+        in place by `run`.
+    defects : `list` [`str`], optional
+        The mask planes to be interpolated over. Default is ["SAT"].
     fwhm : `float`, optional
-        The full width at half maximum (FWHM) of the PSF. Default is 5.
-    bin_spacing : `int`, optional
-        The spacing between bins for good pixel binning. Default is 10.
-    threshold_dynamic_binning : `int`, optional
-        The threshold for dynamic binning. Default is 1000.
-    threshold_subdivide : `int`, optional
-        The threshold for sub-dividing the bad pixel array to avoid memory error. Default is 20000.
-    correlation_length_cut : `int`, optional
-        The factor by which to dilate the bounding box around defects. Default is 5.
+        The full width at half maximum (FWHM) of the PSF, in pixels. Default
+        is 5.
+    kernel_half_width : `float`, optional
+        Minimum half width, in pixels, of the 2-point correlation function
+        grid, i.e. of the kernel support. Default is 30 (6 arcsec at 0.2
+        arcsec/pixel, about 3 times the FWHM of the worst expected PSF).
+    fwhm_factor : `float`, optional
+        The kernel half width is at least ``fwhm_factor * fwhm``. Default is 3.
+    power_threshold : `float`, optional
+        Signal-to-noise threshold below which the Fourier modes of the
+        measured correlation function are set to zero. Default is 2.5.
+    apod_window : `str`, optional
+        Apodization window applied to the measured correlation function
+        before its Fourier transform, "hann" or "blackman-harris". Default is
+        "hann".
+    apod_radius : `float` or `None`, optional
+        Radius, in pixels, where the apodization window reaches zero. If
+        `None`, the window reaches zero at the edge of the kernel grid.
+    white_noise : `float`, optional
+        Additional noise (standard deviation, in image units) added in
+        quadrature to the pixel errors from the variance plane. Default is 0.
+    cg_rtol : `float`, optional
+        Relative tolerance of the conjugate gradient solve. Default is 1e-4.
+    cg_maxiter : `int`, optional
+        Maximum number of conjugate gradient iterations per defect area.
+        Default is 200.
     log : `lsst.log.Log`, `logging.Logger` or `None`, optional
         Logger object used to write out messages. If `None` a default
         logger will be used.
+
+    Notes
+    -----
+    After `run`, the following diagnostics are available: ``max_sep`` (the
+    kernel half width actually used, in pixels), ``mean_global`` (the clipped
+    median subtracted before measuring the correlation function), ``xi`` and
+    ``xi_clean`` (the measured and cleaned correlation functions, shape
+    ``(2 * max_sep, 2 * max_sep)``, zero lag at pixel ``max_sep``), and
+    ``n_iterations`` (the number of conjugate gradient iterations of each
+    defect area).
     """
 
     def __init__(
@@ -201,27 +324,50 @@ class InterpolateOverDefectGaussianProcess:
         masked_image,
         defects=["SAT"],
         fwhm=5,
-        bin_image=True,
-        bin_spacing=10,
-        threshold_dynamic_binning=1000,
-        threshold_subdivide=20000,
-        correlation_length_cut=5,
+        kernel_half_width=30,
+        fwhm_factor=3,
+        power_threshold=2.5,
+        apod_window="hann",
+        apod_radius=None,
+        white_noise=0.0,
+        cg_rtol=1e-4,
+        cg_maxiter=200,
         log=None,
     ):
-
         self.log = log or logging.getLogger(__name__)
-
-        self.bin_image = bin_image
-        self.bin_spacing = bin_spacing
-        self.threshold_subdivide = threshold_subdivide
-        self.threshold_dynamic_binning = threshold_dynamic_binning
 
         self.masked_image = masked_image
         self.defects = defects
-        self.correlation_length = fwhm
-        self.correlation_length_cut = correlation_length_cut
+        self.fwhm = fwhm
+        self.kernel_half_width = kernel_half_width
+        self.fwhm_factor = fwhm_factor
+        self.power_threshold = power_threshold
+        self.apod_window = apod_window
+        self.apod_radius = apod_radius
+        self.white_noise = white_noise
+        self.cg_rtol = cg_rtol
+        self.cg_maxiter = cg_maxiter
+
+        # Half width of the kernel grid (and support), in pixels. This is also
+        # the distance around the defects within which good pixels are used
+        # for the interpolation: pixels farther away have zero covariance with
+        # every bad pixel.
+        self.max_sep = int(np.ceil(max(kernel_half_width, fwhm_factor * fwhm)))
+        if self.max_sep < 2:
+            raise ValueError(
+                "The kernel half width must span at least 2 pixels. "
+                f"Current value: {self.max_sep} (kernel_half_width={kernel_half_width}, "
+                f"fwhm_factor={fwhm_factor}, fwhm={fwhm})."
+            )
 
         self.interpBit = self.masked_image.mask.getPlaneBitMask("INTRP")
+
+        # Diagnostics, filled by run().
+        self.mean_global = None
+        self.xi = None
+        self.xi_clean = None
+        self.n_iterations = []
+        self._engine = None
 
     def run(self):
         """
@@ -231,139 +377,190 @@ class InterpolateOverDefectGaussianProcess:
         """
         if self.defects == [] or self.defects is None:
             self.log.info("No defects found. No interpolation performed.")
-        else:
-            mask = self.masked_image.getMask()
-            bad_pixel_mask = mask.getPlaneBitMask(self.defects)
-            bad_mask_span_set = SpanSet.fromMask(mask, bad_pixel_mask).split()
+            return
 
-            bbox = self.masked_image.getBBox()
-            global_xmin, global_xmax = bbox.minX, bbox.maxX
-            global_ymin, global_ymax = bbox.minY, bbox.maxY
+        mask = self.masked_image.getMask()
+        bad_pixel_mask = mask.getPlaneBitMask(self.defects)
+        if not np.any(mask.array & bad_pixel_mask):
+            self.log.info("No bad pixels found. No interpolation performed.")
+            return
 
-            for spanset in bad_mask_span_set:
-                bbox = spanset.getBBox()
-                # Dilate the bbox to make sure we have enough good pixels around the defect
-                # For now, we dilate by 5 times the correlation length
-                # For GP with the isotropic kernel, points at the default value of
-                # correlation_length_cut=5 have negligible effect on the prediction.
-                bbox = bbox.dilatedBy(
-                    int(self.correlation_length * self.correlation_length_cut)
-                )  # need integer as input.
-                xmin, xmax = max([global_xmin, bbox.minX]), min(global_xmax, bbox.maxX)
-                ymin, ymax = max([global_ymin, bbox.minY]), min(global_ymax, bbox.maxY)
-                localBox = Box2I(Point2I(xmin, ymin), Point2I(xmax - xmin, ymax - ymin))
-                masked_sub_image = self.masked_image[localBox]
+        # Kernel measured once on the whole image, shared by all defects.
+        engine = self._build_kernel(bad_pixel_mask)
 
-                masked_sub_image = self.interpolate_masked_sub_image(masked_sub_image)
-                self.masked_image[localBox] = masked_sub_image
+        bad_mask_span_set = SpanSet.fromMask(mask, bad_pixel_mask).split()
+        global_bbox = self.masked_image.getBBox()
 
-    def _good_pixel_binning(self, pixels):
+        for spanset in bad_mask_span_set:
+            # Dilate the bbox by the kernel half width to include all the good
+            # pixels that have a non-zero covariance with the defect.
+            localBox = spanset.getBBox().dilatedBy(self.max_sep)
+            localBox.clip(global_bbox)
+            masked_sub_image = self.masked_image[localBox]
+
+            masked_sub_image = self.interpolate_masked_sub_image(masked_sub_image, engine)
+            self.masked_image[localBox] = masked_sub_image
+
+    def _build_kernel(self, bad_pixel_mask):
+        """Measure and clean the 2-point correlation function of the good
+        pixels of the whole image, and build the solve/predict engine.
+
+        Parameters
+        ----------
+        bad_pixel_mask : `int`
+            Bit mask of the defect planes.
+
+        Returns
+        -------
+        engine : `treegp.GridConvolutionGP` or `None`
+            The Gaussian Process engine holding the cleaned kernel, or `None`
+            if no significant correlation was found (the defects are then
+            filled with the local clipped median).
         """
-        Performs pixel binning using treegp.meanify
+        image = self.masked_image.image.array
+        good = np.isfinite(image) & ((self.masked_image.mask.array & bad_pixel_mask) == 0)
+        n_good = np.count_nonzero(good)
+        if n_good == 0:
+            self.log.warning("No good pixel in the image: the defects are filled with the local median.")
+            return None
 
-        Parameters:
-        -----------
-        pixels : `np.array`
-            The array of pixels.
+        self.mean_global = median_with_mad_clipping(image[good])
+        self.xi = measure_2pcf_grid(image - self.mean_global, good, self.max_sep)
 
-        Returns:
-        --------
-        `np.array`
-            The binned array of pixels.
-        """
-
-        n_pixels = len(pixels[:, 0])
-        dynamic_binning = int(np.sqrt(n_pixels / self.threshold_dynamic_binning))
-        if n_pixels / self.bin_spacing**2 < n_pixels / dynamic_binning**2:
-            bin_spacing = self.bin_spacing
-        else:
-            bin_spacing = dynamic_binning
-        binning = treegp.meanify(bin_spacing=bin_spacing, statistics="mean")
-        binning.add_field(
-            pixels[:, :2],
-            pixels[:, 2:].T,
+        # The treegp cleaning (apodization, Fourier thresholding) lives on the
+        # empirical_2pcf solver. Its X, y, y_err arguments are only used by
+        # the treecorr measurement, which is not done here (measure_2pcf_grid
+        # is the exact equivalent on gridded data), so a minimal 2D field is
+        # enough to set the kernel grid geometry.
+        ny, nx = image.shape
+        dummy_coords = np.array([[0.0, 0.0], [float(nx), float(ny)]])
+        dummy_values = np.zeros(2)
+        solver = treegp.empirical_2pcf(
+            dummy_coords,
+            dummy_values,
+            dummy_values,
+            max_sep=float(self.max_sep),
+            pixel_size=1.0,
+            power_threshold=self.power_threshold,
+            apodize=True,
+            apod_window=self.apod_window,
+            apod_radius=self.apod_radius,
+            apod_anisotropy=None,
         )
-        binning.meanify()
-        return np.array(
-            [binning.coords0[:, 0], binning.coords0[:, 1], binning.params0]
-        ).T
+        if solver.npix != self.xi.shape[0]:
+            raise RuntimeError(
+                f"Inconsistent kernel grid: treegp expects {solver.npix} pixels, "
+                f"the measured correlation function has {self.xi.shape[0]}."
+            )
+        try:
+            self.xi_clean = solver.clean(self.xi)
+        except RuntimeError as e:
+            self.log.warning(
+                "No significant correlation found in the image (%s): "
+                "the defects are filled with the local median.",
+                e,
+            )
+            self.xi_clean = None
+            return None
 
-    def interpolate_masked_sub_image(self, masked_sub_image):
+        self.log.debug(
+            "Empirical kernel measured on %d good pixels: half width %d pixels, "
+            "variance %.3g (%.3g after cleaning).",
+            n_good,
+            self.max_sep,
+            self.xi[self.max_sep, self.max_sep],
+            self.xi_clean[self.max_sep, self.max_sep],
+        )
+        self._engine = treegp.GridConvolutionGP(
+            self.xi_clean,
+            pixel_size=1.0,
+            upsample=1,
+            cg_rtol=self.cg_rtol,
+            cg_maxiter=self.cg_maxiter,
+        )
+        return self._engine
+
+    def _pixel_errors(self, masked_sub_image, good_pixel):
+        """Return the error of the given good pixels from the variance plane.
+
+        Non-finite or non-positive variances are replaced by the median of
+        the valid ones, and ``white_noise`` is added in quadrature.
+
+        Parameters
+        ----------
+        masked_sub_image : `lsst.afw.image.MaskedImage`
+            The sub-image the pixels belong to.
+        good_pixel : `numpy.ndarray`
+            Array of shape (n, 3) with the x and y (parent) coordinates of the
+            pixels in its first two columns.
+
+        Returns
+        -------
+        y_err : `numpy.ndarray`
+            Standard deviation of each pixel, shape (n,), strictly positive.
+        """
+        x = np.rint(good_pixel[:, 0]).astype(int) - masked_sub_image.getX0()
+        y = np.rint(good_pixel[:, 1]).astype(int) - masked_sub_image.getY0()
+        variance = masked_sub_image.variance.array[y, x].astype(float)
+        valid = np.isfinite(variance) & (variance > 0)
+        if not np.all(valid):
+            if np.any(valid):
+                fill = np.median(variance[valid])
+            else:
+                fill = 1.0
+                self.log.debug("No valid variance around the defect: unit pixel errors are used.")
+            variance = np.where(valid, variance, fill)
+        variance = variance + self.white_noise**2
+        return np.sqrt(variance)
+
+    def interpolate_masked_sub_image(self, masked_sub_image, engine):
         """
         Interpolate the masked sub-image.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         masked_sub_image : `lsst.afw.image.MaskedImage`
             The sub-masked image to be interpolated.
+        engine : `treegp.GridConvolutionGP` or `None`
+            The Gaussian Process engine built by `_build_kernel`. If `None`,
+            the bad pixels are filled with the local clipped median.
 
-        Returns:
-        --------
-        `lsst.afw.image.MaskedImage`
+        Returns
+        -------
+        masked_sub_image : `lsst.afw.image.MaskedImage`
             The interpolated sub-masked image.
         """
-
-        cut = int(
-            self.correlation_length * self.correlation_length_cut
-        )  # need integer as input.
         bad_pixel, good_pixel = ctUtils.findGoodPixelsAroundBadPixels(
-            masked_sub_image, self.defects, buffer=cut
+            masked_sub_image, self.defects, buffer=self.max_sep
         )
-        # Do nothing if bad pixel is None.
+        # Do nothing if there is nothing to interpolate or to interpolate from.
         if bad_pixel.size == 0 or good_pixel.size == 0:
             self.log.info("No bad or good pixels found. No interpolation performed.")
             return masked_sub_image
-        # Do GP interpolation if bad pixel found.
+
+        finite = np.isfinite(good_pixel[:, 2])
+        if not np.all(finite):
+            good_pixel = good_pixel[finite]
+            if good_pixel.size == 0:
+                self.log.info("No finite good pixels found. No interpolation performed.")
+                return masked_sub_image
+
+        # Local mean: sky level around the defect.
+        local_mean = median_with_mad_clipping(good_pixel[:, 2])
+
+        if engine is None:
+            bad_pixel[:, 2] = local_mean
         else:
-            # gp interpolation
-            sub_image_array = masked_sub_image.getVariance().array
-            white_noise = np.sqrt(
-                np.mean(sub_image_array[np.isfinite(sub_image_array)])
-            )
-            kernel_amplitude = np.max(good_pixel[:, 2:])
-            if not np.isfinite(kernel_amplitude):
-                filter_finite = np.isfinite(good_pixel[:, 2:]).T[0]
-                good_pixel = good_pixel[filter_finite]
-                if good_pixel.size == 0:
-                    self.log.info(
-                        "No bad or good pixels found. No interpolation performed."
-                    )
-                    return masked_sub_image
-                # kernel amplitude might be better described by maximum value of good pixel given
-                # the data and not really a random gaussian field.
-                kernel_amplitude = np.max(good_pixel[:, 2:])
+            y_err = self._pixel_errors(masked_sub_image, good_pixel)
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                engine.solve(good_pixel[:, :2], good_pixel[:, 2] - local_mean, y_err)
+            for w in caught:
+                self.log.warning("Gaussian Process solve around %s: %s", bad_pixel[0, :2], w.message)
+            self.n_iterations.append(engine.n_iterations)
+            bad_pixel[:, 2] = engine.predict(bad_pixel[:, :2]) + local_mean
 
-            if self.bin_image:
-                try:
-                    good_pixel = self._good_pixel_binning(copy.deepcopy(good_pixel))
-                except Exception:
-                    self.log.info(
-                        "Binning failed, use original good pixel array in interpolation."
-                    )
-
-            # put this after binning as computing median is O(n*log(n))
-            clipped_median = median_with_mad_clipping(good_pixel[:, 2:])
-
-            gp = GaussianProcessTreegp(
-                std=np.sqrt(kernel_amplitude),
-                correlation_length=self.correlation_length,
-                white_noise=white_noise,
-                mean=clipped_median,
-            )
-            gp.fit(good_pixel[:, :2], np.squeeze(good_pixel[:, 2:]))
-            if bad_pixel.size < self.threshold_subdivide:
-                gp_predict = gp.predict(bad_pixel[:, :2])
-                bad_pixel[:, 2:] = gp_predict.reshape(np.shape(bad_pixel[:, 2:]))
-            else:
-                self.log.info("sub-divide bad pixel array to avoid memory error.")
-                for i in range(0, len(bad_pixel), self.threshold_subdivide):
-                    end = min(i + self.threshold_subdivide, len(bad_pixel))
-                    gp_predict = gp.predict(bad_pixel[i:end, :2])
-                    bad_pixel[i:end, 2:] = gp_predict.reshape(
-                        np.shape(bad_pixel[i:end, 2:])
-                    )
-
-            # Update values
-            ctUtils.updateImageFromArray(masked_sub_image.image, bad_pixel)
-            updateMaskFromArray(masked_sub_image.mask, bad_pixel, self.interpBit)
-            return masked_sub_image
+        # Update values
+        ctUtils.updateImageFromArray(masked_sub_image.image, bad_pixel)
+        updateMaskFromArray(masked_sub_image.mask, bad_pixel, self.interpBit)
+        return masked_sub_image

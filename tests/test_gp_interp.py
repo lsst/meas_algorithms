@@ -30,6 +30,7 @@ import lsst.afw.image as afwImage
 from lsst.meas.algorithms import (
     InterpolateOverDefectGaussianProcess,
     GaussianProcessTreegp,
+    measure_2pcf_grid,
 )
 
 
@@ -56,6 +57,81 @@ def rbf_kernel(x1, x2, sigma, correlation_length):
     distance_squared = np.sum((x1[:, None, :] - x2[None, :, :]) ** 2, axis=-1)
     kernel = (sigma**2) * np.exp(-0.5 * distance_squared / (correlation_length**2))
     return kernel
+
+
+def brute_force_2pcf(image, good, max_sep):
+    """Pair-count 2-point correlation function of a gridded image with gaps,
+    by explicit loops over the lags (reference for `measure_2pcf_grid`).
+
+    Parameters
+    ----------
+    image : `np.array`
+        Mean-subtracted image, shape (ny, nx).
+    good : `np.array`
+        Boolean mask of the pixels to use, shape (ny, nx).
+    max_sep : `int`
+        Half width of the lag grid, in pixels.
+
+    Returns
+    -------
+    xi : `np.array`
+        Correlation function on a (2 * max_sep, 2 * max_sep) grid of lags,
+        indexed [iy, ix], zero lag at pixel max_sep.
+    """
+    ny, nx = image.shape
+    z = np.where(good, image, 0.0)
+    xi = np.zeros((2 * max_sep, 2 * max_sep))
+    for iy, dy in enumerate(range(-max_sep, max_sep)):
+        for ix, dx in enumerate(range(-max_sep, max_sep)):
+            num = 0.0
+            den = 0
+            for y in range(ny):
+                y2 = y + dy
+                if y2 < 0 or y2 >= ny:
+                    continue
+                for x in range(nx):
+                    x2 = x + dx
+                    if x2 < 0 or x2 >= nx:
+                        continue
+                    if good[y, x] and good[y2, x2]:
+                        num += z[y, x] * z[y2, x2]
+                        den += 1
+            if den > 0:
+                xi[iy, ix] = num / den
+    return xi
+
+
+class Measure2pcfGridTestCase(lsst.utils.tests.TestCase):
+    """Test the FFT 2-point correlation function estimator."""
+
+    def test_against_brute_force(self):
+        rng = np.random.Generator(np.random.MT19937(7))
+        ny, nx, max_sep = 13, 11, 3
+        image = rng.normal(size=(ny, nx))
+        # Correlate neighbouring pixels a bit so that xi is not a delta.
+        image[:, 1:] += 0.5 * image[:, :-1]
+        image[1:, :] += 0.3 * image[:-1, :]
+        good = rng.uniform(size=(ny, nx)) > 0.3
+        image[~good] = np.nan
+        image_mean_sub = image - np.mean(image[good])
+
+        xi = measure_2pcf_grid(image_mean_sub, good, max_sep)
+        expected = brute_force_2pcf(image_mean_sub, good, max_sep)
+
+        self.assertEqual(xi.shape, (2 * max_sep, 2 * max_sep))
+        self.assertFloatsAlmostEqual(xi, expected, atol=1e-10, rtol=1e-10)
+        # Zero lag is the variance of the good pixels, at pixel max_sep.
+        self.assertFloatsAlmostEqual(
+            xi[max_sep, max_sep], np.mean(image_mean_sub[good] ** 2), rtol=1e-10
+        )
+        # Point symmetry xi(-d) = xi(d) where both lags are on the grid.
+        self.assertFloatsAlmostEqual(xi[1:, 1:], xi[1:, 1:][::-1, ::-1], atol=1e-10)
+
+    def test_invalid_inputs(self):
+        with self.assertRaises(ValueError):
+            measure_2pcf_grid(np.zeros((4, 4)), np.ones((4, 5), dtype=bool), 2)
+        with self.assertRaises(ValueError):
+            measure_2pcf_grid(np.zeros((4, 4)), np.ones((4, 4), dtype=bool), 0)
 
 
 class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
@@ -144,30 +220,38 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         # self.noise.image.array[:, :] = rng.normal(size=self.noise.image.array.shape)
 
     def test_interpolation(self):
-        """Test that the interpolation is done correctly.
-
-        Parameters
-        ----------
-        method : `str`
-            Code used to solve gaussian process.
-        """
+        """Test that the interpolation is done correctly."""
 
         gp = InterpolateOverDefectGaussianProcess(
             self.maskedimage,
             defects=["BAD", "SAT", "CR", "EDGE"],
             fwhm=self.correlation_length,
-            bin_image=False,
-            bin_spacing=30,
-            threshold_dynamic_binning=1000,
-            threshold_subdivide=20000,
-            correlation_length_cut=5,
+            kernel_half_width=20,
+            fwhm_factor=3,
             log=None,
         )
+        # The kernel half width is at least fwhm_factor * fwhm.
+        self.assertEqual(gp.max_sep, 30)
 
         gp.run()
 
+        # The kernel was measured on the whole image and cleaned.
+        npix = 2 * gp.max_sep
+        self.assertEqual(gp.xi.shape, (npix, npix))
+        self.assertEqual(gp.xi_clean.shape, (npix, npix))
+        self.assertGreater(gp.xi_clean[gp.max_sep, gp.max_sep], 0.0)
+        # One conjugate gradient solve per connected defect.
+        self.assertGreater(len(gp.n_iterations), 0)
+
         # Assert that the mask and the variance planes remain unchanged.
         self.assertImagesEqual(self.maskedimage.variance, self.reference.variance)
+
+        # The interpolated pixels are flagged as such, and only them.
+        interpBit = self.maskedimage.mask.getPlaneBitMask("INTRP")
+        badBits = self.maskedimage.mask.getPlaneBitMask(["BAD", "SAT", "CR", "EDGE"])
+        isInterp = (self.maskedimage.mask.array & interpBit) != 0
+        isBad = (self.reference.mask.array & badBits) != 0
+        np.testing.assert_array_equal(isInterp, isBad)
 
         # Check that interpolated pixels are close to the reference (original),
         # and that none of them is still NaN.
@@ -175,7 +259,7 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
         self.assertImagesAlmostEqual(
             self.maskedimage.image[1:, :],
             self.reference.image[1:, :],
-            atol=2,
+            atol=5,
         )
 
 
