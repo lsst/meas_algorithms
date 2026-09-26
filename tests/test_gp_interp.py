@@ -262,6 +262,22 @@ class InterpolateOverDefectGaussianProcessTestCase(lsst.utils.tests.TestCase):
             atol=5,
         )
 
+    def test_legacy_kwargs(self):
+        """The kwargs of the former dense solver, still passed by ip_isr,
+        are accepted, ignored, and warned about."""
+        with self.assertWarns(FutureWarning):
+            gp = InterpolateOverDefectGaussianProcess(
+                self.maskedimage,
+                defects=["SAT"],
+                fwhm=15,
+                bin_spacing=20,
+                threshold_dynamic_binning=2000,
+                threshold_subdivide=20000,
+            )
+        # The ignored arguments do not change the configuration.
+        self.assertEqual(gp.max_sep, 45)
+        self.assertFalse(hasattr(gp, "bin_spacing"))
+
 
 def setup_module(module):
     lsst.utils.tests.init()

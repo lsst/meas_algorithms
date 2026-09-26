@@ -307,6 +307,11 @@ class InterpolateOverDefectGaussianProcess:
     log : `lsst.log.Log`, `logging.Logger` or `None`, optional
         Logger object used to write out messages. If `None` a default
         logger will be used.
+    bin_spacing, threshold_dynamic_binning, threshold_subdivide : optional
+        Deprecated and ignored. They configured the binning of the good
+        pixels and the chunking of the prediction that the former dense
+        solver needed; `lsst.ip.isr` still passes them. A `FutureWarning`
+        is emitted if any is given; they will be removed.
 
     Notes
     -----
@@ -333,8 +338,26 @@ class InterpolateOverDefectGaussianProcess:
         cg_rtol=1e-4,
         cg_maxiter=200,
         log=None,
+        bin_spacing=None,
+        threshold_dynamic_binning=None,
+        threshold_subdivide=None,
     ):
         self.log = log or logging.getLogger(__name__)
+
+        legacy = {
+            "bin_spacing": bin_spacing,
+            "threshold_dynamic_binning": threshold_dynamic_binning,
+            "threshold_subdivide": threshold_subdivide,
+        }
+        given = sorted(name for name, value in legacy.items() if value is not None)
+        if given:
+            warnings.warn(
+                f"InterpolateOverDefectGaussianProcess ignores the deprecated argument(s) {given}: "
+                "the empirical-kernel Gaussian Process needs neither pixel binning nor prediction "
+                "chunking. They will be removed.",
+                FutureWarning,
+                stacklevel=2,
+            )
 
         self.masked_image = masked_image
         self.defects = defects
