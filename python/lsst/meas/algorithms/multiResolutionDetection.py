@@ -67,18 +67,9 @@ class MultiResolutionDetectionConfig(SourceDetectionConfig):
         doc="The generation of the starlet transform to use (1 or 2).",
         dtype=int, default=2,
     )
-    minPixels = pexConfig.Field(
-        doc="Detected footprints with fewer than the specified number of pixels will be ignored.",
-        dtype=int, default=8,
-    )
     peakThreshold = pexConfig.Field(
         doc="Threshold for detecting peaks within footprints, in sigma.",
         dtype=float, default=5.0,
-    )
-    thresholdValue = pexConfig.Field(
-        doc="Threshold for detecting footprints on the chi^2 detection image, in sigma. Whether that "
-            "is the per-pixel or the per-band sigma is set by thresholdType.",
-        dtype=float, default=2.0,
     )
     filterThreshold = pexConfig.Field(
         doc="Threshold for the starlet coefficient footprints that peaks are detected on, in sigma.",
@@ -98,6 +89,15 @@ class MultiResolutionDetectionConfig(SourceDetectionConfig):
         # detected on the image itself.
         self.doTempLocalBackground = False
         self.doTempWideBackground = False
+
+        # Since we're detecting on a chi^2 image, we don't need to grow the
+        # pixels by as much to get the same effective detection area.
+        self.nSigmaToGrow = 1.0
+
+        # Since peak detection is in starlet space, merged across many bands
+        # and scales, setting a higher minimum number of pixels for a detected
+        # footprint helps remove spurious detections due to noise fluctuations.
+        self.minPixels = 8
 
         # Unlike SourceDetectionTask, we want the default thresholdType to
         # be 'stdev', since the detection gains on starlet coefficients by
