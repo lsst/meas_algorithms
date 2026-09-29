@@ -223,7 +223,7 @@ class MultiResolutionDetectionTaskTestCase(lsst.utils.tests.TestCase):
     def testThresholdTypeValidation(self) -> None:
         """thresholdType selects the noise the bands are divided by, so only
         the two standard deviation choices mean anything here."""
-        self.assertEqual(MultiResolutionDetectionConfig().thresholdType, "stdev")
+        self.assertEqual(MultiResolutionDetectionConfig().thresholdType, "pixel_stdev")
         for thresholdType in ("pixel_stdev", "stdev"):
             config = MultiResolutionDetectionConfig()
             config.thresholdType = thresholdType
@@ -318,6 +318,59 @@ class MultiResolutionDetectionTaskTestCase(lsst.utils.tests.TestCase):
         task.run(afwTable.SourceTable.make(schema), exposure)
 
         self.assertFloatsEqual(exposure.image.array, original)
+
+    def testBadPixelSuppressionKeepsCleanBand(self) -> None:
+        """A source flagged bad in every band but one is still detected, seeded
+        by the clean band, and the other sources are untouched."""
+        bands = ["g", "r", "i"]
+        exposures = [self._makeExposure(offset=1000 * i) for i in range(len(bands))]
+        mExposure = afwImage.MultibandExposure.fromExposures(bands, exposures)
+
+        # Flag the first source's core as saturated in every band but g.
+        x, y = self.coords[0][0], self.coords[0][1]
+        for single in mExposure.singles[1:]:
+            single.mask.array[y - 3:y + 4, x - 3:x + 4] |= single.mask.getPlaneBitMask("SAT")
+
+        config = MultiResolutionDetectionConfig()
+        config.excludeMaskPlanes = ["SAT"]
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        task = MultiResolutionDetectionTask(schema=schema, config=config)
+        results = task.run(afwTable.SourceTable.make(schema), mExposure)
+
+        peaks = results.peaks
+        matched = peaks[(np.abs(peaks["y"] - y) <= 2) & (np.abs(peaks["x"] - x) <= 2)]
+        self.assertEqual(len(matched), 1)
+        # Only the clean g band seeds it: no other band and no chi coadd plane.
+        self.assertEqual(int(matched["band_flags"][0]), 1 << 0)
+        # The other planted sources are still recovered.
+        for sx, sy, _, _ in self.coords[1:]:
+            other = peaks[(np.abs(peaks["y"] - sy) <= 2) & (np.abs(peaks["x"] - sx) <= 2)]
+            self.assertGreaterEqual(len(other), 1)
+
+    def testBadPixelDilationSuppressesPeak(self) -> None:
+        """Growing badPixelDilation suppresses a peak that a smaller radius,
+        which does not reach the source, leaves in place."""
+        exposure = self._makeExposure()
+        x, y = self.coords[0][0], self.coords[0][1]
+        # Flag a pixel a few pixels off the source center in the only band.
+        exposure.mask.array[y, x - 4] |= exposure.mask.getPlaneBitMask("SAT")
+
+        def countNearFirst(dilation: float) -> int:
+            single = exposure.clone()
+            config = MultiResolutionDetectionConfig()
+            config.excludeMaskPlanes = ["SAT"]
+            config.badPixelDilation = dilation
+            schema = afwTable.SourceTable.makeMinimalSchema()
+            task = MultiResolutionDetectionTask(schema=schema, config=config)
+            results = task.run(afwTable.SourceTable.make(schema), single)
+            peaks = results.peaks
+            near = peaks[(np.abs(peaks["y"] - y) <= 2) & (np.abs(peaks["x"] - x) <= 2)]
+            return len(near)
+
+        # A radius short of the source keeps the peak; one that reaches its
+        # center drops it.
+        self.assertEqual(countNearFirst(1.0), 1)
+        self.assertEqual(countNearFirst(6.0), 0)
 
     def testSingleBand(self) -> None:
         """Detection on a single-band exposure recovers the planted sources."""

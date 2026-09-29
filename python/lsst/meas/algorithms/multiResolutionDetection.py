@@ -79,6 +79,14 @@ class MultiResolutionDetectionConfig(SourceDetectionConfig):
         doc="Minimum prominence of a peak above the saddle to a brighter peak, in sigma.",
         dtype=float, default=3.0,
     )
+    badPixelDilation = pexConfig.Field(
+        doc="Base radius in pixels by which the excludeMaskPlanes mask is grown before it suppresses "
+            "peaks. Starlet ringing seeds false peaks in a halo around a bad region, so the "
+            "suppression reaches beyond the flagged pixels. The kernel doubles in width with each "
+            "starlet scale, so the radius applied at a scale grows with it. The current value is "
+            "calibrated to DP2. Grow this only if false peaks persist around bright sources.",
+        dtype=float, default=3.0,
+    )
 
     def setDefaults(self) -> None:
         super().setDefaults()
@@ -99,11 +107,11 @@ class MultiResolutionDetectionConfig(SourceDetectionConfig):
         # footprint helps remove spurious detections due to noise fluctuations.
         self.minPixels = 8
 
-        # Unlike SourceDetectionTask, we want the default thresholdType to
-        # be 'stdev', since the detection gains on starlet coefficients by
-        # using `pixel_stdev` is minimal at the cost of significantly more
-        # memory usage.
-        self.thresholdType = "stdev"
+        # We want to remove peak detections from bands where they have
+        # a bad pixel mask. This removes a lot of junk around saturated
+        # stars but allows through detections from bands without masked
+        # pixels.
+        self.excludeMaskPlanes = ["BAD", "SAT", "EDGE", "NO_DATA"]
 
     def validate(self) -> None:
         super().validate()
@@ -329,16 +337,21 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             variance = exposure.variance.array[None]
             masks = exposure.mask.array[None]
         badPixelMask = maskedImages[0].mask.getPlaneBitMask(self.config.excludeMaskPlanes)
+        badPixels = None
         if badPixelMask:
-            images[(masks & badPixelMask) > 0] = 0
+            badPixels = (masks & badPixelMask) > 0
+            # Zeroing the flagged pixels keeps the starlet transform finite and
+            # bounds its ringing; badPixels then suppresses the peaks that
+            # ringing seeds around a bad region.
+            images[badPixels] = 0
 
         # Find peaks using starlets as compensated filters
         positive = None
         negative = None
         if self.config.thresholdPolarity in ("positive", "both"):
-            positive = self._detectPeaks(images, variance, (y0, x0), fwhm)
+            positive = self._detectPeaks(images, variance, (y0, x0), fwhm, badPixels)
         if self.config.thresholdPolarity in ("negative", "both"):
-            negative = self._detectPeaks(-images, variance, (y0, x0), fwhm)
+            negative = self._detectPeaks(-images, variance, (y0, x0), fwhm, badPixels)
 
         # Find footprints on the image itself, where extended sources keep the
         # flux that the starlet coefficients suppress.
@@ -423,6 +436,7 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
         variance: np.ndarray,
         origin: tuple[int, int],
         fwhm: float,
+        badPixels: np.ndarray | None = None,
     ) -> scl.detect.PeakDetectionResult:
         """Run the scarlet lite peak detection on a set of images.
 
@@ -436,6 +450,10 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             The ``(y, x)`` location of the lower corner of the images.
         fwhm:
             The PSF full width at half maximum, in pixels.
+        badPixels:
+            Per-band boolean mask with the same shape as ``images``, `True`
+            where a band is bad. Peaks near a bad region are suppressed in the
+            bands that flag it. `None` disables the suppression.
 
         Returns
         -------
@@ -456,6 +474,8 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             psf_fwhm=fwhm,
             kappa=self.config.saddleThreshold,
             variance_mode=VARIANCE_MODE[self.config.thresholdType],
+            bad_pixel_mask=badPixels,
+            dilation_radius=self.config.badPixelDilation,
         )
 
     def _bandNoise(self, convolvedImage: afwImage.MaskedImage) -> np.ndarray | float:
