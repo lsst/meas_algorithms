@@ -633,6 +633,11 @@ class MaskStreaksConfig(pexConfig.Config):
         dtype=int,
         default=250,
     )
+    badMaskDilation = pexConfig.Field(
+        doc="Mask out the region around bad pixels by dilating the existing mask by this number of pixels.",
+        dtype=int,
+        default=1,
+    )
 
 
 class MaskStreaksTask(pipeBase.Task):
@@ -690,7 +695,7 @@ class MaskStreaksTask(pipeBase.Task):
         badPixelMask = mask.getPlaneBitMask(self.config.badMaskPlanes)
         badMaskSpanSet = SpanSet.fromMask(mask, badPixelMask).split()
         for sset in badMaskSpanSet:
-            sset_dilated = sset.dilated(1)
+            sset_dilated = sset.dilated(self.config.badMaskDilation)
             sset_dilated.clippedTo(
                 ignoreMask.getBBox()).setMask(ignoreMask, ignoreMask.getPlaneBitMask("BAD"))
 
