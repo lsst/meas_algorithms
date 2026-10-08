@@ -319,10 +319,11 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
                 self.clearMask(maskedImage.getMask())
 
         psfs = self._getDetectionPsfs(singles, sigma)
-        # The widest band sets the growth radius and the radius that links
-        # peaks across scales, which is the most conservative choice.
-        sigma = max(psf.computeShape(psf.getAveragePosition()).getDeterminantRadius() for psf in psfs)
-        fwhm = sigma*SIGMA_TO_FWHM
+        bandSigma = [psf.computeShape(psf.getAveragePosition()).getDeterminantRadius() for psf in psfs]
+        fwhm = [s*SIGMA_TO_FWHM for s in bandSigma]
+        # The widest band sets the growth radius, which is the most
+        # conservative choice.
+        sigma = max(bandSigma)
 
         # Instead of calling ``SourceDetectionTask.removeBadPixels``
         # individually for each band, here it is applied to every band at
@@ -435,7 +436,7 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
         images: np.ndarray,
         variance: np.ndarray,
         origin: tuple[int, int],
-        fwhm: float,
+        fwhm: list[float],
         badPixels: np.ndarray | None = None,
     ) -> scl.detect.PeakDetectionResult:
         """Run the scarlet lite peak detection on a set of images.
@@ -449,7 +450,7 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
         origin:
             The ``(y, x)`` location of the lower corner of the images.
         fwhm:
-            The PSF full width at half maximum, in pixels.
+            The PSF full width at half maximum of each band, in pixels.
         badPixels:
             Per-band boolean mask with the same shape as ``images``, `True`
             where a band is bad. Peaks near a bad region are suppressed in the
@@ -467,7 +468,7 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             generation=self.config.generation,
             first_scale=self.config.firstScale,
             origin=origin,
-            min_separation=0,
+            min_separation=None,
             min_area=self.config.minPixels,
             peak_thresh=self.config.peakThreshold,
             footprint_thresh=self.config.filterThreshold,
@@ -805,6 +806,12 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             ``positions``
                 The unique candidate positions, with a ``polarity`` column.
                 (`astropy.table.Table`)
+            ``pairs``
+                The pairs of positions within the largest link radius, with a
+                ``polarity`` column. (`astropy.table.Table`)
+            ``components``
+                The connected components of the position graph, with a
+                ``polarity`` column. (`astropy.table.Table`)
             ``significanceMap``
                 The per-scale significance map of the positive detection (or the
                 negative detection if only negative was run). (`numpy.ndarray`
@@ -832,6 +839,8 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             peaks=self._joinPolarities(positive, negative, "peaks"),
             candidates=self._joinPolarities(positive, negative, "candidates"),
             positions=self._joinPolarities(positive, negative, "positions"),
+            pairs=self._joinPolarities(positive, negative, "pairs"),
+            components=self._joinPolarities(positive, negative, "components"),
         )
         primary = positive if positive is not None else negative
         if primary is not None:
@@ -959,14 +968,16 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             The negative polarity detection result.
         attr:
             The name of the structured-array attribute to join (``peaks``,
-            ``candidates`` or ``positions``).
+            ``candidates``, ``positions``, ``pairs`` or ``components``).
 
         Returns
         -------
         joined:
             The concatenated rows as an `astropy.table.Table` with an added
-            ``polarity`` column (``1`` for positive, ``-1`` for negative). The
-            table is empty if neither result is set.
+            ``polarity`` column (``1`` for positive, ``-1`` for negative), and
+            the detection settings in its ``meta``. Row indices such as
+            ``candidates["position"]`` count within a polarity. The table is
+            empty if neither result is set.
         """
         arrays = []
         for result, polarity in ((positive, 1), (negative, -1)):
@@ -979,9 +990,11 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             arrays.append(array)
         if not arrays:
             return Table()
+        # Both polarities are detected with the same settings.
+        primary = positive if positive is not None else negative
         if len(arrays) == 1:
-            return Table(arrays[0])
-        return Table(np.concatenate(arrays))
+            return Table(arrays[0], meta=primary.metadata)
+        return Table(np.concatenate(arrays), meta=primary.metadata)
 
     def applyTempLocalBackground(self, exposure, middle, results):
         raise NotImplementedError("applyTempLocalBackground is not used in MultiResolutionDetectionTask")
