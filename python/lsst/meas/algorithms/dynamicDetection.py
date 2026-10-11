@@ -390,7 +390,7 @@ class DynamicDetectionTask(SourceDetectionTask):
         medianError = np.median(catalog["base_PsfFlux_instFluxErr"][good])
         if wcsIsNone:
             exposure.setWcs(None)
-        return Struct(multiplicative=medianError/stdevMeas, additive=bgMedian)
+        return Struct(multiplicative=stdevMeas/medianError, additive=bgMedian)
 
     def detectFootprints(self, exposure, doSmooth=True, sigma=None, clearMask=True, expId=None,
                          background=None, backgroundToPhotometricRatio=None):

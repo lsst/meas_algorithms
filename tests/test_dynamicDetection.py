@@ -39,21 +39,27 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
 
         self.config = DynamicDetectionTask.ConfigClass()
         self.rtol = 0.1
+        self.expectNPosPeaks = 100
+        self.expectNNegPeaks = 0
 
     def tearDown(self):
         del self.exposure
 
-    def check(self, expectFactor, config):
+    def check(self, expectFactor, config, expectNPosPeaks=None, expectNNegPeaks=None):
         schema = SourceTable.makeMinimalSchema()
         task = DynamicDetectionTask(config=config, schema=schema)
         table = SourceTable.make(schema)
 
         results = task.run(table, self.exposure, expId=12345)
         self.assertFloatsAlmostEqual(results.factor, expectFactor, rtol=self.rtol)
+        if expectNPosPeaks is not None:
+            self.assertFloatsAlmostEqual(results.numPosPeaks, self.expectNPosPeaks, rtol=0.02)
+        if expectNNegPeaks is not None:
+            self.assertFloatsAlmostEqual(results.numNegPeaks, self.expectNNegPeaks, rtol=0.02)
 
     def testVanilla(self):
         """Dynamic detection used as normal detection."""
-        self.check(1.0, self.config)
+        self.check(1.0, self.config, expectNPosPeaks=99, expectNNegPeaks=0)
 
     def testDynamic(self):
         """Modify the variance plane, and see if the task is able to determine
@@ -61,7 +67,7 @@ class DynamicDetectionTest(lsst.utils.tests.TestCase):
         """
         factor = 2.0
         self.exposure.maskedImage.variance /= factor
-        self.check(1.0/np.sqrt(factor), self.config)
+        self.check(np.sqrt(factor), self.config, expectNPosPeaks=99, expectNNegPeaks=0)
 
     def testNoWcs(self):
         """Check that dynamic detection runs when the exposure wcs is None."""
