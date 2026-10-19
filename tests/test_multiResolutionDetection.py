@@ -425,6 +425,29 @@ class MultiResolutionDetectionTaskTestCase(lsst.utils.tests.TestCase):
             detected = (mask.array & mask.getPlaneBitMask("DETECTED")) > 0
             self.assertGreater(detected.sum(), 0)
 
+    def testStructureColumns(self) -> None:
+        """The structure threshold must reach the peak table, and the peak
+        count must agree with the ids."""
+        exposure = self._makeExposure()
+        schema = afwTable.SourceTable.makeMinimalSchema()
+        for threshold, expectStructures in ((1.0, True), (1e6, False)):
+            config = MultiResolutionDetectionConfig()
+            config.reEstimateBackground = False
+            config.structureThreshold = threshold
+            task = MultiResolutionDetectionTask(schema=schema, config=config)
+            results = task.run(afwTable.SourceTable.make(schema), exposure)
+
+            peaks = results.peaks
+            self.assertEqual(peaks.meta["structure_thresh"], threshold)
+            structureId = np.asarray(peaks["structure_id"])
+            structurePeaks = np.asarray(peaks["structure_peaks"])
+            self.assertEqual(bool((structureId > 0).any()), expectStructures)
+            self.assertEqual(bool((structurePeaks > 0).any()), expectStructures)
+            for structure in np.unique(structureId[structureId > 0]):
+                members = structureId == structure
+                self.assertTrue((structurePeaks[members] == members.sum()).all())
+            self.assertTrue((structurePeaks[structureId == 0] == 0).all())
+
     def testBothPolarities(self) -> None:
         """With thresholdPolarity='both', negative footprints are returned and
         the peak table records both polarities."""

@@ -87,6 +87,14 @@ class MultiResolutionDetectionConfig(SourceDetectionConfig):
             "calibrated to DP2. Grow this only if false peaks persist around bright sources.",
         dtype=float, default=3.0,
     )
+    structureThreshold = pexConfig.Field(
+        doc="Threshold in sigma that connects the chi^2 coadd of the first starlet scale into "
+            "structures. The peaks that share a structure, e.g. the arms and star forming regions "
+            "of a galaxy, get a common structure_id in the peak table and its number of peaks in "
+            "structure_peaks. Structures of two peaks are mostly blended stars, structures of three "
+            "or more mostly shredded galaxies.",
+        dtype=float, default=1.0,
+    )
 
     def setDefaults(self) -> None:
         super().setDefaults()
@@ -477,6 +485,7 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
             variance_mode=VARIANCE_MODE[self.config.thresholdType],
             bad_pixel_mask=badPixels,
             dilation_radius=self.config.badPixelDilation,
+            structure_thresh=self.config.structureThreshold,
         )
 
     def _bandNoise(self, convolvedImage: afwImage.MaskedImage) -> np.ndarray | float:
@@ -799,7 +808,10 @@ class MultiResolutionDetectionTask(SourceDetectionTask):
                 The final detections, one row per source, with a ``polarity``
                 column and a ``footprint`` column indexing the footprint the
                 peak was placed in, ``-1`` for a peak that fell outside every
-                footprint. (`astropy.table.Table`)
+                footprint. The ``structure_id`` and ``structure_peaks``
+                columns label peaks that are likely pieces of a larger
+                structure; see `lsst.scarlet.lite.detect.find_structures`.
+                (`astropy.table.Table`)
             ``candidates``
                 The peak candidates, before grouping, with a ``polarity``
                 column. (`astropy.table.Table`)
