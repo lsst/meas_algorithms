@@ -131,6 +131,65 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
         self.assertFloatsAlmostEqual(np.degrees(result.parameters[0].angle), 45.0, rtol=2e-3)
         self.assertFloatsAlmostEqual(np.degrees(result.parameters[1].angle), -45.0, rtol=2e-3)
 
+    def _make_catalog(self, centroids):
+        """Make a catalog with one source at each of the given centroids."""
+        bbox = lsst.geom.Box2I(lsst.geom.Point2I(-5, -4), lsst.geom.Point2I(1005, 1084))
+        dataset = lsst.meas.base.tests.TestDataset(bbox)
+        for x, y in centroids:
+            dataset.addSource(instFlux=10000, centroid=lsst.geom.Point2D(x, y))
+        schema = dataset.makeMinimalSchema()
+        schema.addField("ip_diffim_DipoleFit_classification", type="Flag")
+        exposure, catalog = dataset.realize(10.0, schema=schema)
+        return catalog
+
+    def test_trail_angles(self):
+        """Test that trails at any angle, including vertical, are found and
+        measured, and that a source further than ``threshold`` from the line
+        is left out.
+        """
+        rng = np.random.default_rng(20)
+        step = 60
+        task = findGlintTrails.FindGlintTrailsTask()
+        for angle in (0, 30, 60, 80, 90, 135):
+            with self.subTest(angle=angle):
+                direction = np.array([np.cos(np.radians(angle)), np.sin(np.radians(angle))])
+                normal = np.array([-direction[1], direction[0]])
+                start = np.array([300.0, 300.0])
+                trail = [start + i*step*direction + 0.5*rng.random(2) for i in range(6)]
+                # Within the 2x threshold candidate search, beyond threshold.
+                outlier = start + 2.5*step*direction + 1.5*task.config.threshold*normal
+                catalog = self._make_catalog(trail + [outlier])
+
+                result = task.run(catalog)
+
+                self.assertEqual(len(result.trails), 1)
+                # Source ids count from 1 in the order the sources were added.
+                self.assertSetEqual(set(result.trails[0]["id"]), set(range(1, 7)))
+                parameters = result.parameters[0]
+                # Compare angles modulo 180 degrees: a vertical line is equally
+                # well described by +90 and -90 degrees.
+                offset = (np.degrees(parameters.angle) - angle + 90) % 180 - 90
+                self.assertLess(abs(offset), 0.5)
+                self.assertFloatsAlmostEqual(parameters.length, 5*step, atol=1.0)
+                center = np.mean(trail, axis=0)
+                self.assertFloatsAlmostEqual(parameters.center_x, center[0], atol=1e-6)
+                self.assertFloatsAlmostEqual(parameters.center_y, center[1], atol=1e-6)
+                fit_normal = np.array([-np.sin(parameters.angle), np.cos(parameters.angle)])
+                distances = (np.array(trail) - center) @ fit_normal
+                self.assertFloatsAlmostEqual(parameters.stderr, np.sqrt(np.mean(distances**2)),
+                                             rtol=1e-8)
+
+    def test_fit_line(self):
+        """Test the perpendicular-distance line fit on a vertical line."""
+        x = np.array([10.0, 11.0, 10.0, 9.0])
+        y = np.array([0.0, 10.0, 20.0, 30.0])
+
+        line = findGlintTrails.fit_line(x, y)
+
+        self.assertFloatsAlmostEqual(line.center, np.array([10.0, 15.0]), atol=1e-12)
+        self.assertFloatsAlmostEqual(abs(line.direction[1]), 1.0, atol=1e-2)
+        self.assertFloatsAlmostEqual(line.distance(13.0, 15.0), 3.0, atol=0.1)
+
     def test_empty_image(self):
         """Test that no trails are found on an empty image."""
         bbox = lsst.geom.Box2I(lsst.geom.Point2I(-5, -4), lsst.geom.Point2I(1005, 1084))
