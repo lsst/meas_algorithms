@@ -260,7 +260,9 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         # Search starting with the source with the largest number of matches.
         for id in dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)):
             # Don't search this point if it was already included in a trail.
-            if counts[id] < self.config.min_points or id in trailed_ids:
+            # The anchor itself is one of the trail's points, but is not one
+            # of its own matches.
+            if counts[id] + 1 < self.config.min_points or id in trailed_ids:
                 continue
 
             self.log.debug("id=%d at %.1f,%.1f has %d matches within %d pixels.",

@@ -179,6 +179,20 @@ class TestFindGlintTrails(lsst.utils.tests.TestCase):
                 self.assertFloatsAlmostEqual(parameters.stderr, np.sqrt(np.mean(distances**2)),
                                              rtol=1e-8)
 
+    def test_trail_of_min_points(self):
+        """Test that a trail of exactly ``min_points`` sources, with no other
+        sources nearby, is found.
+        """
+        task = findGlintTrails.FindGlintTrailsTask()
+        direction = np.array([np.cos(np.radians(30)), np.sin(np.radians(30))])
+        trail = [np.array([300.0, 300.0]) + i*60*direction for i in range(task.config.min_points)]
+        catalog = self._make_catalog(trail)
+
+        result = task.run(catalog)
+
+        self.assertEqual(len(result.trails), 1)
+        self.assertEqual(len(result.trails[0]), task.config.min_points)
+
     def test_fit_line(self):
         """Test the perpendicular-distance line fit on a vertical line."""
         x = np.array([10.0, 11.0, 10.0, 9.0])
