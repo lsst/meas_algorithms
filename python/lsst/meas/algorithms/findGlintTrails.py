@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["FindGlintTrailsConfig", "FindGlintTrailsTask", "GlintTrailParameters"]
+__all__ = ["FindGlintTrailsConfig", "FindGlintTrailsTask", "FittedLine", "GlintTrailParameters", "fit_line"]
 
 import collections
 import dataclasses
@@ -27,11 +27,127 @@ import math
 
 import numpy as np
 import scipy.spatial
-import sklearn.linear_model
 
 import lsst.afw.table
 import lsst.pex.config
 import lsst.pipe.base
+
+
+class FittedLine:
+    """A straight line through ``center`` along the unit vector
+    ``direction``.
+
+    Parameters
+    ----------
+    center : `numpy.ndarray`
+        ``(x, y)`` of a point on the line: the mean of the points it was fit
+        to.
+    direction : `numpy.ndarray`
+        Unit vector along the line; its sign is arbitrary.
+    """
+
+    def __init__(self, center, direction):
+        self.center = center
+        self.direction = direction
+
+    def distance(self, x, y):
+        """Compute the perpendicular distance of points from the line.
+
+        Parameters
+        ----------
+        x, y : `numpy.ndarray` or `float`
+            Coordinates of the points.
+
+        Returns
+        -------
+        distance : `numpy.ndarray` or `float`
+            Distance of each point from the line, in the units of ``x`` and
+            ``y``.
+        """
+        return np.abs((x - self.center[0])*self.direction[1] - (y - self.center[1])*self.direction[0])
+
+
+def fit_line(x, y):
+    """Fit the line that minimizes the summed squared perpendicular distances
+    of points from it.
+
+    Unlike a regression of ``y`` on ``x``, this fits lines at any angle,
+    including vertical ones, equally well.
+
+    Parameters
+    ----------
+    x, y : `numpy.ndarray`
+        Coordinates of at least two points.
+
+    Returns
+    -------
+    line : `FittedLine`
+        The fitted line.
+    """
+    points = np.column_stack((x, y))
+    center = points.mean(axis=0)
+    direction = np.linalg.svd(points - center)[2][0]
+    return FittedLine(center=center, direction=direction)
+
+
+def _ransac_line(x, y, threshold, min_samples, seed, max_trials=100):
+    """Fit a line to points that may include outliers, using RANSAC.
+
+    Each trial fits a line to ``min_samples`` randomly chosen points.  The
+    trial with the most points within ``threshold`` of its line wins, with
+    ties going to the smaller summed squared distance.  The line is iteratively
+    refit with new selections of inliers until the results stop changing, so
+    that every inlier is within ``threshold`` pixels of the returned line.
+
+    Parameters
+    ----------
+    x, y : `numpy.ndarray`
+        Coordinates of the points.
+    threshold : `float`
+        Maximum perpendicular distance of an inlier from the line.
+    min_samples : `int`
+        Number of points each trial line is fit to.
+    seed : `int`
+        Seed for the random choice of points, so that fits are repeatable.
+    max_trials : `int`, optional
+        Maximum number of trial lines.
+
+    Returns
+    -------
+    line : `FittedLine` or `None`
+        The line fit to the inliers, or `None` if fewer than ``min_samples``
+        points are inliers.
+    inliers : `numpy.ndarray` [`bool`] or `None`
+        Which of the points lie within ``threshold`` of ``line``.
+    """
+    if len(x) < min_samples:
+        return None, None
+    rng = np.random.default_rng(seed)
+    best = None
+    best_count = min_samples - 1
+    best_sum = np.inf
+    for _ in range(max_trials):
+        sample = rng.choice(len(x), size=min_samples, replace=False)
+        distance = fit_line(x[sample], y[sample]).distance(x, y)
+        inliers = distance <= threshold
+        count = np.sum(inliers)
+        total = np.sum(distance[inliers]**2)
+        if count > best_count or (count == best_count and total < best_sum):
+            best, best_count, best_sum = inliers, count, total
+            if count == len(x):
+                break
+    if best is None:
+        return None, None
+    inliers = best
+    for _ in range(max_trials):
+        line = fit_line(x[inliers], y[inliers])
+        refit = line.distance(x, y) <= threshold
+        if np.sum(refit) < min_samples:
+            return None, None
+        if np.array_equal(refit, inliers):
+            break
+        inliers = refit
+    return line, refit
 
 
 class FindGlintTrailsConfig(lsst.pex.config.Config):
@@ -47,9 +163,10 @@ class FindGlintTrailsConfig(lsst.pex.config.Config):
         check=lambda x: x >= 3,
     )
     threshold = lsst.pex.config.Field(
-        doc="Maximum root mean squared deviation from a straight line (pixels).",
+        doc="Maximum perpendicular distance of a source from the line fit to its trail (pixels)."
+            " Real glints are highly collinear, with a typical deviation from a line of < 1 pixel.",
         dtype=float,
-        default=15.0,
+        default=1.5,
     )
     seed = lsst.pex.config.Field(
         doc="Random seed for RANSAC fitter, to ensure stable fitting.",
@@ -66,12 +183,19 @@ class FindGlintTrailsConfig(lsst.pex.config.Config):
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class GlintTrailParameters:
-    """Holds values from the line fit to a single glint trail."""
+    """Holds values from the line fit to a single glint trail.
+
+    ``slope`` and ``intercept`` are very large or non-finite for a
+    near-vertical trail; ``angle`` with ``center_x`` and ``center_y`` describe
+    the line at any orientation.
+    """
     slope: float
     intercept: float
-    stderr: float
+    stderr: float  # root mean squared perpendicular distance, pixels
     length: float  # pixels
-    angle: float  # radians, from +X axis
+    angle: float  # radians from the +X axis, in (-pi/2, pi/2]
+    center_x: float  # pixels; the line passes through (center_x, center_y)
+    center_y: float  # pixels
 
 
 class FindGlintTrailsTask(lsst.pipe.base.Task):
@@ -86,12 +210,14 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
      * For each pair of anchor and match, identify the other sources that
        could lie on the same line(s).
      * Take the longest set of such pairs as a candidate trail.
-     * Fit a line to the identified pairs with the RANSAC algorithm.
+     * Fit a line to the identified pairs with the RANSAC algorithm,
+       measuring distances perpendicular to the line so that trails at any
+       angle are found.
      * Find all sources in the catalog that could lie on that line.
      * Refit a line to all of the matched sources.
-     * If the error is below the threshold and the number of sources on the
-       line is greater than the minimum, return the sources that were
-       considered inliers during the fit, and the fit parameters.
+     * If the line holds at least the minimum number of sources, return the
+       sources that were considered inliers during the fit, and the fit
+       parameters.
     """
 
     ConfigClass = FindGlintTrailsConfig
@@ -134,7 +260,9 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
         # Search starting with the source with the largest number of matches.
         for id in dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)):
             # Don't search this point if it was already included in a trail.
-            if counts[id] < self.config.min_points or id in trailed_ids:
+            # The anchor itself is one of the trail's points, but is not one
+            # of its own matches.
+            if counts[id] + 1 < self.config.min_points or id in trailed_ids:
                 continue
 
             self.log.debug("id=%d at %.1f,%.1f has %d matches within %d pixels.",
@@ -149,8 +277,9 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
                 n_new = len(set(trail["id"]).difference(trailed_ids))
                 if n_new > 0:
                     self.log.info("Found %.1f pixel length trail with %d points, "
-                                  "%d not in any other trail (slope=%.4f, intercept=%.2f)",
-                                  result.length, len(trail), n_new, result.slope, result.intercept)
+                                  "%d not in any other trail (angle=%.2f deg, center=%.1f,%.1f)",
+                                  result.length, len(trail), n_new, math.degrees(result.angle),
+                                  result.center_x, result.center_y)
                     trails.append(trail)
                     trailed_ids.update(trail["id"])
                     parameters.append(result)
@@ -228,12 +357,7 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
 
         if trail is None or len(trail) < self.config.min_points:
             return None
-        if result.stderr > self.config.threshold:
-            self.log.info("Candidate trail with %d sources rejected with stderr %.6f > %.3f",
-                          len(trail), result.stderr, self.config.threshold)
-            return None
-        else:
-            return trail, result
+        return trail, result
 
     def _other_points(self, n_points, indexes, matches, catalog):
         """Find all catalog records that could lie on this line.
@@ -257,66 +381,58 @@ class FindGlintTrailsTask(lsst.pipe.base.Task):
             Parameters of the fitted trail.
         """
 
-        def extract(fitter, x, y, prefix=""):
+        def extract(line, inliers, x, y, prefix=""):
             """Extract values from the fit and log and return them."""
-            x = x[fitter.inlier_mask_]
-            y = y[fitter.inlier_mask_]
-            predicted = fitter.predict(x).flatten()
-            stderr = math.sqrt(((predicted - y.flatten())**2).sum())
-            m, b = fitter.estimator_.coef_[0][0], fitter.estimator_.intercept_[0]
-            self.log.debug("%s fit: score=%.6f, stderr=%.6f, inliers/total=%d/%d",
-                           prefix, fitter.score(x, y), stderr, sum(fitter.inlier_mask_), len(x))
+            x = x[inliers]
+            y = y[inliers]
+            stderr = math.sqrt(np.mean(line.distance(x, y)**2))
+            self.log.debug("%s fit: stderr=%.6f, inliers/total=%d/%d",
+                           prefix, stderr, len(x), len(inliers))
             # Simple O(N^2) search for longest distance; there will never be
             # enough points in a trail a for "faster" approach to be worth it.
-            length = max(scipy.spatial.distance.pdist(np.hstack((x, y))), default=0)
+            length = max(scipy.spatial.distance.pdist(np.column_stack((x, y))), default=0)
+            dx, dy = line.direction
+            # The slope and angle do not depend on the direction's sign.
+            if dx == 0:
+                m, b = math.inf, math.nan
+            else:
+                m = dy/dx
+                b = line.center[1] - m*line.center[0]
             angle = math.atan(m)
-            return GlintTrailParameters(slope=m, intercept=b, stderr=stderr, length=length, angle=angle)
+            return GlintTrailParameters(slope=m, intercept=b, stderr=stderr, length=length, angle=angle,
+                                        center_x=line.center[0], center_y=line.center[1])
 
-        # min_samples=2 is necessary here for some sets of only 5 matches,
-        # otherwise we sometimes get "UndefinedMetricWarning: R^2 score is not
-        # well-defined with less than two samples" from RANSAC.
-        fitter = sklearn.linear_model.RANSACRegressor(residual_threshold=self.config.threshold,
-                                                      loss="squared_error",
-                                                      random_state=self.config.seed,
-                                                      min_samples=2)
-
-        # The (-1,1) shape is to keep sklearn happy.
-        x = np.empty(n_points).reshape(-1, 1)
+        x = np.empty(n_points)
         x[0] = matches[0].first.getX()
-        x[1:, 0] = [matches[i].second.getX() for i in indexes]
-        y = np.empty(n_points).reshape(-1, 1)
+        x[1:] = [matches[i].second.getX() for i in indexes]
+        y = np.empty(n_points)
         y[0] = matches[0].first.getY()
-        y[1:, 0] = [matches[i].second.getY() for i in indexes]
+        y[1:] = [matches[i].second.getY() for i in indexes]
 
-        try:
-            fitter.fit(x, y)
-        except ValueError:
+        line, inliers = _ransac_line(x, y, self.config.threshold, min_samples=2, seed=self.config.seed)
+        if line is None:
             self.log.info("Glint trail interpolation could not find a valid fit.")
             return None, None
-        else:
-            result = extract(fitter, x, y, prefix="preliminary")
-            # Reject trails that have too many outliers after the first fit.
-            if (n_inliers := sum(fitter.inlier_mask_)) < self.config.min_points:
-                self.log.debug("Candidate trail rejected with %d < %d points.",
-                               n_inliers, self.config.min_points)
-                return None, None
+        extract(line, inliers, x, y, prefix="preliminary")
+        # Reject trails that have too many outliers after the first fit.
+        if (n_inliers := np.sum(inliers)) < self.config.min_points:
+            self.log.debug("Candidate trail rejected with %d < %d points.",
+                           n_inliers, self.config.min_points)
+            return None, None
 
         # Find all points that are close to this line and refit with them.
         x = catalog["slot_Centroid_x"]
         y = catalog["slot_Centroid_y"]
-        dist = abs(result.intercept + result.slope * x - y) / math.sqrt(1 + result.slope**2)
         # 2x threshold to search more broadly: outlier rejection may change
         # the line parameters some and we want to grab all candidates here.
-        candidates = (dist < 2 * self.config.threshold).flatten()
+        candidates = line.distance(x, y) < 2*self.config.threshold
+        x = x[candidates]
+        y = y[candidates]
         # min_samples>2 should make the fit more stable.
-        fitter = sklearn.linear_model.RANSACRegressor(residual_threshold=self.config.threshold,
-                                                      loss="squared_error",
-                                                      random_state=self.config.seed,
-                                                      min_samples=3)
-        # The (-1,1) shape is to keep sklearn happy.
-        x = x[candidates].reshape(-1, 1)
-        y = y[candidates].reshape(-1, 1)
-        fitter.fit(x, y)
-        result = extract(fitter, x, y, prefix="final")
+        line, inliers = _ransac_line(x, y, self.config.threshold, min_samples=3, seed=self.config.seed)
+        if line is None:
+            self.log.info("Glint trail interpolation could not find a valid fit.")
+            return None, None
+        result = extract(line, inliers, x, y, prefix="final")
 
-        return catalog[candidates][fitter.inlier_mask_], result
+        return catalog[candidates][inliers], result
