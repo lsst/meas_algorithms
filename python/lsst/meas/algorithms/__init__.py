@@ -54,6 +54,7 @@ from .indexerRegistry import *
 from .reserveSourcesTask import *
 from .skyObjects import *
 from .dynamicDetection import *
+from .multiResolutionDetection import *
 from .makePsfCandidates import *
 from .stamps import *
 from .accumulator_mean_stack import *

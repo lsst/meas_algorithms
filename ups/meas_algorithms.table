@@ -13,6 +13,7 @@ setupRequired(cpputils)
 setupRequired(kht)
 setupRequired(obs_base)
 setupRequired(shapelet)
+setupRequired(scarlet_lite)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
