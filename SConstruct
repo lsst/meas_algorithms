@@ -1,3 +1,3 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConstruct("meas_algorithms")
+scripts.BasicSConstruct("meas_algorithms", noCfgFile=True)
