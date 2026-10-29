@@ -25,13 +25,37 @@ import tempfile
 
 from lsst.meas.algorithms import stamps
 from lsst.afw import image as afwImage
+from lsst.afw.fits import Fits, readMetadata
 from lsst.afw.geom.testUtils import TransformTestBaseClass
-from lsst.daf.base import PropertyList
+from lsst.daf.base import PropertyList, PropertySet
 import lsst.geom as geom
 import lsst.afw.geom.transformFactory as tF
 import lsst.utils.tests
 
 _RNG = np.random.Generator(np.random.MT19937(5))
+
+
+def image_hdu_metadata(filename):
+    """Read the header of every image extension, ordered by stamp.
+
+    Parameters
+    ----------
+    filename : `str`
+        Name of the file to read.
+
+    Returns
+    -------
+    headers : `list` [`lsst.daf.base.PropertyList`]
+        The header of each image extension, in stamp order.
+    """
+    with Fits(filename, 'r') as f:
+        nExtensions = f.countHdus()
+    headers = {}
+    for idx in range(1, nExtensions):
+        md = readMetadata(filename, hdu=idx)
+        if md['EXTNAME'] == 'IMAGE':
+            headers[md['EXTVER']] = md
+    return [headers[extver] for extver in sorted(headers)]
 
 
 def make_stamps(n_stamps=3, use_archive=False):
@@ -171,6 +195,162 @@ class StampsTestCase(lsst.utils.tests.TestCase):
             self.assertTrue(stamp.metadata is not None)
             self.assertIn('RA_DEG', stamp.metadata)
             self.assertIn('DEC_DEG', stamp.metadata)
+
+    def testStampMetadataTypes(self):
+        """Test the types accepted for the metadata of a single stamp.
+
+        A mapping is convenient to write at the call site, but the FITS writer
+        needs a `~lsst.daf.base.PropertySet`, so it is normalised on the way in.
+        """
+        stampIm = afwImage.MaskedImageF(10, 10)
+        propertySet = PropertySet()
+        propertySet['SRCID'] = 1
+        for metadata in ({'SRCID': 1}, PropertyList(), propertySet):
+            stamp = stamps.Stamp(stamp_im=stampIm, metadata=metadata)
+            self.assertIsInstance(stamp.metadata, PropertyList)
+        # A PropertyList is kept as it is, rather than needlessly copied.
+        propertyList = PropertyList()
+        stamp = stamps.Stamp(stamp_im=stampIm, metadata=propertyList)
+        self.assertIs(stamp.metadata, propertyList)
+        self.assertIsNone(stamps.Stamp(stamp_im=stampIm).metadata)
+        with self.assertRaises(TypeError):
+            stamps.Stamp(stamp_im=stampIm, metadata='not a mapping')
+
+    def testStampMetadata(self):
+        """Test that metadata held by a single stamp round trips.
+
+        Note that the keys become FITS header keywords, and so are upper-cased.
+        """
+        nStamps = 3
+        ss = make_stamps(nStamps)
+        for i, stamp in enumerate(ss):
+            stamp.metadata = {'SRCID': 100 + i, 'DETECTOR': i, 'LABEL': f'stamp{i}'}
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            ss2 = stamps.Stamps.readFitsWithOptions(f.name, None)
+            self.assertEqual(len(ss2), nStamps)
+            for i, stamp in enumerate(ss2):
+                # Each stamp must get its own values, not a neighbour's. The
+                # extensions of the stamps are interleaved, so this fails if
+                # the reader indexes the headers by position rather than by
+                # EXTVER.
+                self.assertEqual(stamp.metadata['SRCID'], 100 + i)
+                self.assertEqual(stamp.metadata['DETECTOR'], i)
+                self.assertEqual(stamp.metadata['LABEL'], f'stamp{i}')
+                # Metadata shared by every stamp is still available.
+                self.assertIn('RA_DEG', stamp.metadata)
+
+    def testStampMetadataWithArchive(self):
+        """Test the metadata of a single stamp when an Archive is present.
+
+        The archive adds extensions that carry no EXTVER, interleaved with
+        those of the stamps.
+        """
+        nStamps = 3
+        ss = make_stamps(nStamps, use_archive=True)
+        for i, stamp in enumerate(ss):
+            stamp.metadata = {'SRCID': 200 + i}
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            ss2 = stamps.Stamps.readFitsWithOptions(f.name, None)
+            self.assertEqual([stamp.metadata['SRCID'] for stamp in ss2],
+                             [200 + i for i in range(nStamps)])
+
+    def testStampMetadataMultipleValues(self):
+        """Test that a key holding several values keeps all of them.
+
+        Copying the metadata key by key would keep only the last value.
+        """
+        nStamps = 3
+        ss = make_stamps(nStamps)
+        for i, stamp in enumerate(ss):
+            metadata = PropertyList()
+            metadata.set('SRCID', 100 + i)
+            metadata.set('APFLUX', [1.5 + i, 2.5 + i, 3.5 + i])
+            metadata.setComment('SRCID', f'source {i}')
+            metadata.add('HISTORY', 'first')
+            metadata.add('HISTORY', 'second')
+            stamp.metadata = metadata
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            ss2 = stamps.Stamps.readFitsWithOptions(f.name, None)
+            for i, stamp in enumerate(ss2):
+                self.assertEqual(stamp.metadata.getArray('APFLUX'), [1.5 + i, 2.5 + i, 3.5 + i])
+                self.assertEqual(stamp.metadata.getArray('HISTORY'), ['first', 'second'])
+                self.assertEqual(stamp.metadata.getComment('SRCID'), f'source {i}')
+
+    def testStampMetadataOverridesSharedValue(self):
+        """Test a stamp holding a different value to the shared metadata.
+
+        A value that matches the one in the primary header is not repeated in
+        the extension, but one that differs is, so that it can override it.
+        """
+        sharedMetadata = PropertyList()
+        sharedMetadata['DETECTOR'] = 1
+        sharedMetadata['SURVEY'] = 'wide'
+        ss = stamps.Stamps([], metadata=sharedMetadata)
+        for i in range(3):
+            metadata = PropertyList()
+            metadata['SRCID'] = 100 + i
+            metadata['SURVEY'] = 'wide'  # same as the shared value
+            if i == 1:
+                metadata['DETECTOR'] = 99  # differs from the shared value
+            ss.append(stamps.Stamp(stamp_im=afwImage.MaskedImageF(10, 10), metadata=metadata))
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            headers = image_hdu_metadata(f.name)
+            # Only the differing value is repeated in an extension.
+            self.assertEqual([('DETECTOR' in md) for md in headers], [False, True, False])
+            self.assertEqual([('SURVEY' in md) for md in headers], [False, False, False])
+            ss2 = stamps.Stamps.readFitsWithOptions(f.name, None)
+            self.assertEqual([stamp.metadata['DETECTOR'] for stamp in ss2], [1, 99, 1])
+            self.assertEqual([stamp.metadata['SURVEY'] for stamp in ss2], ['wide'] * 3)
+
+    def testStampMetadataDoesNotOverrideSharedList(self):
+        """Test that a stamp cannot override a shared key holding a list.
+
+        Those lists hold one entry per stamp and are indexed by stamp number,
+        so replacing one with a single stamp's stale copy would misalign the
+        others.
+        """
+        ss = make_stamps(3)
+        # Every stamp shares the metadata holding the RA_DEG list, so appending
+        # leaves each stamp holding a list that is one entry short.
+        ss.append(ss[-1])
+        with tempfile.NamedTemporaryFile() as f:
+            ss.writeFits(f.name)
+            for md in image_hdu_metadata(f.name):
+                self.assertNotIn('RA_DEG', md)
+                self.assertNotIn('DEC_DEG', md)
+            ss2 = stamps.Stamps.readFitsWithOptions(f.name, None)
+            self.assertEqual(len(ss2), 4)
+            for stamp1, stamp2 in zip(ss, ss2):
+                self.assertAlmostEqual(stamp1.position.getRa().asDegrees(),
+                                       stamp2.position.getRa().asDegrees())
+
+    def testStampMetadataRewrite(self):
+        """Test that rewriting a file does not make its headers grow.
+
+        Reading merges the primary header into the metadata of each stamp, so
+        writing it back out must not repeat those keys, nor the ones the writer
+        produces for each extension by itself.
+        """
+        nStamps = 3
+        ss = make_stamps(nStamps)
+        for i, stamp in enumerate(ss):
+            stamp.metadata = {'SRCID': 100 + i}
+        with tempfile.NamedTemporaryFile() as f1, tempfile.NamedTemporaryFile() as f2:
+            ss.writeFits(f1.name)
+            ss2 = stamps.Stamps.readFitsWithOptions(f1.name, None)
+            ss2.writeFits(f2.name)
+            ss3 = stamps.Stamps.readFitsWithOptions(f2.name, None)
+            self.assertEqual([stamp.metadata['SRCID'] for stamp in ss3],
+                             [100 + i for i in range(nStamps)])
+            for md1, md2 in zip(image_hdu_metadata(f1.name), image_hdu_metadata(f2.name)):
+                self.assertEqual(sorted(md1.names()), sorted(md2.names()))
+                # A duplicated card shows up as a key holding several values.
+                for key in md2.names():
+                    self.assertEqual(len(md2.getArray(key)), len(md1.getArray(key)))
 
     def roundtrip(self, ss):
         """Round trip a Stamps object to disk and check values
