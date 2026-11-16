@@ -1078,9 +1078,11 @@ class SourceDetectionTask(pipeBase.Task):
         """
         doTempWideBackground = self.config.doTempWideBackground
         if doTempWideBackground:
-            self.log.info("Applying temporary wide background subtraction")
             original = exposure.maskedImage.image.array[:].copy()
-            self.tempWideBackground.run(exposure).background
+            tempWideBgList = self.tempWideBackground.run(exposure).background
+            medianTempWideBgValue = np.nanmedian(tempWideBgList.getImage().array)
+            self.log.info("Applying temporary wide background subtraction with median value: %.3f",
+                          medianTempWideBgValue)
             # Remove NO_DATA regions (e.g., edge of the field-of-view); these can cause detections after
             # subtraction because of extrapolation of the background model into areas with no constraints.
             image = exposure.maskedImage.image
