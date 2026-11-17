@@ -161,7 +161,18 @@ class DynamicDetectionConfig(SourceDetectionConfig):
                                "threshold is increased iteratively until it is. This behaviour is "
                                "intended to be an effective no-op for most \"typical\" scenes/standard "
                                "quality observations, but can avoid total meltdown in, e.g. very "
-                               "crowded regions.")
+                               "crowded regions.",
+                               deprecated="Superceded by maxPeaksMax. Will be removed after v31.")
+    maxPeaksMax = Field(dtype=int, default=800,
+                        doc="Maximum number of peaks in any footprint. This is to help prevent "
+                        "large single contiguous footprints that nothing can be done with (i.e. "
+                        "deblending will be skipped). If the current detection plane does not "
+                        "satisfy this constraint, the detection threshold is increased iteratively "
+                        "until it does. This behaviour is intended to be an effective no-op for "
+                        "most \"typical\" scenes/standard quality observations, but can avoid total "
+                        "meltdown in, e.g. very crowded regions.  One should consider the value "
+                        "set for config.multibandDeblend.maxNumberOfPeaks when setting the value "
+                        "here.")
 
     def setDefaults(self):
         SourceDetectionConfig.setDefaults(self)
@@ -543,8 +554,15 @@ class DynamicDetectionTask(SourceDetectionTask):
 
             growOverride = None
             inFinalize = True
+            maxPeaksMax = self.config.maxPeaksMax
+            minPeaksMax = int(0.2*maxPeaksMax)
+            nIterFinalize = -1
+            middleOrig = middle.clone()
             while inFinalize:
                 inFinalize = False
+                nIterFinalize += 1
+                if nIterFinalize > 0:
+                    middle = middleOrig.clone()
                 # Blow away preliminary (low threshold) detection mask
                 self.clearMask(maskedImage.mask)
                 if not clearMask:
@@ -564,14 +582,27 @@ class DynamicDetectionTask(SourceDetectionTask):
                     msg = "No footprints were detected, so further processing would be moot"
                     raise ZeroFootprintError(msg)
                 else:
-                    self.log.warning("nPeaks/nFootprint = %.2f (max is %.1f)",
-                                     results.numPosPeaks/results.numPos,
-                                     self.config.maxPeakToFootRatio)
-                    if results.numPosPeaks/results.numPos > self.config.maxPeakToFootRatio:
-                        if results.numPosPeaks/results.numPos > 3*self.config.maxPeakToFootRatio:
-                            factor *= 1.4
+                    nPeaksMax = 0
+                    nPeaksTot = 0
+                    for fp in results.positive.getFootprints():
+                        peaks = fp.peaks
+                        nPeaksTot += len(peaks)
+                        nPeaksMax = max(len(peaks), nPeaksMax)
+                    self.log.warning("positive: nPeaksMax = %d [must be %d < %d]; nPeaksTot = %d",
+                                     nPeaksMax, minPeaksMax, maxPeaksMax, nPeaksTot)
+                    if nIterFinalize > 0 and nIterFinalize < 5 and nPeaksMax < minPeaksMax:
+                        # The factor increase overshot, decrease it a tad
+                        inFinalize = True
+                        factor /= 1.02
+                        self.log.warning("positive: nPeaksMax = %d [must be %d < %d]. "
+                                         "Decreasing threshold factor to %.2f and re-running,",
+                                         nPeaksMax, minPeaksMax, maxPeaksMax, factor)
+
+                    if nPeaksMax > maxPeaksMax:
+                        if nPeaksMax > 3*maxPeaksMax:
+                            factor *= 1.3
                         else:
-                            factor *= 1.2
+                            factor *= 1.15
                         if factor > 2.0:
                             if growOverride is None:
                                 growOverride = 0.75*self.config.nSigmaToGrow
@@ -587,10 +618,10 @@ class DynamicDetectionTask(SourceDetectionTask):
                             inFinalize = False
                         else:
                             inFinalize = True
-                            self.log.warning("numPosPeaks/numPos (%d) > maxPeakPerFootprint (%.1f). "
+                            self.log.warning("positive: nPeaksMax = %d [must be %d < %d]. "
                                              "Increasing threshold factor to %.2f and re-running,",
-                                             results.numPosPeaks/results.numPos,
-                                             self.config.maxPeakToFootRatio, factor)
+                                             nPeaksMax, maxPeaksMax, minPeaksMax,
+                                             factor)
 
             self.clearUnwantedResults(maskedImage.mask, results)
 
@@ -659,6 +690,13 @@ class DynamicDetectionTask(SourceDetectionTask):
             bgLevel = 0.0
         self.tweakBackground(exposure, bgLevel, results.background)
 
+        nPeaksMax = 0
+        nPeaksTot = 0
+        for fp in results.positive.getFootprints():
+            peaks = fp.peaks
+            nPeaksTot += len(peaks)
+            nPeaksMax = max(len(peaks), nPeaksMax)
+        self.log.warning("positive: nPeaksMax = %d; nPeaksTot = %d", nPeaksMax, nPeaksTot)
         return results
 
     def tweakBackground(self, exposure, bgLevel, bgList=None):
