@@ -180,6 +180,7 @@ class DynamicDetectionConfig(SourceDetectionConfig):
         for maskStr in ["SAT"]:
             if maskStr not in self.skyObjects.avoidMask:
                 self.skyObjects.avoidMask.append(maskStr)
+        self.maskPlanesToIgnoreInTempWide = ["DETECTED_NEGATIVE"]
 
     def validate(self):
         super().validate()
@@ -488,14 +489,28 @@ class DynamicDetectionTask(SourceDetectionTask):
                    "consideration")
             raise TooManyMaskedPixelsError(msg)
 
-        with self.tempWideBackgroundContext(exposure):
-            # Could potentially smooth with a wider kernel than the PSF in
-            # order to better pick up the wings of stars and galaxies, but for
-            # now sticking with the PSF as that's more simple.
+        if not self.config.doThresholdScaling:
+            # This is to have some amount of a DETECTED mask for the tempWide
+            # subtraction.
             psf = self.getPsf(exposure, sigma=sigma)
             convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
+            middle = convolveResults.middle
+            sigma = convolveResults.sigma
+            prelim = self.applyThreshold(
+                middle, maskedImage.getBBox(), factor=4.0, factorNeg=6.0
+            )
+            self.finalizeFootprints(
+                maskedImage.mask, prelim, sigma, factor=4.0, factorNeg=6.0
+            )
 
+        with self.tempWideBackgroundContext(exposure):
             if self.config.doThresholdScaling:
+                # Could potentially smooth with a wider kernel than the PSF in
+                # order to better pick up the wings of stars and galaxies, but for
+                # now sticking with the PSF as that's more simple.
+                psf = self.getPsf(exposure, sigma=sigma)
+                convolveResults = self.convolveImage(maskedImage, psf, doSmooth=doSmooth)
+
                 if self.config.doBrightPrelimDetection:
                     brightDetectedMask, brightFactorNeg = self._computeBrightDetectionMask(
                         maskedImage, convolveResults)

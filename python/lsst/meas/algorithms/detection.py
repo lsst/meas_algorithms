@@ -163,6 +163,13 @@ class SourceDetectionConfig(pexConfig.Config):
         doc="Do temporary wide (large-scale) background subtraction before footprint detection?",
         default=False,
     )
+    maskPlanesToIgnoreInTempWide = lsst.pex.config.ListField(
+        dtype=str,
+        doc=("List of mask planes to ignore in the computation of the temporary wide "
+             "(large-scale) background subtraction before footprint detection. Not used if "
+             "doTempWideBackground is False."),
+        default=["DETECTED", "DETECTED_NEGATIVE"],
+    )
     nPeaksMaxSimple = pexConfig.Field(
         dtype=int,
         doc=("The maximum number of peaks in a Footprint before trying to "
@@ -195,8 +202,11 @@ class SourceDetectionConfig(pexConfig.Config):
         self.tempWideBackground.binSize = 512
         self.tempWideBackground.algorithm = "AKIMA_SPLINE"
         self.tempWideBackground.useApprox = False
-        # Ensure we can remove even bright scattered light that is DETECTED
-        for maskPlane in ("DETECTED", "DETECTED_NEGATIVE"):
+        # Allow for mask planes to be ignored to, e.g. ensure removal of
+        # bright scattered light that is DETECTED and/or include the most
+        # negative (oversubtracted?) regions to be included in the background
+        # measurement.
+        for maskPlane in self.maskPlanesToIgnoreInTempWide:
             if maskPlane in self.tempWideBackground.ignoredPixelMask:
                 self.tempWideBackground.ignoredPixelMask.remove(maskPlane)
 
