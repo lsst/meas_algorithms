@@ -1,0 +1,12 @@
+prefix=${pcfiledir}/../..
+includedir=${prefix}/include
+libdir=${prefix}/lib
+doxygen_tag=${prefix}/doc/meas_algorithms.tag
+lsst_build_requires=boost_test pybind11 python3
+
+Name: lsst_meas_algorithms
+Description: LSST Science Pipelines measurement algorithms
+Version: @VERSION@
+Requires: lsst_astshim lsst_cpputils lsst_geom lsst_afw boost_math lsst_pex_config lsst_meas_base minuit2 lsst_shapelet
+Cflags: -I${includedir}
+Libs: -L${libdir} -lmeas_algorithms
